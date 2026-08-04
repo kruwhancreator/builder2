@@ -1,0 +1,102 @@
+{
+  "book": "sentence-builder-vol-2",
+  "chapter": 1,
+  "title": "Present Continuous & Sentence Expansion",
+  "subtitle": "แบบฝึกหัดแต่งประโยคและขยายประโยค",
+  "exercises": {
+    "ex-1": {
+      "id": "ex-1",
+      "title": "Exercise 1: แปลประโยคภาษาอังกฤษ",
+      "type": "translation",
+      "instruction": "แปลประโยคภาษาอังกฤษต่อไปนี้ให้ถูกต้องตามหลัก Present Continuous (S + is/am/are + V.ing)",
+      "grammar_focus": "Present Continuous (S + is/am/are + V.ing)",
+      "items": [
+        {
+          "id": 1,
+          "thai": "ฉันกำลังเดินทางเพื่อกลับบ้าน",
+          "keywords": ["traveling", "travelling", "heading home", "go home"]
+        },
+        {
+          "id": 2,
+          "thai": "ฉันกำลังจัดผมเพื่อเสริมความมั่นใจตอนนี้",
+          "keywords": ["styling my hair", "doing my hair", "adjusting my hair", "boost confidence", "right now", "now"]
+        },
+        {
+          "id": 3,
+          "thai": "ฉันกำลังติดตามพัสดุเพราะมันเสี่ยง",
+          "keywords": ["tracking", "parcel", "package", "because", "risky"]
+        },
+        {
+          "id": 4,
+          "thai": "ฉันกำลังลังเลที่จะออกไปข้างนอก ณ ตอนนี้เพราะมันดึกแล้ว",
+          "keywords": ["hesitating", "go outside", "at the moment", "right now", "late"]
+        }
+      ]
+    },
+    "ex-2": {
+      "id": "ex-2",
+      "title": "Exercise 2: เติมคำและแต่งประโยค",
+      "type": "guided_sentence",
+      "instruction": "เลือกคำจาก Word Bank (หรือใช้คำของตัวเอง) มาแต่งประโยคตามโครงสร้างที่กำหนด",
+      "grammar_focus": "Sentence Building (Action + Time + Purpose + Reason)",
+      "word_bank": {
+        "action": ["making breakfast", "cleaning my room", "adjusting my schedule"],
+        "purpose": ["to save money", "to find my keys", "to fit my schedule"],
+        "time": ["now", "right now", "at the moment", "currently"],
+        "reason": ["because it is healthy", "cheap", "challenging"]
+      },
+      "templates": [
+        "I am [Action]",
+        "I am [Action] right now",
+        "I am [Action] to [Purpose]",
+        "I am [Action] to [Purpose] now because it is/was [Reason]"
+      ],
+      "items": [
+        {
+          "id": 1,
+          "prompt": "แต่งประโยคระบุการกระทำ (Action) และช่วงเวลา (Time)"
+        },
+        {
+          "id": 2,
+          "prompt": "แต่งประโยคระบุการกระทำ (Action), จุดประสงค์ (Purpose) และช่วงเวลา (Time)"
+        },
+        {
+          "id": 3,
+          "prompt": "แต่งประโยคฉบับสมบูรณ์ (Action + Purpose + Time + Reason)"
+        }
+      ]
+    },
+    "ex-3": {
+      "id": "ex-3",
+      "title": "Exercise 3: แต่งประโยคจากภาพ",
+      "type": "picture_description",
+      "instruction": "ดูภาพแล้วแต่งประโยคโดยใช้โครงสร้าง Core + Context + Connect",
+      "grammar_focus": "Core (S + am + V.ing) + Context (time/place) + Connect (because + reason)",
+      "structure_required": {
+        "Core": "S + am + V.ing (เช่น I am drinking coffee)",
+        "Context": "time/place (เช่น at the moment, right now)",
+        "Connect": "because + reason (เช่น because it is...)"
+      },
+      "items": [
+        {
+          "id": 1,
+          "image_description": "ผู้ชายกำลังดื่มกาแฟในคาเฟ่",
+          "context_hint": "ดื่มกาแฟ / ในคาเฟ่ / เพื่อความสดชื่น",
+          "icon": "Coffee"
+        },
+        {
+          "id": 2,
+          "image_description": "ผู้หญิงกำลังวิ่งออกกำลังกายในสวนสาธารณะ",
+          "context_hint": "วิ่งออกกำลังกาย / ในสวนสาธารณะ / เพื่อสุขภาพดี",
+          "icon": "Activity"
+        },
+        {
+          "id": 3,
+          "image_description": "ผู้หญิงกำลังเลือกซื้อของสุขภาพในซูเปอร์มาร์เก็ต",
+          "context_hint": "ซื้อของสุขภาพ / ในซูเปอร์มาร์เก็ต / เพราะห่วงสุขภาพ",
+          "icon": "ShoppingCart"
+        }
+      ]
+    }
+  }
+}
