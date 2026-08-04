@@ -446,7 +446,7 @@ export default function ExerciseWorkspace({ chapter, exerciseId, chapterData }: 
                         : 'bg-amber-50 text-amber-700 border-amber-200'
                     }`}>
                       <Cpu className="w-3 h-3" />
-                      {result.isLiveGemini ? 'Gemini 2.5 Flash API Live' : 'Offline Smart Evaluator'}
+                      {result.isLiveGemini ? (result.modelUsed ? `✨ ${result.modelUsed} Live` : '✨ Gemini 3.5 Flash Lite Live') : '⚡ Offline Smart Evaluator'}
                     </span>
                   )}
                   

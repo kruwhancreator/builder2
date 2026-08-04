@@ -15,6 +15,7 @@ export interface EvaluationResult {
   feedbackPoints: string[];
   breakdown?: Record<string, any>;
   isLiveGemini?: boolean;
+  modelUsed?: string;
 }
 
 export async function evaluateAnswer(req: EvaluationRequest): Promise<EvaluationResult> {
@@ -81,15 +82,18 @@ CRITICAL RULE FOR CORE: Any subject + is/am/are + V.ing (such as "The man is dri
 Return breakdown object: { "core": boolean, "context": boolean, "connect": boolean }.`;
   }
 
-  // Model fallback sequence to guarantee high availability
+  // Model fallback sequence prioritizing Gemini 3.5 Flash Lite
   const modelsToTry = [
+    'gemini-3.5-flash-lite',
+    'gemini-3.5-flash',
+    'gemini-3.6-flash',
     'gemini-flash-lite-latest',
-    'gemini-2.0-flash',
-    'gemini-1.5-flash-latest'
+    'gemini-2.0-flash'
   ];
 
   let lastError: any = null;
   let text = '';
+  let successfulModel = '';
 
   for (const model of modelsToTry) {
     try {
@@ -104,7 +108,10 @@ Return breakdown object: { "core": boolean, "context": boolean, "connect": boole
         }
       });
       text = response.text || '';
-      if (text) break;
+      if (text) {
+        successfulModel = model;
+        break;
+      }
     } catch (err) {
       lastError = err;
       console.warn(`Model ${model} failed, trying next model:`, err);
@@ -135,7 +142,8 @@ Return breakdown object: { "core": boolean, "context": boolean, "connect": boole
     statusText: parsed.statusText || 'ตรวจคำตอบเรียบร้อยแล้ว',
     correctedSentence: parsed.correctedSentence || req.studentAnswer,
     feedbackPoints: Array.isArray(parsed.feedbackPoints) ? parsed.feedbackPoints : ['ไวยากรณ์ส่วนใหญ่ถูกต้อง'],
-    breakdown: cleanBreakdown
+    breakdown: cleanBreakdown,
+    modelUsed: successfulModel
   };
 }
 
