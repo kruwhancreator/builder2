@@ -39,12 +39,21 @@ export default function RootLayout({
               </div>
             </a>
             
-            <a 
-              href="/sentence-builder-vol-2/chapter-1"
-              className="text-xs px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium border border-slate-300 transition-all flex items-center gap-1.5 shadow-xs"
-            >
-              <span>📘 Chapter 1 Overview</span>
-            </a>
+            <div className="flex items-center gap-2">
+              <a 
+                href="/sentence-builder-vol-2/chapter-1"
+                className="text-xs px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium border border-slate-300 transition-all flex items-center gap-1.5 shadow-xs"
+              >
+                <span>📘 Exercises</span>
+              </a>
+
+              <a 
+                href="/admin"
+                className="text-xs px-3 py-1.5 rounded-lg bg-[#1374bc]/10 hover:bg-[#1374bc]/20 text-[#1374bc] font-bold border border-[#1374bc]/20 transition-all flex items-center gap-1.5 shadow-xs"
+              >
+                <span>⚙️ Admin CMS</span>
+              </a>
+            </div>
           </div>
         </header>
 

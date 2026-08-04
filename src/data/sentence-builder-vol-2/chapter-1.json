@@ -14,8 +14,13 @@
         {
           "id": 1,
           "thai": "ฉันกำลังเดินทางเพื่อกลับบ้าน",
-          "keywords": ["commuting", "get home", "traveling", "heading home"],
-          "model_answer": "I am commuting to get home.",
+          "keywords": [
+            "commuting",
+            "get home",
+            "traveling",
+            "heading home"
+          ],
+          "model_answer": "I am commuting to get home. (test-edit)",
           "acceptable_answers": [
             "I am commuting to get home.",
             "I am traveling to go home.",
@@ -26,7 +31,12 @@
         {
           "id": 2,
           "thai": "ฉันกำลังจัดผมเพื่อเสริมความมั่นใจตอนนี้",
-          "keywords": ["fixing my hair", "styling my hair", "boost confidence", "now"],
+          "keywords": [
+            "fixing my hair",
+            "styling my hair",
+            "boost confidence",
+            "now"
+          ],
           "model_answer": "I am fixing my hair to boost confidence now.",
           "acceptable_answers": [
             "I am fixing my hair to boost confidence now.",
@@ -37,7 +47,11 @@
         {
           "id": 3,
           "thai": "ฉันกำลังติดตามพัสดุเพราะมันเสี่ยง",
-          "keywords": ["tracking a parcel", "tracking the package", "because it is risky"],
+          "keywords": [
+            "tracking a parcel",
+            "tracking the package",
+            "because it is risky"
+          ],
           "model_answer": "I am tracking a parcel because it is risky.",
           "acceptable_answers": [
             "I am tracking a parcel because it is risky.",
@@ -48,7 +62,11 @@
         {
           "id": 4,
           "thai": "ฉันกำลังลังเลที่จะออกไปข้างนอก ณ ตอนนี้เพราะมันดึกแล้ว",
-          "keywords": ["hesitating to go outside", "now", "because it is late"],
+          "keywords": [
+            "hesitating to go outside",
+            "now",
+            "because it is late"
+          ],
           "model_answer": "I am hesitating to go outside now because it is late.",
           "acceptable_answers": [
             "I am hesitating to go outside now because it is late.",
@@ -65,10 +83,27 @@
       "instruction": "เลือกคำจากที่มีให้ (หรือใช้คำของตัวเอง) มาแต่งประโยคแบบ Free style โดย AI จะตรวจความถูกต้องของหลักไวยากรณ์และการสะกดคำ",
       "grammar_focus": "Sentence Building (Action + Time + Purpose + Reason)",
       "word_bank": {
-        "action": ["making breakfast", "cleaning my room", "adjusting my schedule"],
-        "purpose": ["to save money", "to find my keys", "to fit my schedule"],
-        "time": ["now", "right now", "at the moment", "currently"],
-        "reason": ["because it is cheap", "because it is healthy", "because it is challenging"]
+        "action": [
+          "making breakfast",
+          "cleaning my room",
+          "adjusting my schedule"
+        ],
+        "purpose": [
+          "to save money",
+          "to find my keys",
+          "to fit my schedule"
+        ],
+        "time": [
+          "now",
+          "right now",
+          "at the moment",
+          "currently"
+        ],
+        "reason": [
+          "because it is cheap",
+          "because it is healthy",
+          "because it is challenging"
+        ]
       },
       "templates": [
         "1. I am + [กำลังทำอะไร] (เช่น I am making breakfast.)",
