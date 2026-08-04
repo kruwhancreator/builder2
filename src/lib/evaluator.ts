@@ -38,7 +38,8 @@ async function evaluateWithGemini(apiKey: string, req: EvaluationRequest): Promi
   const ai = new GoogleGenAI({ apiKey });
 
   const systemInstruction = `You are QuillBot-style AI Exercise Advisor for English language learners in Thailand using Sentence Builder Vol. 2.
-Evaluate student answers with encouragement, score (0-100), corrected sentence, and detailed Thai bullet points.
+You evaluate student answers using provided Ground Truth Model Answers and Teacher Guidance notes.
+Provide encouragement, score (0-100), corrected sentence, and detailed Thai bullet points.
 
 CRITICAL REQUIREMENT: You MUST respond ONLY with valid, raw JSON matching this schema:
 {
@@ -50,19 +51,28 @@ CRITICAL REQUIREMENT: You MUST respond ONLY with valid, raw JSON matching this s
 }
 Do not wrap in markdown code blocks. Return pure raw JSON string only.`;
 
+  const modelAnswer = req.item.model_answer ? `Model Answer (Ground Truth): "${req.item.model_answer}"` : '';
+  const acceptableAnswers = req.item.acceptable_answers ? `Acceptable Answer Variations: ${JSON.stringify(req.item.acceptable_answers)}` : '';
+  const teacherGuidance = req.item.teacher_guidance ? `Teacher Guidance / Grading Notes: "${req.item.teacher_guidance}"` : '';
+
   let prompt = '';
   if (req.exerciseType === 'translation') {
     prompt = `Exercise Type: Translation
 Thai Original Prompt: "${req.item.thai}"
 Target Keywords: ${JSON.stringify(req.item.keywords || [])}
+${modelAnswer}
+${acceptableAnswers}
+${teacherGuidance}
 Student Answer: "${req.studentAnswer}"
 
-Evaluate if the student used Present Continuous (S + is/am/are + V.ing) correctly. Accept valid subject variations (I am, The man is, She is, He is). Allow synonyms. Provide helpful Thai feedback.`;
+Evaluate if the student used Present Continuous (S + is/am/are + V.ing) correctly according to the Model Answer and Teacher Guidance. Accept valid subject variations (I am, The man is, She is, He is). Allow synonyms. Provide helpful Thai feedback.`;
   } else if (req.exerciseType === 'guided_sentence') {
     prompt = `Exercise Type: Guided Sentence
 Prompt: "${req.item.prompt}"
 Word Bank: ${JSON.stringify(req.wordBank || {})}
 Templates: ${JSON.stringify(req.templates || [])}
+${modelAnswer}
+${teacherGuidance}
 Student Answer: "${req.studentAnswer}"
 
 Evaluate if the sentence correctly constructs Action + Time + Purpose + Reason using Present Continuous. Accept any valid subjects (I am, The man is, She is, etc.).
@@ -70,6 +80,11 @@ Provide breakdown object: { "actionValid": boolean, "timeValid": boolean, "purpo
   } else {
     prompt = `Exercise Type: Picture Description
 Picture Description: "${req.item.image_description}"
+Context Hint: "${req.item.context_hint || ''}"
+${modelAnswer}
+${acceptableAnswers}
+${teacherGuidance}
+
 Required Structure:
 1. Core: S + is/am/are + V.ing (e.g., "The man is drinking coffee", "He is drinking coffee", "I am drinking coffee")
 2. Context: time or place (e.g., "at the cafe", "right now", "now", "in the park")
@@ -77,7 +92,7 @@ Required Structure:
 
 Student Answer: "${req.studentAnswer}"
 
-CRITICAL RULE FOR CORE: Any subject + is/am/are + V.ing (such as "The man is drinking", "He is drinking", "I am drinking") MUST BE ACCEPTED AS A VALID CORE. Do NOT mark "The man is drinking" as incorrect for Core.
+CRITICAL RULE FOR CORE: Any subject + is/am/are + V.ing (such as "The man is drinking", "He is drinking", "I am drinking") MUST BE ACCEPTED AS A VALID CORE.
 
 Return breakdown object: { "core": boolean, "context": boolean, "connect": boolean }.`;
   }
@@ -124,7 +139,6 @@ Return breakdown object: { "core": boolean, "context": boolean, "connect": boole
 
   const parsed = JSON.parse(text.replace(/```json|```/g, '').trim());
 
-  // Clean breakdown if comments were returned inside object
   let cleanBreakdown: Record<string, boolean> | undefined = undefined;
   if (parsed.breakdown && typeof parsed.breakdown === 'object') {
     cleanBreakdown = {};
@@ -182,7 +196,7 @@ function evaluateTranslationLocally(item: any, lower: string, original: string):
   }
 
   if (item.id === 1) {
-    const corrected = "I am traveling to go home.";
+    const corrected = item.model_answer || "I am traveling to go home.";
     if (lower.includes("traveling") || lower.includes("travelling") || lower.includes("heading")) {
       points.push('✅ คำกริยาการเดินทาง (traveling/heading) ถูกต้องและเหมาะสมกับบริบท');
     } else {
@@ -233,7 +247,7 @@ function evaluateTranslationLocally(item: any, lower: string, original: string):
     return {
       score,
       statusText: `⚡ เกือบถูกต้องแล้ว! (${score}%)`,
-      correctedSentence: original.endsWith('.') ? original : `${original}.`,
+      correctedSentence: item.model_answer || original.endsWith('.') ? original : `${original}.`,
       feedbackPoints: points
     };
   }
@@ -241,7 +255,7 @@ function evaluateTranslationLocally(item: any, lower: string, original: string):
   return {
     score: hasPresentContinuous ? 90 : 70,
     statusText: hasPresentContinuous ? '🎉 ประโยคถูกต้องตามหลักการ! (90%)' : '⚡ ลองปรับโครงสร้างประโยคอีกนิด! (70%)',
-    correctedSentence: original.charAt(0).toUpperCase() + original.slice(1) + (original.endsWith('.') ? '' : '.'),
+    correctedSentence: item.model_answer || (original.charAt(0).toUpperCase() + original.slice(1) + (original.endsWith('.') ? '' : '.')),
     feedbackPoints: points.length > 0 ? points : ['โครงสร้างประโยคโดยรวมใช้งานได้ดี']
   };
 }

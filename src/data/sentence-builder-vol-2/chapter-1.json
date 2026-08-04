@@ -14,22 +14,44 @@
         {
           "id": 1,
           "thai": "ฉันกำลังเดินทางเพื่อกลับบ้าน",
-          "keywords": ["traveling", "travelling", "heading home", "go home"]
+          "keywords": ["traveling", "travelling", "heading home", "go home"],
+          "model_answer": "I am traveling to go home.",
+          "acceptable_answers": [
+            "I am heading home right now.",
+            "I am traveling back home."
+          ],
+          "teacher_guidance": "เน้นตรวจ Present Continuous (I am traveling/heading) และคำว่ากลับบ้าน (go home / heading home)"
         },
         {
           "id": 2,
           "thai": "ฉันกำลังจัดผมเพื่อเสริมความมั่นใจตอนนี้",
-          "keywords": ["styling my hair", "doing my hair", "adjusting my hair", "boost confidence", "right now", "now"]
+          "keywords": ["styling my hair", "doing my hair", "adjusting my hair", "boost confidence", "right now", "now"],
+          "model_answer": "I am styling my hair to boost my confidence now.",
+          "acceptable_answers": [
+            "I am doing my hair to boost my confidence right now.",
+            "I am adjusting my hair to boost confidence at the moment."
+          ],
+          "teacher_guidance": "เน้นกริยาจัดผม (styling my hair) และการเติมคำบอกเจ้าของหน้า confidence (my confidence)"
         },
         {
           "id": 3,
           "thai": "ฉันกำลังติดตามพัสดุเพราะมันเสี่ยง",
-          "keywords": ["tracking", "parcel", "package", "because", "risky"]
+          "keywords": ["tracking", "parcel", "package", "because", "risky"],
+          "model_answer": "I am tracking the parcel because it is risky.",
+          "acceptable_answers": [
+            "I am tracking my package because it is risky."
+          ],
+          "teacher_guidance": "เน้นกริยา tracking the parcel และคำเชื่อมเพราะว่า (because it is risky)"
         },
         {
           "id": 4,
           "thai": "ฉันกำลังลังเลที่จะออกไปข้างนอก ณ ตอนนี้เพราะมันดึกแล้ว",
-          "keywords": ["hesitating", "go outside", "at the moment", "right now", "late"]
+          "keywords": ["hesitating", "go outside", "at the moment", "right now", "late"],
+          "model_answer": "I am hesitating to go outside at the moment because it is late.",
+          "acceptable_answers": [
+            "I am hesitating to go out right now because it is late."
+          ],
+          "teacher_guidance": "เน้นกริยา I am hesitating to go outside และคำบอกเวลา at the moment / right now"
         }
       ]
     },
@@ -54,15 +76,21 @@
       "items": [
         {
           "id": 1,
-          "prompt": "แต่งประโยคระบุการกระทำ (Action) และช่วงเวลา (Time)"
+          "prompt": "แต่งประโยคระบุการกระทำ (Action) และช่วงเวลา (Time)",
+          "model_answer": "I am making breakfast right now.",
+          "teacher_guidance": "ต้องมี Action (เช่น making breakfast) + Time (เช่น right now, at the moment)"
         },
         {
           "id": 2,
-          "prompt": "แต่งประโยคระบุการกระทำ (Action), จุดประสงค์ (Purpose) และช่วงเวลา (Time)"
+          "prompt": "แต่งประโยคระบุการกระทำ (Action), จุดประสงค์ (Purpose) และช่วงเวลา (Time)",
+          "model_answer": "I am cleaning my room to find my keys now.",
+          "teacher_guidance": "ต้องมี Action + Purpose (to + V.inf) + Time"
         },
         {
           "id": 3,
-          "prompt": "แต่งประโยคฉบับสมบูรณ์ (Action + Purpose + Time + Reason)"
+          "prompt": "แต่งประโยคฉบับสมบูรณ์ (Action + Purpose + Time + Reason)",
+          "model_answer": "I am making breakfast to save money now because it is healthy.",
+          "teacher_guidance": "แต่งครบทั้ง 4 ส่วน: Action + Purpose + Time + Reason (because ...)"
         }
       ]
     },
@@ -82,19 +110,36 @@
           "id": 1,
           "image_description": "ผู้ชายกำลังดื่มกาแฟในคาเฟ่",
           "context_hint": "ดื่มกาแฟ / ในคาเฟ่ / เพื่อความสดชื่น",
-          "icon": "Coffee"
+          "icon": "Coffee",
+          "model_answer": "The man is drinking coffee at the cafe right now for refreshment.",
+          "acceptable_answers": [
+            "He is drinking coffee in the cafe because he feels sleepy.",
+            "I am drinking coffee at the cafe right now to feel refreshed."
+          ],
+          "teacher_guidance": "ยอมรับประธานได้ทุกแบบ (The man is..., He is..., I am...) + กริยา drinking + สถานที่/เวลา + คำเชื่อมเหตุผล/จุดประสงค์ (because / for / to)"
         },
         {
           "id": 2,
           "image_description": "ผู้หญิงกำลังวิ่งออกกำลังกายในสวนสาธารณะ",
           "context_hint": "วิ่งออกกำลังกาย / ในสวนสาธารณะ / เพื่อสุขภาพดี",
-          "icon": "Activity"
+          "icon": "Activity",
+          "model_answer": "The woman is running in the park right now because it is healthy.",
+          "acceptable_answers": [
+            "She is running in the park to stay healthy.",
+            "I am running in the park at the moment for good health."
+          ],
+          "teacher_guidance": "ยอมรับ (The woman is running / She is running / I am running) + สถานที่ (in the park) + เหตุผล (because it is healthy / to stay fit)"
         },
         {
           "id": 3,
           "image_description": "ผู้หญิงกำลังเลือกซื้อของสุขภาพในซูเปอร์มาร์เก็ต",
           "context_hint": "ซื้อของสุขภาพ / ในซูเปอร์มาร์เก็ต / เพราะห่วงสุขภาพ",
-          "icon": "ShoppingCart"
+          "icon": "ShoppingCart",
+          "model_answer": "The woman is buying healthy food at the supermarket now because she cares about her health.",
+          "acceptable_answers": [
+            "She is shopping for health products in the supermarket because it is good for her."
+          ],
+          "teacher_guidance": "ยอมรับ (The woman is buying/shopping / She is...) + สถานที่ (supermarket) + เหตุผล (because...)"
         }
       ]
     }
