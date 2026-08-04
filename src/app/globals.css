@@ -3,69 +3,71 @@
 @layer base {
   :root {
     --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+    --primary: #1374bc;
+    --secondary: #de3030;
   }
 
   body {
-    background: radial-gradient(circle at 50% 0%, #1e1b4b 0%, #0f172a 50%, #020617 100%);
-    color: #f8fafc;
+    background-color: #fcfdfd;
+    background-image: 
+      linear-gradient(rgba(19, 116, 188, 0.07) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(19, 116, 188, 0.07) 1px, transparent 1px);
+    background-size: 24px 24px;
+    color: #1e293b;
     min-height: 100vh;
     font-family: var(--font-sans);
   }
 }
 
-/* Custom UI Polish & Glassmorphism Effects */
+/* Notebook Light Theme Panels & Cards */
 .glass-panel {
-  background: rgba(30, 41, 59, 0.7);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 4px 20px -2px rgba(19, 116, 188, 0.08), 0 2px 6px -1px rgba(0, 0, 0, 0.04);
 }
 
 .glass-panel-accent {
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(168, 85, 247, 0.15) 100%);
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(168, 85, 247, 0.25);
+  background: linear-gradient(135deg, rgba(19, 116, 188, 0.05) 0%, rgba(222, 48, 48, 0.05) 100%);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(19, 116, 188, 0.2);
+  box-shadow: 0 8px 30px -4px rgba(19, 116, 188, 0.12);
 }
 
 .gradient-text {
-  background: linear-gradient(135deg, #818cf8 0%, #c084fc 50%, #f472b6 100%);
+  background: linear-gradient(135deg, #1374bc 0%, #0284c7 60%, #de3030 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
 .gradient-button {
-  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  background: linear-gradient(135deg, #1374bc 0%, #0c5a96 100%);
+  color: #ffffff;
   transition: all 0.2s ease-in-out;
 }
 
 .gradient-button:hover {
-  background: linear-gradient(135deg, #4338ca 0%, #6d28d9 100%);
+  background: linear-gradient(135deg, #0e619e 0%, #084575 100%);
   transform: translateY(-1px);
-  box-shadow: 0 4px 20px rgba(99, 102, 241, 0.4);
+  box-shadow: 0 4px 16px rgba(19, 116, 188, 0.3);
 }
 
 .chip-button {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #334155;
   transition: all 0.15s ease;
 }
 
 .chip-button:hover {
-  background: rgba(99, 102, 241, 0.25);
-  border-color: rgba(129, 140, 248, 0.5);
+  background: rgba(19, 116, 188, 0.12);
+  border-color: #1374bc;
+  color: #1374bc;
   transform: scale(1.02);
 }
 
-@keyframes pulseGlow {
-  0%, 100% {
-    box-shadow: 0 0 15px rgba(99, 102, 241, 0.2);
-  }
-  50% {
-    box-shadow: 0 0 25px rgba(168, 85, 247, 0.4);
-  }
-}
-
-.glow-box {
-  animation: pulseGlow 4s infinite ease-in-out;
+/* Notebook red margin accent line option */
+.notebook-margin {
+  border-left: 3px solid #de3030;
 }

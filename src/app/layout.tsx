@@ -24,24 +24,24 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="th" className={`${inter.variable} ${outfit.variable}`}>
-      <body className="antialiased selection:bg-indigo-500 selection:text-white">
-        <header className="sticky top-0 z-50 glass-panel border-b border-slate-800/80 px-4 py-3">
+      <body className="antialiased selection:bg-[#1374bc] selection:text-white text-slate-800">
+        <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 px-4 py-3 shadow-xs">
           <div className="max-w-5xl mx-auto flex items-center justify-between">
-            <a href="/sentence-builder-vol-2/chapter-1" className="flex items-center gap-2 group">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center font-bold text-white shadow-lg group-hover:scale-105 transition-transform">
+            <a href="/sentence-builder-vol-2/chapter-1" className="flex items-center gap-2.5 group">
+              <div className="w-8 h-8 rounded-lg bg-[#1374bc] flex items-center justify-center font-bold text-white shadow-sm group-hover:scale-105 transition-transform">
                 SB
               </div>
               <div>
-                <h1 className="text-sm font-bold text-slate-100 tracking-wide flex items-center gap-1.5">
-                  Sentence Builder <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">Vol. 2</span>
+                <h1 className="text-sm font-bold text-slate-900 tracking-wide flex items-center gap-1.5">
+                  Sentence Builder <span className="text-xs px-2 py-0.5 rounded-full bg-[#1374bc]/10 text-[#1374bc] font-semibold border border-[#1374bc]/20">Vol. 2</span>
                 </h1>
-                <p className="text-[10px] text-slate-400">AI Exercise Advisor System</p>
+                <p className="text-[10px] text-slate-500">AI Exercise Advisor System</p>
               </div>
             </a>
             
             <a 
               href="/sentence-builder-vol-2/chapter-1"
-              className="text-xs px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/60 transition-all flex items-center gap-1.5"
+              className="text-xs px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium border border-slate-300 transition-all flex items-center gap-1.5 shadow-xs"
             >
               <span>📘 Chapter 1 Overview</span>
             </a>
