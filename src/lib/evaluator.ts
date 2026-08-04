@@ -81,18 +81,40 @@ CRITICAL RULE FOR CORE: Any subject + is/am/are + V.ing (such as "The man is dri
 Return breakdown object: { "core": boolean, "context": boolean, "connect": boolean }.`;
   }
 
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
-    contents: [
-      { role: 'user', parts: [{ text: `${systemInstruction}\n\nTask:\n${prompt}` }] }
-    ],
-    config: {
-      temperature: 0.2,
-      responseMimeType: 'application/json',
-    }
-  });
+  // Model fallback sequence to guarantee high availability
+  const modelsToTry = [
+    'gemini-flash-lite-latest',
+    'gemini-2.0-flash',
+    'gemini-1.5-flash-latest'
+  ];
 
-  const text = response.text || '';
+  let lastError: any = null;
+  let text = '';
+
+  for (const model of modelsToTry) {
+    try {
+      const response = await ai.models.generateContent({
+        model,
+        contents: [
+          { role: 'user', parts: [{ text: `${systemInstruction}\n\nTask:\n${prompt}` }] }
+        ],
+        config: {
+          temperature: 0.2,
+          responseMimeType: 'application/json',
+        }
+      });
+      text = response.text || '';
+      if (text) break;
+    } catch (err) {
+      lastError = err;
+      console.warn(`Model ${model} failed, trying next model:`, err);
+    }
+  }
+
+  if (!text) {
+    throw lastError || new Error('All Gemini models failed');
+  }
+
   const parsed = JSON.parse(text.replace(/```json|```/g, '').trim());
 
   // Clean breakdown if comments were returned inside object
@@ -179,7 +201,6 @@ function evaluateTranslationLocally(item: any, lower: string, original: string):
 
   if (item.id === 2) {
     const hasMyConfidence = lower.includes("confidence");
-    let corrected = "I am styling my hair to boost my confidence now.";
     
     if (lower.includes("styling") || lower.includes("doing") || lower.includes("adjusting")) {
       points.push('✅ การใช้กริยาจัดผมถูกต้องตามโครงสร้าง Present Continuous แล้วครับ!');
@@ -204,7 +225,7 @@ function evaluateTranslationLocally(item: any, lower: string, original: string):
     return {
       score,
       statusText: `⚡ เกือบถูกต้องแล้ว! (${score}%)`,
-      correctedSentence: corrected,
+      correctedSentence: original.endsWith('.') ? original : `${original}.`,
       feedbackPoints: points
     };
   }
@@ -267,7 +288,6 @@ function evaluateGuidedSentenceLocally(lower: string, original: string): Evaluat
 function evaluatePictureDescriptionLocally(lower: string, original: string): EvaluationResult {
   const points: string[] = [];
 
-  // Match any Subject (I, He, She, They, The man, A woman, etc.) + is/am/are + V.ing
   const hasCore = /\b(i\s+am|(he|she|it|they|we|you|the\s+\w+|\w+)\s+(is|am|are))\s+\w+ing\b/i.test(lower) || /\b(is|am|are)\s+\w+ing\b/i.test(lower);
   const hasContext = /\b(at|in|on|now|right now|at the moment|currently|today|cafe|park|supermarket)\b/i.test(lower);
   const hasConnect = /\b(because|for|to)\b/i.test(lower) || lower.includes("so that");
