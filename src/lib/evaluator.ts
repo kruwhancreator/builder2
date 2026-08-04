@@ -37,45 +37,50 @@ export async function evaluateAnswer(req: EvaluationRequest): Promise<Evaluation
 async function evaluateWithGemini(apiKey: string, req: EvaluationRequest): Promise<EvaluationResult> {
   const ai = new GoogleGenAI({ apiKey });
 
-  const systemInstruction = `You are QuillBot-style AI Exercise Advisor for English language learners in Thailand using Sentence Builder Vol. 2.
-You evaluate student answers using provided Ground Truth Model Answers and Teacher Guidance notes.
-Provide encouragement, score (0-100), corrected sentence, and detailed Thai bullet points.
+  const systemInstruction = `You are an expert English Language Teacher & QuillBot-style AI Exercise Advisor for Thai students using Sentence Builder Vol. 2.
+Your goal is to evaluate student answers, check grammar (Present Continuous: S + is/am/are + V.ing), detect spelling errors (e.g., "makeing" -> "making"), check punctuation (must have a period '.' at the end), and provide encouraging feedback in Thai.
+
+CRITICAL EVALUATION RULES:
+1. Check Spelling: Carefully look for spelling errors in verbs (e.g. "makeing" -> "making", "driveing" -> "driving", "runing" -> "running"). If a spelling mistake is found, explicitly mention it in feedbackPoints in Thai and fix it in correctedSentence.
+2. Check Punctuation: Check if the sentence ends with a period (Full stop "."). If missing, add "." to correctedSentence and remind the student in Thai: "อย่าลืมใส่เครื่องหมายจุด Full Stop (.) ท้ายประโยคด้วยครับ".
+3. For Exercise 1 (Translation): Compare against the target Model Answer and Teacher Guidance provided.
+4. For Exercise 2 (Guided Free Style Sentence): Students write free-style sentences. Verify that grammar (S + is/am/are + V.ing) is correct and matches the step requirement.
 
 CRITICAL REQUIREMENT: You MUST respond ONLY with valid, raw JSON matching this schema:
 {
   "score": number (0-100),
   "statusText": "string in Thai (e.g. ✅ ถูกต้องสมบูรณ์! (100%) or ⚡ เกือบถูกต้องแล้ว! (90%))",
-  "correctedSentence": "string (the natural, grammatically correct English sentence)",
+  "correctedSentence": "string (the natural, grammatically correct English sentence ending with a period '.')",
   "feedbackPoints": ["string in Thai", "string in Thai"],
-  "breakdown": optional object with key-value checks (e.g. { "core": true, "context": true, "connect": true })
+  "breakdown": optional object with key-value checks (e.g. { "actionValid": true, "timeValid": true, "purposeValid": true, "reasonValid": true })
 }
 Do not wrap in markdown code blocks. Return pure raw JSON string only.`;
 
-  const modelAnswer = req.item.model_answer ? `Model Answer (Ground Truth): "${req.item.model_answer}"` : '';
-  const acceptableAnswers = req.item.acceptable_answers ? `Acceptable Answer Variations: ${JSON.stringify(req.item.acceptable_answers)}` : '';
-  const teacherGuidance = req.item.teacher_guidance ? `Teacher Guidance / Grading Notes: "${req.item.teacher_guidance}"` : '';
+  const modelAnswer = req.item.model_answer ? `Target Model Answer: "${req.item.model_answer}"` : '';
+  const acceptableAnswers = req.item.acceptable_answers ? `Acceptable Variations: ${JSON.stringify(req.item.acceptable_answers)}` : '';
+  const teacherGuidance = req.item.teacher_guidance ? `Teacher Instructions: "${req.item.teacher_guidance}"` : '';
 
   let prompt = '';
   if (req.exerciseType === 'translation') {
     prompt = `Exercise Type: Translation
-Thai Original Prompt: "${req.item.thai}"
+Thai Prompt: "${req.item.thai}"
 Target Keywords: ${JSON.stringify(req.item.keywords || [])}
 ${modelAnswer}
 ${acceptableAnswers}
 ${teacherGuidance}
 Student Answer: "${req.studentAnswer}"
 
-Evaluate if the student used Present Continuous (S + is/am/are + V.ing) correctly according to the Model Answer and Teacher Guidance. Accept valid subject variations (I am, The man is, She is, He is). Allow synonyms. Provide helpful Thai feedback.`;
+Evaluate student answer against Target Model Answer and Teacher Instructions. Check spelling (e.g. makeing -> making), grammar (S + is/am/are + V.ing), and ending period '.'.`;
   } else if (req.exerciseType === 'guided_sentence') {
-    prompt = `Exercise Type: Guided Sentence
-Prompt: "${req.item.prompt}"
-Word Bank: ${JSON.stringify(req.wordBank || {})}
-Templates: ${JSON.stringify(req.templates || [])}
+    prompt = `Exercise Type: Guided Sentence (Free Style)
+Prompt Step: "${req.item.prompt}"
+Word Bank Reference: ${JSON.stringify(req.wordBank || {})}
+Templates Reference: ${JSON.stringify(req.templates || [])}
 ${modelAnswer}
 ${teacherGuidance}
 Student Answer: "${req.studentAnswer}"
 
-Evaluate if the sentence correctly constructs Action + Time + Purpose + Reason using Present Continuous. Accept any valid subjects (I am, The man is, She is, etc.).
+Students write free-style sentences following the step structure. Check grammar (I am + V.ing), spelling (e.g. "makeing" -> "making"), and full stop "." at the end.
 Provide breakdown object: { "actionValid": boolean, "timeValid": boolean, "purposeValid": boolean, "reasonValid": boolean }.`;
   } else {
     prompt = `Exercise Type: Picture Description
@@ -86,18 +91,16 @@ ${acceptableAnswers}
 ${teacherGuidance}
 
 Required Structure:
-1. Core: S + is/am/are + V.ing (e.g., "The man is drinking coffee", "He is drinking coffee", "I am drinking coffee")
-2. Context: time or place (e.g., "at the cafe", "right now", "now", "in the park")
-3. Connect: cause/reason/purpose (e.g. "because ...", "for refreshment", "to stay fresh")
+1. Core: S + is/am/are + V.ing (e.g., "The man is drinking coffee", "I am drinking coffee")
+2. Context: time or place (e.g., "at the cafe", "right now", "now")
+3. Connect: cause/reason/purpose (e.g. "because ...", "for refreshment", "to save money")
 
 Student Answer: "${req.studentAnswer}"
 
-CRITICAL RULE FOR CORE: Any subject + is/am/are + V.ing (such as "The man is drinking", "He is drinking", "I am drinking") MUST BE ACCEPTED AS A VALID CORE.
-
+Check Core (S + is/am/are + V.ing with any valid subject), Context, Connect, spelling errors (e.g. makeing -> making), and ending period '.'.
 Return breakdown object: { "core": boolean, "context": boolean, "connect": boolean }.`;
   }
 
-  // Model fallback sequence prioritizing Gemini 3.5 Flash Lite
   const modelsToTry = [
     'gemini-3.5-flash-lite',
     'gemini-3.5-flash',
@@ -187,82 +190,57 @@ function evaluateTranslationLocally(item: any, lower: string, original: string):
   const points: string[] = [];
   let score = 100;
 
-  const hasPresentContinuous = /\b(am|is|are)\s+\w+ing\b/.test(lower);
+  // Check spelling e.g. makeing -> making
+  let fixedSentence = original;
+  if (/\bmakeing\b/i.test(original)) {
+    score -= 15;
+    points.push('⚠️ สะกดคำผิด: "makeing" ควรแก้เป็น "making" (ตัด e ก่อนเติม -ing)');
+    fixedSentence = fixedSentence.replace(/\bmakeing\b/gi, 'making');
+  }
+
+  // Check full stop
+  const hasFullStop = original.endsWith('.');
+  if (!hasFullStop) {
+    score -= 10;
+    points.push('💡 อย่าลืมใส่เครื่องหมายจุด Full Stop (.) ท้ายประโยคด้วยครับ');
+    fixedSentence = fixedSentence + '.';
+  }
+
+  const hasPresentContinuous = /\b(am|is|are)\s+\w+ing\b/.test(lower) || /\b(am|is|are)\s+making\b/.test(lower);
   if (!hasPresentContinuous) {
-    score -= 30;
-    points.push('💡 อย่าลืมใช้โครงสร้าง Present Continuous: S + is/am/are + V.ing (เช่น I am traveling / The man is styling)');
+    score -= 25;
+    points.push('💡 อย่าลืมใช้โครงสร้าง Present Continuous: S + is/am/are + V.ing');
   } else {
-    points.push('✅ การใช้โครงสร้าง Present Continuous ถูกต้องตามหลักภาษาแล้ว!');
+    points.push('✅ การใช้โครงสร้าง Present Continuous ถูกต้องตามหลักภาษา');
   }
 
-  if (item.id === 1) {
-    const corrected = item.model_answer || "I am traveling to go home.";
-    if (lower.includes("traveling") || lower.includes("travelling") || lower.includes("heading")) {
-      points.push('✅ คำกริยาการเดินทาง (traveling/heading) ถูกต้องและเหมาะสมกับบริบท');
-    } else {
-      score -= 15;
-      points.push('💡 สามารถใช้คำว่า "traveling" หรือ "heading home" เพื่อสื่อความหมายถึงการเดินทางกลับบ้านได้ครับ');
-    }
-
-    if (score >= 90) {
-      return {
-        score,
-        statusText: '🎉 ถูกต้องสมบูรณ์! (100%)',
-        correctedSentence: original.endsWith('.') ? original : `${original}.`,
-        feedbackPoints: ['ยอดเยี่ยมมาก! แปลได้ถูกต้องตามหลักไวยากรณ์และความหมายครบถ้วน', ...points]
-      };
-    }
-
-    return {
-      score: Math.max(score, 60),
-      statusText: `⚡ เกือบถูกต้องแล้ว! (${score}%)`,
-      correctedSentence: corrected,
-      feedbackPoints: points
-    };
-  }
-
-  if (item.id === 2) {
-    const hasMyConfidence = lower.includes("confidence");
-    
-    if (lower.includes("styling") || lower.includes("doing") || lower.includes("adjusting")) {
-      points.push('✅ การใช้กริยาจัดผมถูกต้องตามโครงสร้าง Present Continuous แล้วครับ!');
-    } else {
-      score -= 15;
-      points.push('💡 สำหรับการจัดผม แนะนำให้ใช้ "styling my hair" หรือ "doing my hair"');
-    }
-
-    if (hasMyConfidence) {
-      points.push('✅ มีการใช้คำว่า "confidence" (ความมั่นใจ) ถูกต้องตามบริบท');
-    }
-
-    if (score >= 90) {
-      return {
-        score: 100,
-        statusText: '🎉 ถูกต้องสมบูรณ์! (100%)',
-        correctedSentence: original.endsWith('.') ? original : `${original}.`,
-        feedbackPoints: ['ประโยคของคุณถูกต้องตามโครงสร้างภาษาอังกฤษและสละสลวยมาก!', ...points]
-      };
-    }
-
-    return {
-      score,
-      statusText: `⚡ เกือบถูกต้องแล้ว! (${score}%)`,
-      correctedSentence: item.model_answer || original.endsWith('.') ? original : `${original}.`,
-      feedbackPoints: points
-    };
-  }
+  const targetAnswer = item.model_answer || fixedSentence;
 
   return {
-    score: hasPresentContinuous ? 90 : 70,
-    statusText: hasPresentContinuous ? '🎉 ประโยคถูกต้องตามหลักการ! (90%)' : '⚡ ลองปรับโครงสร้างประโยคอีกนิด! (70%)',
-    correctedSentence: item.model_answer || (original.charAt(0).toUpperCase() + original.slice(1) + (original.endsWith('.') ? '' : '.')),
-    feedbackPoints: points.length > 0 ? points : ['โครงสร้างประโยคโดยรวมใช้งานได้ดี']
+    score: Math.max(score, 60),
+    statusText: score >= 90 ? '🎉 ถูกต้องสมบูรณ์! (100%)' : `⚡ เกือบถูกต้องแล้ว! (${score}%)`,
+    correctedSentence: targetAnswer,
+    feedbackPoints: points.length > 0 ? points : ['ประโยคถูกต้องและสละสลวย']
   };
 }
 
 function evaluateGuidedSentenceLocally(lower: string, original: string): EvaluationResult {
   const points: string[] = [];
   let score = 100;
+
+  let fixedSentence = original;
+  if (/\bmakeing\b/i.test(original)) {
+    score -= 15;
+    points.push('⚠️ สะกดคำผิด: "makeing" ควรแก้เป็น "making" (ตัด e ก่อนเติม -ing)');
+    fixedSentence = fixedSentence.replace(/\bmakeing\b/gi, 'making');
+  }
+
+  const hasFullStop = original.endsWith('.');
+  if (!hasFullStop) {
+    score -= 10;
+    points.push('💡 อย่าลืมใส่เครื่องหมายจุด Full Stop (.) ท้ายประโยคด้วยครับ');
+    fixedSentence = fixedSentence + '.';
+  }
 
   const hasAction = /\b(making|cleaning|adjusting|cooking|studying|working|drinking|running|buying)\b/.test(lower) || /\b(am|is|are)\s+\w+ing\b/.test(lower);
   const hasTime = /\b(now|right now|at the moment|currently|today)\b/.test(lower);
@@ -278,9 +256,6 @@ function evaluateGuidedSentenceLocally(lower: string, original: string): Evaluat
 
   if (hasTime) {
     points.push('✅ มีการระบุช่วงเวลา (Time) อย่างชัดเจน');
-  } else {
-    score -= 15;
-    points.push('💡 สามารถเติมคำระบุเวลา เช่น right now หรือ at the moment เพื่อให้ประโยคสมบูรณ์ยิ่งขึ้น');
   }
 
   if (hasPurpose) {
@@ -301,7 +276,7 @@ function evaluateGuidedSentenceLocally(lower: string, original: string): Evaluat
   return {
     score: Math.max(score, 65),
     statusText: score >= 90 ? '🎉 ยอดเยี่ยม! แต่งประโยคตรงตามเงื่อนไข (90%+)' : `⚡ เกือบสมบูรณ์แล้ว! (${score}%)`,
-    correctedSentence: original.charAt(0).toUpperCase() + original.slice(1) + (original.endsWith('.') ? '' : '.'),
+    correctedSentence: fixedSentence.charAt(0).toUpperCase() + fixedSentence.slice(1),
     feedbackPoints: points,
     breakdown
   };
@@ -309,6 +284,18 @@ function evaluateGuidedSentenceLocally(lower: string, original: string): Evaluat
 
 function evaluatePictureDescriptionLocally(lower: string, original: string): EvaluationResult {
   const points: string[] = [];
+
+  let fixedSentence = original;
+  if (/\bmakeing\b/i.test(original)) {
+    points.push('⚠️ สะกดคำผิด: "makeing" ควรแก้เป็น "making"');
+    fixedSentence = fixedSentence.replace(/\bmakeing\b/gi, 'making');
+  }
+
+  const hasFullStop = original.endsWith('.');
+  if (!hasFullStop) {
+    points.push('💡 อย่าลืมใส่เครื่องหมายจุด Full Stop (.) ท้ายประโยคด้วยครับ');
+    fixedSentence = fixedSentence + '.';
+  }
 
   const hasCore = /\b(i\s+am|(he|she|it|they|we|you|the\s+\w+|\w+)\s+(is|am|are))\s+\w+ing\b/i.test(lower) || /\b(is|am|are)\s+\w+ing\b/i.test(lower);
   const hasContext = /\b(at|in|on|now|right now|at the moment|currently|today|cafe|park|supermarket)\b/i.test(lower);
@@ -321,9 +308,9 @@ function evaluatePictureDescriptionLocally(lower: string, original: string): Eva
   const totalScore = coreScore + contextScore + connectScore;
 
   if (hasCore) {
-    points.push('✅ Core (S + is/am/are + V.ing): มีประธานและกริยา Present Continuous ถูกต้อง (เช่น The man is drinking / I am drinking)');
+    points.push('✅ Core (S + is/am/are + V.ing): มีประธานและกริยา Present Continuous ถูกต้อง');
   } else {
-    points.push('❌ Core: ขาดโครงสร้าง S + is/am/are + V.ing (เช่น The man is drinking / I am drinking)');
+    points.push('❌ Core: ขาดโครงสร้าง S + is/am/are + V.ing');
   }
 
   if (hasContext) {
@@ -333,7 +320,7 @@ function evaluatePictureDescriptionLocally(lower: string, original: string): Eva
   }
 
   if (hasConnect) {
-    points.push('✅ Connect: มีการใช้คำเชื่อมบอกเหตุผล/จุดประสงค์ (เช่น because ..., for refreshment, to stay healthy)');
+    points.push('✅ Connect: มีการใช้คำเชื่อมบอกเหตุผล/จุดประสงค์');
   } else {
     points.push('⚠️ Connect: ควรใช้ because หรือ to/for เชื่อมประโยคบอกเหตุผล');
   }
@@ -347,7 +334,7 @@ function evaluatePictureDescriptionLocally(lower: string, original: string): Eva
   return {
     score: totalScore,
     statusText: totalScore >= 90 ? '🌟 ครบถ้วน 3 โครงสร้าง! (100%)' : `🧩 ได้ ${totalScore}% (ตรวจสอบ 3 โครงสร้างด้านล่าง)`,
-    correctedSentence: original.charAt(0).toUpperCase() + original.slice(1) + (original.endsWith('.') ? '' : '.'),
+    correctedSentence: fixedSentence.charAt(0).toUpperCase() + fixedSentence.slice(1),
     feedbackPoints: points,
     breakdown
   };
