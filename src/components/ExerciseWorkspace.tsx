@@ -17,7 +17,8 @@ import {
   Check,
   BookOpen,
   FormInput,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Cpu
 } from 'lucide-react';
 import { EvaluationResult } from '@/lib/evaluator';
 
@@ -89,6 +90,7 @@ export default function ExerciseWorkspace({ chapter, exerciseId, chapterData }: 
         statusText: '⚡ ตรวจสอบคำตอบเรียบร้อย (โหมดออฟไลน์)',
         correctedSentence: studentAnswer.trim(),
         feedbackPoints: ['เกิดข้อผิดพลาดในการเชื่อมต่อ AI ตรวจทานด้วยระบบสำรองเรียบร้อย'],
+        isLiveGemini: false,
       });
     } finally {
       setIsSubmitting(false);
@@ -110,6 +112,19 @@ export default function ExerciseWorkspace({ chapter, exerciseId, chapterData }: 
       case 'ShoppingCart': return <ShoppingCart className="w-8 h-8 text-[#de3030]" />;
       default: return <ImageIcon className="w-8 h-8 text-[#1374bc]" />;
     }
+  };
+
+  const getBreakdownLabel = (key: string) => {
+    const map: Record<string, string> = {
+      core: 'CORE (S + is/am/are + V.ing)',
+      context: 'CONTEXT (Time/Place)',
+      connect: 'CONNECT (because / reason / purpose)',
+      actionValid: 'ACTION',
+      timeValid: 'TIME',
+      purposeValid: 'PURPOSE',
+      reasonValid: 'REASON'
+    };
+    return map[key] || key.toUpperCase();
   };
 
   return (
@@ -350,7 +365,7 @@ export default function ExerciseWorkspace({ chapter, exerciseId, chapterData }: 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <div className="p-2.5 rounded-lg bg-[#1374bc]/10 border border-[#1374bc]/20 text-xs">
                   <span className="font-bold text-[#1374bc] block mb-0.5">1. Core</span>
-                  <span className="text-slate-700 text-[11px]">S + am + V.ing</span>
+                  <span className="text-slate-700 text-[11px]">S + is/am/are + V.ing (The man is...)</span>
                 </div>
                 <div className="p-2.5 rounded-lg bg-indigo-50 border border-indigo-200 text-xs">
                   <span className="font-bold text-indigo-700 block mb-0.5">2. Context</span>
@@ -358,7 +373,7 @@ export default function ExerciseWorkspace({ chapter, exerciseId, chapterData }: 
                 </div>
                 <div className="p-2.5 rounded-lg bg-[#de3030]/10 border border-[#de3030]/20 text-xs">
                   <span className="font-bold text-[#de3030] block mb-0.5">3. Connect</span>
-                  <span className="text-slate-700 text-[11px]">because + reason</span>
+                  <span className="text-slate-700 text-[11px]">because / reason / purpose</span>
                 </div>
               </div>
             </div>
@@ -415,15 +430,29 @@ export default function ExerciseWorkspace({ chapter, exerciseId, chapterData }: 
           <div className="mt-6 pt-6 border-t border-slate-200 animate-in fade-in slide-in-from-bottom-2 duration-300">
             <div className="bg-white rounded-xl p-5 border border-[#1374bc]/30 shadow-md">
               {/* Header result */}
-              <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-4 border-b border-slate-100 pb-3">
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-5 h-5 text-[#1374bc]" />
                   <h3 className="text-base font-extrabold text-slate-900">
                     ผลการตรวจโดย AI (QuillBot Style)
                   </h3>
                 </div>
-                <div className="text-xs font-bold px-3 py-1 rounded-full bg-[#1374bc]/10 text-[#1374bc] border border-[#1374bc]/20">
-                  {result.statusText}
+
+                <div className="flex items-center gap-2">
+                  {typeof result.isLiveGemini !== 'undefined' && (
+                    <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border flex items-center gap-1 ${
+                      result.isLiveGemini 
+                        ? 'bg-purple-50 text-purple-700 border-purple-200' 
+                        : 'bg-amber-50 text-amber-700 border-amber-200'
+                    }`}>
+                      <Cpu className="w-3 h-3" />
+                      {result.isLiveGemini ? 'Gemini 2.5 Flash API Live' : 'Offline Smart Evaluator'}
+                    </span>
+                  )}
+                  
+                  <div className="text-xs font-bold px-3 py-1 rounded-full bg-[#1374bc]/10 text-[#1374bc] border border-[#1374bc]/20">
+                    {result.statusText}
+                  </div>
                 </div>
               </div>
 
@@ -446,24 +475,29 @@ export default function ExerciseWorkspace({ chapter, exerciseId, chapterData }: 
                     📊 การวิเคราะห์โครงสร้างประโยค:
                   </span>
                   <div className="flex flex-wrap gap-2">
-                    {Object.entries(result.breakdown).map(([key, val], idx) => (
-                      <div
-                        key={idx}
-                        className={`text-xs px-2.5 py-1 rounded-lg border flex items-center gap-1.5 font-medium ${
-                          val === true || typeof val === 'object' || (typeof val === 'string' && !val.includes('ขาด'))
-                            ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                            : 'bg-amber-50 border-amber-200 text-amber-800'
-                        }`}
-                      >
-                        {val === true ? (
-                          <Check className="w-3.5 h-3.5 text-emerald-600" />
-                        ) : (
-                          <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
-                        )}
-                        <span className="font-bold uppercase">{key}:</span>
-                        <span>{typeof val === 'boolean' ? (val ? 'ถูกต้อง' : 'ต้องปรับปรุง') : String(val)}</span>
-                      </div>
-                    ))}
+                    {Object.entries(result.breakdown)
+                      .filter(([key]) => !key.toLowerCase().endsWith('comment'))
+                      .map(([key, val], idx) => {
+                        const isSuccess = val === true || val === 'true' || (typeof val === 'string' && !val.includes('ขาด') && !val.includes('ต้อง'));
+                        return (
+                          <div
+                            key={idx}
+                            className={`text-xs px-3 py-1.5 rounded-lg border flex items-center gap-1.5 font-medium ${
+                              isSuccess
+                                ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                                : 'bg-amber-50 border-amber-200 text-amber-800'
+                            }`}
+                          >
+                            {isSuccess ? (
+                              <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                            ) : (
+                              <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                            )}
+                            <span className="font-bold">{getBreakdownLabel(key)}:</span>
+                            <span>{isSuccess ? 'ถูกต้อง' : 'ต้องปรับปรุง'}</span>
+                          </div>
+                        );
+                      })}
                   </div>
                 </div>
               )}
