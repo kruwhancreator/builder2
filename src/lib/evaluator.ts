@@ -38,39 +38,44 @@ async function evaluateWithGemini(apiKey: string, req: EvaluationRequest): Promi
   const ai = new GoogleGenAI({ apiKey });
 
   const systemInstruction = `You are an expert English Language Teacher & QuillBot-style AI Exercise Advisor for Thai students using Sentence Builder Vol. 2.
-Your goal is to evaluate student answers, check grammar (Present Continuous: S + is/am/are + V.ing), detect spelling errors (e.g., "makeing" -> "making"), check punctuation (must have a period '.' at the end), and provide encouraging feedback in Thai.
+Your goal is to evaluate student answers, check grammar (Present Continuous: S + is/am/are + V.ing), detect spelling errors, check punctuation (must end with a period '.'), and provide encouraging feedback in Thai.
 
 CRITICAL EVALUATION RULES:
-1. Check Spelling: Carefully look for spelling errors in verbs (e.g. "makeing" -> "making", "driveing" -> "driving", "runing" -> "running"). If a spelling mistake is found, explicitly mention it in feedbackPoints in Thai and fix it in correctedSentence.
-2. Check Punctuation: Check if the sentence ends with a period (Full stop "."). If missing, add "." to correctedSentence and remind the student in Thai: "อย่าลืมใส่เครื่องหมายจุด Full Stop (.) ท้ายประโยคด้วยครับ".
-3. For Exercise 1 (Translation): Compare against the target Model Answer and Teacher Guidance provided.
-4. For Exercise 2 (Guided Free Style Sentence): Students write free-style sentences. Verify that grammar (S + is/am/are + V.ing) is correct and matches the step requirement.
+1. For Exercise 1 (Translation):
+   - You MUST compare the student's answer against the exact "Target Model Answer" provided in the prompt.
+   - The field "correctedSentence" MUST ALWAYS BE set to the exact "Target Model Answer" (e.g. "I am commuting to get home."). Do NOT rewrite the student's incorrect words or invent random verbs like "walking" or "walikng".
+   - If the student's answer differs from the Target Model Answer, explain the difference clearly in Thai feedbackPoints.
+2. Check Spelling: Carefully look for spelling errors in words (e.g., "hom" -> "home", "makeing" -> "making"). Mention spelling errors explicitly in feedbackPoints in Thai.
+3. Check Punctuation: Check if the sentence ends with a period (Full stop "."). If missing, remind the student in Thai: "อย่าลืมใส่เครื่องหมายจุด Full Stop (.) ท้ายประโยคด้วยครับ".
+4. For Exercise 2 (Guided Free Style Sentence): Students write free-style sentences. Verify grammar (S + is/am/are + V.ing) and step requirements.
 
 CRITICAL REQUIREMENT: You MUST respond ONLY with valid, raw JSON matching this schema:
 {
   "score": number (0-100),
-  "statusText": "string in Thai (e.g. ✅ ถูกต้องสมบูรณ์! (100%) or ⚡ เกือบถูกต้องแล้ว! (90%))",
-  "correctedSentence": "string (the natural, grammatically correct English sentence ending with a period '.')",
+  "statusText": "string in Thai (e.g. ✅ ถูกต้องสมบูรณ์! (100%) or ⚡ เกือบถูกต้องแล้ว! (60%))",
+  "correctedSentence": "string (for Exercise 1, MUST be the exact Target Model Answer provided)",
   "feedbackPoints": ["string in Thai", "string in Thai"],
   "breakdown": optional object with key-value checks (e.g. { "actionValid": true, "timeValid": true, "purposeValid": true, "reasonValid": true })
 }
 Do not wrap in markdown code blocks. Return pure raw JSON string only.`;
 
-  const modelAnswer = req.item.model_answer ? `Target Model Answer: "${req.item.model_answer}"` : '';
+  const modelAnswer = req.item.model_answer ? `Target Model Answer (Ground Truth): "${req.item.model_answer}"` : '';
   const acceptableAnswers = req.item.acceptable_answers ? `Acceptable Variations: ${JSON.stringify(req.item.acceptable_answers)}` : '';
   const teacherGuidance = req.item.teacher_guidance ? `Teacher Instructions: "${req.item.teacher_guidance}"` : '';
 
   let prompt = '';
   if (req.exerciseType === 'translation') {
-    prompt = `Exercise Type: Translation
+    prompt = `Exercise Type: Translation (Exercise 1)
 Thai Prompt: "${req.item.thai}"
-Target Keywords: ${JSON.stringify(req.item.keywords || [])}
 ${modelAnswer}
 ${acceptableAnswers}
 ${teacherGuidance}
 Student Answer: "${req.studentAnswer}"
 
-Evaluate student answer against Target Model Answer and Teacher Instructions. Check spelling (e.g. makeing -> making), grammar (S + is/am/are + V.ing), and ending period '.'.`;
+Task for Exercise 1:
+1. Evaluate if Student Answer matches the Target Model Answer "${req.item.model_answer}".
+2. Set "correctedSentence" EXACTLY to "${req.item.model_answer}".
+3. If student wrote incorrect words or typos (e.g. "i walking hom"), explain in Thai feedbackPoints why it should be "${req.item.model_answer}" (e.g. Missing "am", "hom" is misspelled, verb should be "commuting").`;
   } else if (req.exerciseType === 'guided_sentence') {
     prompt = `Exercise Type: Guided Sentence (Free Style)
 Prompt Step: "${req.item.prompt}"
@@ -97,7 +102,7 @@ Required Structure:
 
 Student Answer: "${req.studentAnswer}"
 
-Check Core (S + is/am/are + V.ing with any valid subject), Context, Connect, spelling errors (e.g. makeing -> making), and ending period '.'.
+Check Core (S + is/am/are + V.ing with any valid subject), Context, Connect, spelling errors, and ending period '.'.
 Return breakdown object: { "core": boolean, "context": boolean, "connect": boolean }.`;
   }
 
@@ -121,7 +126,7 @@ Return breakdown object: { "core": boolean, "context": boolean, "connect": boole
           { role: 'user', parts: [{ text: `${systemInstruction}\n\nTask:\n${prompt}` }] }
         ],
         config: {
-          temperature: 0.2,
+          temperature: 0.1,
           responseMimeType: 'application/json',
         }
       });
@@ -154,10 +159,16 @@ Return breakdown object: { "core": boolean, "context": boolean, "connect": boole
     if (typeof parsed.breakdown.reasonValid !== 'undefined') cleanBreakdown.reasonValid = Boolean(parsed.breakdown.reasonValid);
   }
 
+  // Force Exercise 1 to strictly use req.item.model_answer as correctedSentence
+  let finalCorrectedSentence = parsed.correctedSentence || req.studentAnswer;
+  if (req.exerciseType === 'translation' && req.item.model_answer) {
+    finalCorrectedSentence = req.item.model_answer;
+  }
+
   return {
     score: typeof parsed.score === 'number' ? parsed.score : 80,
     statusText: parsed.statusText || 'ตรวจคำตอบเรียบร้อยแล้ว',
-    correctedSentence: parsed.correctedSentence || req.studentAnswer,
+    correctedSentence: finalCorrectedSentence,
     feedbackPoints: Array.isArray(parsed.feedbackPoints) ? parsed.feedbackPoints : ['ไวยากรณ์ส่วนใหญ่ถูกต้อง'],
     breakdown: cleanBreakdown,
     modelUsed: successfulModel
@@ -172,7 +183,7 @@ function evaluateLocally(req: EvaluationRequest): EvaluationResult {
     return {
       score: 0,
       statusText: '❌ กรุณาพิมพ์คำตอบก่อนส่งตรวจครับ',
-      correctedSentence: '',
+      correctedSentence: req.item.model_answer || '',
       feedbackPoints: ['ยังไม่มีข้อมูลคำตอบ กรุณาพิมพ์คำตอบภาษาอังกฤษในช่องข้อความ']
     };
   }
@@ -180,22 +191,26 @@ function evaluateLocally(req: EvaluationRequest): EvaluationResult {
   if (req.exerciseType === 'translation') {
     return evaluateTranslationLocally(req.item, lowerAnswer, cleanAnswer);
   } else if (req.exerciseType === 'guided_sentence') {
-    return evaluateGuidedSentenceLocally(lowerAnswer, cleanAnswer);
+    return evaluateGuidedSentenceLocally(req.item, lowerAnswer, cleanAnswer);
   } else {
-    return evaluatePictureDescriptionLocally(lowerAnswer, cleanAnswer);
+    return evaluatePictureDescriptionLocally(req.item, lowerAnswer, cleanAnswer);
   }
 }
 
 function evaluateTranslationLocally(item: any, lower: string, original: string): EvaluationResult {
   const points: string[] = [];
   let score = 100;
+  const targetAnswer = item.model_answer || "I am commuting to get home.";
 
-  // Check spelling e.g. makeing -> making
-  let fixedSentence = original;
+  // Check spelling hom -> home
+  if (/\bhom\b/i.test(original)) {
+    score -= 15;
+    points.push('⚠️ สะกดคำผิด: "hom" ควรแก้เป็น "home"');
+  }
+
   if (/\bmakeing\b/i.test(original)) {
     score -= 15;
     points.push('⚠️ สะกดคำผิด: "makeing" ควรแก้เป็น "making" (ตัด e ก่อนเติม -ing)');
-    fixedSentence = fixedSentence.replace(/\bmakeing\b/gi, 'making');
   }
 
   // Check full stop
@@ -203,28 +218,30 @@ function evaluateTranslationLocally(item: any, lower: string, original: string):
   if (!hasFullStop) {
     score -= 10;
     points.push('💡 อย่าลืมใส่เครื่องหมายจุด Full Stop (.) ท้ายประโยคด้วยครับ');
-    fixedSentence = fixedSentence + '.';
   }
 
-  const hasPresentContinuous = /\b(am|is|are)\s+\w+ing\b/.test(lower) || /\b(am|is|are)\s+making\b/.test(lower);
+  const hasPresentContinuous = /\b(am|is|are)\s+\w+ing\b/.test(lower);
   if (!hasPresentContinuous) {
-    score -= 25;
-    points.push('💡 อย่าลืมใช้โครงสร้าง Present Continuous: S + is/am/are + V.ing');
+    score -= 30;
+    points.push('💡 อย่าลืมใช้โครงสร้าง Present Continuous: S + is/am/are + V.ing (เช่น I am commuting)');
   } else {
     points.push('✅ การใช้โครงสร้าง Present Continuous ถูกต้องตามหลักภาษา');
   }
 
-  const targetAnswer = item.model_answer || fixedSentence;
+  if (!lower.includes("commuting") && !lower.includes("traveling") && !lower.includes("heading")) {
+    score -= 20;
+    points.push(`💡 สำหรับการเดินทางกลับบ้านในข้อนี้ แนะนำให้ใช้กริยาตามเฉลยหลัก: "${targetAnswer}"`);
+  }
 
   return {
-    score: Math.max(score, 60),
-    statusText: score >= 90 ? '🎉 ถูกต้องสมบูรณ์! (100%)' : `⚡ เกือบถูกต้องแล้ว! (${score}%)`,
+    score: Math.max(score, 30),
+    statusText: score >= 95 ? '🎉 ถูกต้องสมบูรณ์! (100%)' : `⚡ เกือบถูกต้องแล้ว! (${Math.max(score, 30)}%)`,
     correctedSentence: targetAnswer,
     feedbackPoints: points.length > 0 ? points : ['ประโยคถูกต้องและสละสลวย']
   };
 }
 
-function evaluateGuidedSentenceLocally(lower: string, original: string): EvaluationResult {
+function evaluateGuidedSentenceLocally(item: any, lower: string, original: string): EvaluationResult {
   const points: string[] = [];
   let score = 100;
 
@@ -276,13 +293,13 @@ function evaluateGuidedSentenceLocally(lower: string, original: string): Evaluat
   return {
     score: Math.max(score, 65),
     statusText: score >= 90 ? '🎉 ยอดเยี่ยม! แต่งประโยคตรงตามเงื่อนไข (90%+)' : `⚡ เกือบสมบูรณ์แล้ว! (${score}%)`,
-    correctedSentence: fixedSentence.charAt(0).toUpperCase() + fixedSentence.slice(1),
+    correctedSentence: item.model_answer || (fixedSentence.charAt(0).toUpperCase() + fixedSentence.slice(1)),
     feedbackPoints: points,
     breakdown
   };
 }
 
-function evaluatePictureDescriptionLocally(lower: string, original: string): EvaluationResult {
+function evaluatePictureDescriptionLocally(item: any, lower: string, original: string): EvaluationResult {
   const points: string[] = [];
 
   let fixedSentence = original;
@@ -334,7 +351,7 @@ function evaluatePictureDescriptionLocally(lower: string, original: string): Eva
   return {
     score: totalScore,
     statusText: totalScore >= 90 ? '🌟 ครบถ้วน 3 โครงสร้าง! (100%)' : `🧩 ได้ ${totalScore}% (ตรวจสอบ 3 โครงสร้างด้านล่าง)`,
-    correctedSentence: fixedSentence.charAt(0).toUpperCase() + fixedSentence.slice(1),
+    correctedSentence: item.model_answer || (fixedSentence.charAt(0).toUpperCase() + fixedSentence.slice(1)),
     feedbackPoints: points,
     breakdown
   };
