@@ -8,9 +8,6 @@ import {
   Unlock, 
   Plus, 
   Trash2, 
-  BookOpen, 
-  FormInput, 
-  Image as ImageIcon, 
   ArrowLeft,
   RefreshCw,
   CheckCircle2
@@ -23,12 +20,10 @@ export default function BackendAdminPage() {
   const [authError, setAuthError] = useState('');
 
   const [data, setData] = useState<any>(initialChapterData);
-  const [activeTab, setActiveTab] = useState<'ex-1' | 'ex-2' | 'ex-3'>('ex-1');
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  const [newVariation, setNewVariation] = useState<Record<number, string>>({});
-  const [newKeyword, setNewKeyword] = useState<Record<number, string>>({});
+  const [newVariation, setNewVariation] = useState<Record<string, string>>({});
 
   useEffect(() => {
     fetch('/api/admin/save')
@@ -67,7 +62,7 @@ export default function BackendAdminPage() {
 
       const resData = await res.json();
       if (res.ok && resData.success) {
-        setSaveMessage({ type: 'success', text: '🎉 บันทึกเฉลยและคำแนะนำสำหรับทุกข้อเรียบร้อยแล้ว!' });
+        setSaveMessage({ type: 'success', text: '🎉 บันทึกเฉลยและคำตอบทั้งหมดเรียบร้อยแล้ว!' });
       } else {
         setSaveMessage({ type: 'error', text: resData.error || 'เกิดข้อผิดพลาดในการบันทึก' });
       }
@@ -89,8 +84,8 @@ export default function BackendAdminPage() {
     });
   };
 
-  const addVariation = (exId: string, itemIdx: number) => {
-    const text = (newVariation[itemIdx] || '').trim();
+  const addVariation = (key: string, exId: string, itemIdx: number) => {
+    const text = (newVariation[key] || '').trim();
     if (!text) return;
 
     setData((prev: any) => {
@@ -101,7 +96,7 @@ export default function BackendAdminPage() {
       return copy;
     });
 
-    setNewVariation(prev => ({ ...prev, [itemIdx]: '' }));
+    setNewVariation(prev => ({ ...prev, [key]: '' }));
   };
 
   const removeVariation = (exId: string, itemIdx: number, varIdx: number) => {
@@ -115,32 +110,6 @@ export default function BackendAdminPage() {
     });
   };
 
-  const addKeyword = (exId: string, itemIdx: number) => {
-    const text = (newKeyword[itemIdx] || '').trim();
-    if (!text) return;
-
-    setData((prev: any) => {
-      const copy = JSON.parse(JSON.stringify(prev));
-      const item = copy.exercises[exId].items[itemIdx];
-      if (!item.keywords) item.keywords = [];
-      item.keywords.push(text);
-      return copy;
-    });
-
-    setNewKeyword(prev => ({ ...prev, [itemIdx]: '' }));
-  };
-
-  const removeKeyword = (exId: string, itemIdx: number, kwIdx: number) => {
-    setData((prev: any) => {
-      const copy = JSON.parse(JSON.stringify(prev));
-      const item = copy.exercises[exId].items[itemIdx];
-      if (item.keywords) {
-        item.keywords.splice(kwIdx, 1);
-      }
-      return copy;
-    });
-  };
-
   if (!isAuthenticated) {
     return (
       <div className="max-w-md mx-auto px-4 pt-16 pb-20">
@@ -149,10 +118,10 @@ export default function BackendAdminPage() {
             <Lock className="w-7 h-7" />
           </div>
           <h1 className="text-2xl font-extrabold text-slate-900 mb-1 font-heading">
-            Backend Admin CMS Login
+            Backend Admin Login
           </h1>
           <p className="text-slate-500 text-xs mb-6">
-            ระบบจัดการเฉลยและคำแนะนำสำหรับคุณครู / Admin
+            ระบบจัดการเฉลยสำหรับคุณครู / Admin
           </p>
 
           <form onSubmit={handleLogin} className="space-y-4">
@@ -172,7 +141,7 @@ export default function BackendAdminPage() {
 
             <button
               type="submit"
-              className="w-full bg-[#2563eb] hover:bg-[#1d4ed8] text-white py-3 rounded-xl font-bold text-sm shadow-md flex items-center justify-center gap-2 transition-colors"
+              className="w-full bg-[#2563eb] hover:bg-[#1d4ed8] text-white py-3 rounded-xl font-bold text-sm shadow-md flex items-center justify-center gap-2 transition-colors cursor-pointer"
             >
               <Unlock className="w-4 h-4" />
               <span>เข้าสู่ระบบ Backend Admin</span>
@@ -190,8 +159,9 @@ export default function BackendAdminPage() {
     );
   }
 
-  const currentEx = data.exercises[activeTab];
-  const items = currentEx?.items || [];
+  const ex1 = data.exercises['ex-1'];
+  const ex2 = data.exercises['ex-2'];
+  const ex3 = data.exercises['ex-3'];
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
@@ -199,13 +169,13 @@ export default function BackendAdminPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white rounded-2xl p-6 border border-slate-200 mb-6 shadow-sm">
         <div>
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#1e3a8a]/10 text-[#1e3a8a] text-xs font-bold uppercase tracking-wider mb-2">
-            ⚙️ Teacher Backend Admin CMS
+            ⚙️ Teacher Backend Admin (Single Page - No Tabs)
           </div>
           <h1 className="text-2xl font-extrabold text-slate-900 font-heading">
-            จัดการเฉลย & คำแนะนำแบบฝึกหัด (JSON Data)
+            จัดการเฉลย Unit {data.chapter}: {data.subtitle || 'ฉันกำลัง...'}
           </h1>
           <p className="text-slate-600 text-xs mt-1">
-            แก้ไขเฉลยเป้าหมาย (Model Answer) และคำตอบที่ยอมรับสำหรับแบบฝึกหัดแต่ละข้อ
+            แก้ไขเฉลยภาษาอังกฤษสำหรับแบบฝึกหัดทุกข้อในหน้านี้หน้าเดียว
           </p>
         </div>
 
@@ -221,7 +191,7 @@ export default function BackendAdminPage() {
           <button
             onClick={handleSave}
             disabled={isSaving}
-            className="bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-md flex items-center gap-2 disabled:opacity-50 transition-colors"
+            className="bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-md flex items-center gap-2 disabled:opacity-50 transition-colors cursor-pointer"
           >
             {isSaving ? (
               <>
@@ -231,14 +201,14 @@ export default function BackendAdminPage() {
             ) : (
               <>
                 <Save className="w-4 h-4" />
-                <span>บันทึกการเปลี่ยนแปลง</span>
+                <span>บันทึกการเปลี่ยนแปลงทั้งหมด</span>
               </>
             )}
           </button>
         </div>
       </div>
 
-      {/* Notification Banner */}
+      {/* Notification Toast */}
       {saveMessage && (
         <div className={`mb-6 p-4 rounded-xl text-xs font-bold border flex items-center justify-between ${
           saveMessage.type === 'success' 
@@ -253,241 +223,234 @@ export default function BackendAdminPage() {
         </div>
       )}
 
-      {/* Exercise Selection Tabs */}
-      <div className="bg-white rounded-xl p-1.5 mb-6 flex flex-wrap sm:flex-nowrap gap-1.5 border border-slate-200 shadow-xs">
-        <button
-          onClick={() => setActiveTab('ex-1')}
-          className={`flex-1 min-w-[120px] py-2.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-            activeTab === 'ex-1'
-              ? 'bg-[#1e3a8a] text-white shadow-md'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-          }`}
-        >
-          <BookOpen className="w-3.5 h-3.5" />
-          <span>Ex 1: แปลประโยค ({data.exercises['ex-1']?.items?.length || 0} ข้อ)</span>
-        </button>
+      {/* ========================================================= */}
+      {/* EXERCISE 1 EDITOR */}
+      {/* ========================================================= */}
+      {ex1 && (
+        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs mb-8">
+          <h2 className="text-xl font-bold text-[#1e3a8a] font-heading border-b border-slate-200 pb-3 mb-6">
+            ✏️ Exercise 1: แปลประโยคภาษาอังกฤษ
+          </h2>
 
-        <button
-          onClick={() => setActiveTab('ex-2')}
-          className={`flex-1 min-w-[120px] py-2.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-            activeTab === 'ex-2'
-              ? 'bg-[#2563eb] text-white shadow-md'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-          }`}
-        >
-          <FormInput className="w-3.5 h-3.5" />
-          <span>Ex 2: เลือกคำมาแต่ง ({data.exercises['ex-2']?.items?.length || 0} ข้อ)</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('ex-3')}
-          className={`flex-1 min-w-[120px] py-2.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-            activeTab === 'ex-3'
-              ? 'bg-[#8b5cf6] text-white shadow-md'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-          }`}
-        >
-          <ImageIcon className="w-3.5 h-3.5" />
-          <span>Ex 3: แต่งจากภาพ ({data.exercises['ex-3']?.items?.length || 0} ข้อ)</span>
-        </button>
-      </div>
-
-      {/* Question Items Editor List */}
-      <div className="space-y-6">
-        {items.map((item: any, idx: number) => (
-          <div key={item.id || idx} className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
-            <div className="flex items-center justify-between border-b border-slate-200 pb-3 mb-4">
-              <div className="flex items-center gap-2">
-                <span className="w-7 h-7 rounded-lg bg-[#1e3a8a] text-white font-extrabold text-xs flex items-center justify-center shadow-xs">
-                  {idx + 1}
-                </span>
-                <h2 className="text-base font-extrabold text-slate-900 font-heading">
-                  {activeTab === 'ex-1' ? `โจทย์ภาษาไทย: "${item.thai}"` : (item.prompt || item.image_description)}
-                </h2>
-              </div>
-            </div>
-
-            <div className="space-y-4 text-xs">
-              {/* Question Thai Prompt or Image Description */}
-              {activeTab === 'ex-1' && (
-                <div>
-                  <label className="block font-bold text-slate-700 uppercase mb-1">
-                    📍 โจทย์ภาษาไทย:
-                  </label>
-                  <input
-                    type="text"
-                    value={item.thai || ''}
-                    onChange={(e) => updateItemField(activeTab, idx, 'thai', e.target.value)}
-                    className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs text-slate-900 font-medium focus:outline-none focus:border-[#2563eb]"
-                  />
-                </div>
-              )}
-
-              {activeTab === 'ex-2' && (
-                <div>
-                  <label className="block font-bold text-slate-700 uppercase mb-1">
-                    📍 หัวข้อโจทย์ (Prompt Structure):
-                  </label>
-                  <input
-                    type="text"
-                    value={item.prompt || ''}
-                    onChange={(e) => updateItemField(activeTab, idx, 'prompt', e.target.value)}
-                    className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs text-slate-900 font-medium focus:outline-none focus:border-[#2563eb]"
-                  />
-                </div>
-              )}
-
-              {activeTab === 'ex-3' && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block font-bold text-slate-700 uppercase mb-1">
-                      🖼️ คำบรรยายภาพ:
-                    </label>
-                    <input
-                      type="text"
-                      value={item.image_description || ''}
-                      onChange={(e) => updateItemField(activeTab, idx, 'image_description', e.target.value)}
-                      className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs text-slate-900 font-medium focus:outline-none focus:border-[#2563eb]"
-                    />
+          <div className="space-y-6">
+            {ex1.items?.map((item: any, idx: number) => {
+              const key = `ex1_${idx}`;
+              return (
+                <div key={key} className="bg-[#f8fafc] border border-slate-200 rounded-xl p-5 shadow-2xs">
+                  <div className="font-bold text-[#1e3a8a] text-sm mb-3">
+                    ข้อ {idx + 1}: {item.thai}
                   </div>
-                  <div>
-                    <label className="block font-bold text-slate-700 uppercase mb-1">
-                      💡 คำใบ้บริบท (Context Hint):
-                    </label>
-                    <input
-                      type="text"
-                      value={item.context_hint || ''}
-                      onChange={(e) => updateItemField(activeTab, idx, 'context_hint', e.target.value)}
-                      className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs text-slate-900 font-medium focus:outline-none focus:border-[#2563eb]"
-                    />
-                  </div>
-                </div>
-              )}
 
-              {/* Target Model Answer */}
-              <div className="bg-[#1e3a8a]/5 rounded-xl p-4 border border-[#1e3a8a]/20">
-                <label className="block font-extrabold text-[#1e3a8a] uppercase mb-1">
-                  🎯 เฉลยเป้าหมายหลัก (Model Answer / Ground Truth):
-                </label>
-                <input
-                  type="text"
-                  value={item.model_answer || ''}
-                  onChange={(e) => updateItemField(activeTab, idx, 'model_answer', e.target.value)}
-                  placeholder="เช่น I am commuting to get home."
-                  className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2.5 text-xs text-slate-900 font-bold font-mono focus:outline-none focus:border-[#2563eb]"
-                />
-              </div>
+                  <div className="space-y-3 text-xs">
+                    <div>
+                      <label className="block font-bold text-slate-700 uppercase mb-1">
+                        📍 โจทย์ภาษาไทย:
+                      </label>
+                      <input
+                        type="text"
+                        value={item.thai || ''}
+                        onChange={(e) => updateItemField('ex-1', idx, 'thai', e.target.value)}
+                        className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs text-slate-900 font-medium focus:outline-none focus:border-[#2563eb]"
+                      />
+                    </div>
 
-              {/* Acceptable Answer Variations */}
-              <div>
-                <label className="block font-bold text-slate-700 uppercase mb-1">
-                  ✅ รูปแบบคำตอบอื่นที่ยอมรับเพิ่มเติม (Acceptable Variations):
-                </label>
-                <div className="flex flex-wrap gap-2 mb-2">
-                  {item.acceptable_answers?.map((variation: string, vIdx: number) => (
-                    <span
-                      key={vIdx}
-                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-mono font-medium"
-                    >
-                      <span>{variation}</span>
-                      <button
-                        type="button"
-                        onClick={() => removeVariation(activeTab, idx, vIdx)}
-                        className="text-emerald-600 hover:text-red-600"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
-                    </span>
-                  ))}
-                </div>
+                    <div className="bg-blue-50/70 p-3 rounded-xl border border-blue-100">
+                      <label className="block font-extrabold text-[#1e3a8a] uppercase mb-1">
+                        🎯 เฉลยเป้าหมายหลัก (Model Answer):
+                      </label>
+                      <input
+                        type="text"
+                        value={item.model_answer || ''}
+                        onChange={(e) => updateItemField('ex-1', idx, 'model_answer', e.target.value)}
+                        className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs text-slate-900 font-bold font-mono focus:outline-none focus:border-[#2563eb]"
+                      />
+                    </div>
 
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={newVariation[idx] || ''}
-                    onChange={(e) => setNewVariation(prev => ({ ...prev, [idx]: e.target.value }))}
-                    placeholder="พิมพ์ประโยคตัวเลือกอื่นแล้วกด เพิ่ม..."
-                    className="flex-1 rounded-xl bg-white border border-slate-300 px-3.5 py-1.5 text-xs text-slate-900 font-mono focus:outline-none focus:border-[#2563eb]"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => addVariation(activeTab, idx)}
-                    className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>เพิ่มเฉลยย่อย</span>
-                  </button>
-                </div>
-              </div>
+                    <div>
+                      <label className="block font-bold text-slate-700 uppercase mb-1">
+                        ✅ เฉลยย่อย/คำตอบอื่นที่ยอมรับ:
+                      </label>
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        {item.acceptable_answers?.map((acc: string, aIdx: number) => (
+                          <span key={aIdx} className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-mono font-medium">
+                            <span>{acc}</span>
+                            <button type="button" onClick={() => removeVariation('ex-1', idx, aIdx)} className="text-emerald-600 hover:text-red-600">
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
 
-              {/* Teacher Guidance / Grading Instructions */}
-              <div>
-                <label className="block font-bold text-purple-700 uppercase mb-1">
-                  💡 คำแนะนำในการตรวจสำหรับครู (Teacher Guidance Notes):
-                </label>
-                <textarea
-                  rows={2}
-                  value={item.teacher_guidance || ''}
-                  onChange={(e) => updateItemField(activeTab, idx, 'teacher_guidance', e.target.value)}
-                  placeholder="คำแนะนำพิเศษ..."
-                  className="w-full rounded-xl bg-purple-50/50 border border-purple-200 px-3.5 py-2 text-xs text-purple-950 font-medium focus:outline-none focus:border-purple-500"
-                />
-              </div>
-
-              {/* Keywords list */}
-              {item.keywords && (
-                <div>
-                  <label className="block font-bold text-slate-700 uppercase mb-1">
-                    🏷️ คำศัพท์บังคับ/คำแนะนำ (Keywords):
-                  </label>
-                  <div className="flex flex-wrap gap-1.5 mb-2">
-                    {item.keywords.map((kw: string, kwIdx: number) => (
-                      <span
-                        key={kwIdx}
-                        className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-300 text-xs"
-                      >
-                        <span>{kw}</span>
-                        <button
-                          type="button"
-                          onClick={() => removeKeyword(activeTab, idx, kwIdx)}
-                          className="text-slate-400 hover:text-red-600"
-                        >
-                          <Trash2 className="w-3 h-3" />
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={newVariation[key] || ''}
+                          onChange={(e) => setNewVariation(prev => ({ ...prev, [key]: e.target.value }))}
+                          placeholder="พิมพ์คำตอบทางเลือกอื่น..."
+                          className="flex-1 rounded-xl bg-white border border-slate-300 px-3.5 py-1.5 text-xs text-slate-900 font-mono focus:outline-none focus:border-[#2563eb]"
+                        />
+                        <button type="button" onClick={() => addVariation(key, 'ex-1', idx)} className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1 cursor-pointer">
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>เพิ่มเฉลยย่อย</span>
                         </button>
-                      </span>
-                    ))}
-                  </div>
-
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={newKeyword[idx] || ''}
-                      onChange={(e) => setNewKeyword(prev => ({ ...prev, [idx]: e.target.value }))}
-                      placeholder="เพิ่ม Keyword..."
-                      className="flex-1 rounded-xl bg-white border border-slate-300 px-3 py-1 text-xs text-slate-900 focus:outline-none focus:border-[#2563eb]"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => addKeyword(activeTab, idx)}
-                      className="px-3 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center gap-1"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>เพิ่ม Keyword</span>
-                    </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              )}
-            </div>
+              );
+            })}
           </div>
-        ))}
-      </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* EXERCISE 2 EDITOR */}
+      {/* ========================================================= */}
+      {ex2 && (
+        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs mb-8">
+          <h2 className="text-xl font-bold text-[#1e3a8a] font-heading border-b border-slate-200 pb-3 mb-6">
+            🧩 Exercise 2: เลือกคำจากที่มีให้มาแต่งประโยค
+          </h2>
+
+          <div className="space-y-6">
+            {ex2.items?.map((item: any, idx: number) => {
+              const key = `ex2_${idx}`;
+              return (
+                <div key={key} className="bg-[#f8fafc] border border-slate-200 rounded-xl p-5 shadow-2xs">
+                  <div className="font-bold text-[#1e3a8a] text-sm mb-3">
+                    ข้อ {idx + 1}: {item.prompt}
+                  </div>
+
+                  <div className="space-y-3 text-xs">
+                    <div>
+                      <label className="block font-bold text-slate-700 uppercase mb-1">
+                        📍 โจทย์ข้อความ (Prompt):
+                      </label>
+                      <input
+                        type="text"
+                        value={item.prompt || ''}
+                        onChange={(e) => updateItemField('ex-2', idx, 'prompt', e.target.value)}
+                        className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs text-slate-900 font-medium focus:outline-none focus:border-[#2563eb]"
+                      />
+                    </div>
+
+                    <div className="bg-blue-50/70 p-3 rounded-xl border border-blue-100">
+                      <label className="block font-extrabold text-[#1e3a8a] uppercase mb-1">
+                        🎯 เฉลยเป้าหมายหลัก (Model Answer):
+                      </label>
+                      <input
+                        type="text"
+                        value={item.model_answer || ''}
+                        onChange={(e) => updateItemField('ex-2', idx, 'model_answer', e.target.value)}
+                        className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs text-slate-900 font-bold font-mono focus:outline-none focus:border-[#2563eb]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-slate-700 uppercase mb-1">
+                        ✅ เฉลยย่อย/คำตอบอื่นที่ยอมรับ:
+                      </label>
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        {item.acceptable_answers?.map((acc: string, aIdx: number) => (
+                          <span key={aIdx} className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-mono font-medium">
+                            <span>{acc}</span>
+                            <button type="button" onClick={() => removeVariation('ex-2', idx, aIdx)} className="text-emerald-600 hover:text-red-600">
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={newVariation[key] || ''}
+                          onChange={(e) => setNewVariation(prev => ({ ...prev, [key]: e.target.value }))}
+                          placeholder="พิมพ์คำตอบทางเลือกอื่น..."
+                          className="flex-1 rounded-xl bg-white border border-slate-300 px-3.5 py-1.5 text-xs text-slate-900 font-mono focus:outline-none focus:border-[#2563eb]"
+                        />
+                        <button type="button" onClick={() => addVariation(key, 'ex-2', idx)} className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1 cursor-pointer">
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>เพิ่มเฉลยย่อย</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* EXERCISE 3 EDITOR */}
+      {/* ========================================================= */}
+      {ex3 && (
+        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs mb-8">
+          <h2 className="text-xl font-bold text-[#1e3a8a] font-heading border-b border-slate-200 pb-3 mb-6">
+            🖼️ Exercise 3: แต่งจากภาพ
+          </h2>
+
+          <div className="space-y-6">
+            {ex3.items?.map((item: any, idx: number) => {
+              return (
+                <div key={idx} className="bg-[#f8fafc] border border-slate-200 rounded-xl p-5 shadow-2xs">
+                  <div className="font-bold text-[#1e3a8a] text-sm mb-3">
+                    ภาพที่ {idx + 1}: {item.image_description}
+                  </div>
+
+                  <div className="space-y-3 text-xs">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block font-bold text-slate-700 uppercase mb-1">
+                          🖼️ คำบรรยายภาพ:
+                        </label>
+                        <input
+                          type="text"
+                          value={item.image_description || ''}
+                          onChange={(e) => updateItemField('ex-3', idx, 'image_description', e.target.value)}
+                          className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs text-slate-900 font-medium focus:outline-none focus:border-[#2563eb]"
+                        />
+                      </div>
+                      <div>
+                        <label className="block font-bold text-slate-700 uppercase mb-1">
+                          💡 คำใบ้บริบทภาพ:
+                        </label>
+                        <input
+                          type="text"
+                          value={item.context_hint || ''}
+                          onChange={(e) => updateItemField('ex-3', idx, 'context_hint', e.target.value)}
+                          className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs text-slate-900 font-medium focus:outline-none focus:border-[#2563eb]"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="bg-blue-50/70 p-3 rounded-xl border border-blue-100">
+                      <label className="block font-extrabold text-[#1e3a8a] uppercase mb-1">
+                        🎯 เฉลยเป้าหมายหลัก (Model Answer):
+                      </label>
+                      <input
+                        type="text"
+                        value={item.model_answer || ''}
+                        onChange={(e) => updateItemField('ex-3', idx, 'model_answer', e.target.value)}
+                        className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs text-slate-900 font-bold font-mono focus:outline-none focus:border-[#2563eb]"
+                      />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Floating Save Button */}
       <div className="sticky bottom-6 mt-8 flex justify-end">
         <button
           onClick={handleSave}
           disabled={isSaving}
-          className="bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-6 py-3.5 rounded-2xl font-bold text-sm shadow-xl flex items-center gap-2 border border-white/20 transition-colors"
+          className="bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-6 py-3.5 rounded-2xl font-bold text-sm shadow-xl flex items-center gap-2 border border-white/20 transition-colors cursor-pointer"
         >
           {isSaving ? (
             <>

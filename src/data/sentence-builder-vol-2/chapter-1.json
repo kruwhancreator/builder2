@@ -2,86 +2,57 @@
   "book": "sentence-builder-vol-2",
   "chapter": 1,
   "title": "Present Continuous & Sentence Expansion",
-  "subtitle": "แบบฝึกหัดแต่งประโยคและขยายประโยค",
+  "subtitle": "บทที่ 1 : ฉันกำลัง… [ I + am + กริยาเติม -ing ]",
   "exercises": {
     "ex-1": {
       "id": "ex-1",
       "title": "Exercise 1: แปลประโยคภาษาอังกฤษ",
       "type": "translation",
       "instruction": "แปลประโยคภาษาอังกฤษต่อไปนี้ให้ถูกต้องตามหลัก Present Continuous (S + is/am/are + V.ing)",
-      "grammar_focus": "Present Continuous (S + is/am/are + V.ing)",
       "items": [
         {
           "id": 1,
           "thai": "ฉันกำลังเดินทางเพื่อกลับบ้าน",
-          "keywords": [
-            "commuting",
-            "get home",
-            "traveling",
-            "heading home"
-          ],
           "model_answer": "I am commuting to get home.",
           "acceptable_answers": [
-            "I am commuting to get home.",
-            "I am traveling to go home.",
-            "I am heading home right now."
-          ],
-          "teacher_guidance": "ตรวจไวยากรณ์ Present Continuous, การสะกดคำ, จุด Full stop (.) และความหมายตรงตาม I am commuting to get home."
+            "I am commuting to get home."
+          ]
         },
         {
           "id": 2,
           "thai": "ฉันกำลังจัดผมเพื่อเสริมความมั่นใจตอนนี้",
-          "keywords": [
-            "fixing my hair",
-            "styling my hair",
-            "boost confidence",
-            "now"
-          ],
           "model_answer": "I am fixing my hair to boost confidence now.",
           "acceptable_answers": [
             "I am fixing my hair to boost confidence now.",
-            "I am styling my hair to boost my confidence now."
-          ],
-          "teacher_guidance": "ตรวจกริยาจัดผม (fixing/styling my hair), boost confidence, จุด Full stop (.) และเวลาตอนนี้ (now)"
+            "I am fixing my hair now.",
+            "I am fixing my hair at the moment."
+          ]
         },
         {
           "id": 3,
-          "thai": "ฉันกำลังติดตามพัสดุเพราะมันเสี่ยง",
-          "keywords": [
-            "tracking a parcel",
-            "tracking the package",
-            "because it is risky"
-          ],
-          "model_answer": "I am tracking a parcel because it is risky.",
+          "thai": "ฉันกำลังติดตามพัสดุเพราะว่ามันเร่งด่วน",
+          "model_answer": "I am tracking a parcel because it is urgent.",
           "acceptable_answers": [
-            "I am tracking a parcel because it is risky.",
-            "I am tracking the package because it is risky."
-          ],
-          "teacher_guidance": "ตรวจกริยา I am tracking a parcel, คำเชื่อม because it is risky และจุด Full stop (.)"
+            "I am tracking a parcel because it is urgent."
+          ]
         },
         {
           "id": 4,
           "thai": "ฉันกำลังลังเลที่จะออกไปข้างนอก ณ ตอนนี้เพราะมันดึกแล้ว",
-          "keywords": [
-            "hesitating to go outside",
-            "now",
-            "because it is late"
-          ],
           "model_answer": "I am hesitating to go outside now because it is late.",
           "acceptable_answers": [
             "I am hesitating to go outside now because it is late.",
+            "I am hesitating to go out now because it is late.",
             "I am hesitating to go out at the moment because it is late."
-          ],
-          "teacher_guidance": "ตรวจกริยา I am hesitating to go outside, เวลา (now / at the moment) และเหตุผล (because it is late)"
+          ]
         }
       ]
     },
     "ex-2": {
       "id": "ex-2",
-      "title": "Exercise 2: เติมคำและแต่งประโยค",
+      "title": "Exercise 2: เลือกคำจากที่มีให้มาแต่งประโยค",
       "type": "guided_sentence",
-      "instruction": "เลือกคำจากที่มีให้ (หรือใช้คำของตัวเอง) มาแต่งประโยคแบบ Free style โดย AI จะตรวจความถูกต้องของหลักไวยากรณ์และการสะกดคำ",
-      "grammar_focus": "Sentence Building (Action + Time + Purpose + Reason)",
+      "instruction": "เลือกคำจากตารางมาเติมในช่องว่างให้สมบูรณ์",
       "word_bank": {
         "action": [
           "making breakfast",
@@ -96,87 +67,87 @@
         "time": [
           "now",
           "right now",
-          "at the moment",
-          "currently"
+          "at the moment"
         ],
         "reason": [
           "because it is cheap",
-          "because it is healthy",
-          "because it is challenging"
+          "because it is messy",
+          "because it is necessary"
         ]
       },
-      "templates": [
-        "1. I am + [กำลังทำอะไร] (เช่น I am making breakfast.)",
-        "2. I am + [กำลังทำอะไร] + [เมื่อไหร่] (เช่น I am cleaning my room right now.)",
-        "3. I am + [กำลังทำอะไร] + [เพื่ออะไร] + [เมื่อไหร่] + [เพราะอะไร] (เช่น I am making breakfast to save money now because it is cheap.)"
-      ],
       "items": [
         {
           "id": 1,
-          "prompt": "1. แต่งประโยคโครงสร้าง: I am + [กำลังทำอะไร]",
+          "prompt": "I am ____________________.",
           "model_answer": "I am making breakfast.",
-          "teacher_guidance": "ตรวจโครงสร้าง I am + V.ing (การแต่งประโยคแบบ Free style) ตรวจการสะกดคำ เช่น makeing -> making และเครื่องหมายจุด Full stop (.)"
+          "acceptable_answers": [
+            "I am making breakfast.",
+            "I am cleaning my room.",
+            "I am adjusting my schedule."
+          ]
         },
         {
           "id": 2,
-          "prompt": "2. แต่งประโยคโครงสร้าง: I am + [กำลังทำอะไร] + [เมื่อไหร่]",
-          "model_answer": "I am cleaning my room right now.",
-          "teacher_guidance": "ตรวจโครงสร้าง I am + V.ing + คำบอกเวลา (right now / now / at the moment) ตรวจการสะกดคำ และเครื่องหมายจุด Full stop (.)"
+          "prompt": "I am ____________________ at the moment.",
+          "model_answer": "I am cleaning my room at the moment.",
+          "acceptable_answers": [
+            "I am making breakfast at the moment.",
+            "I am cleaning my room at the moment.",
+            "I am adjusting my schedule at the moment."
+          ]
         },
         {
           "id": 3,
-          "prompt": "3. แต่งประโยคโครงสร้าง: I am + [กำลังทำอะไร] + [เพื่ออะไร] + [เมื่อไหร่] + [เพราะอะไร]",
+          "prompt": "I am _______________ to ____________ __________",
+          "model_answer": "I am making breakfast to save money now.",
+          "acceptable_answers": [
+            "I am making breakfast to save money now.",
+            "I am making breakfast to save money right now.",
+            "I am making breakfast to save money at the moment.",
+            "I am cleaning my room to find my keys now.",
+            "I am cleaning my room to find my keys right now.",
+            "I am cleaning my room to find my keys at the moment.",
+            "I am adjusting my schedule to fit the meeting now.",
+            "I am adjusting my schedule to fit the meeting right now.",
+            "I am adjusting my schedule to fit the meeting at the moment."
+          ]
+        },
+        {
+          "id": 4,
+          "prompt": "I am __________ to ________ now because it is ___",
           "model_answer": "I am making breakfast to save money now because it is cheap.",
-          "teacher_guidance": "ตรวจโครงสร้าง I am + V.ing + [เพื่ออะไร (to + V.inf)] + [เมื่อไหร่] + [เพราะอะไร (because ...)] ตรวจการสะกดคำ และเครื่องหมายจุด Full stop (.)"
+          "acceptable_answers": [
+            "I am making breakfast to save money now because it is cheap.",
+            "I am making breakfast to save money now because it is necessary.",
+            "I am cleaning my room to find my keys now because it is messy.",
+            "I am adjusting my schedule to fit the meeting now because it is necessary."
+          ]
         }
       ]
     },
     "ex-3": {
       "id": "ex-3",
-      "title": "Exercise 3: แต่งประโยคจากภาพ",
+      "title": "Exercise 3: ดูภาพแล้วแต่งประโยคโดยใช้โครงสร้าง Core + Context + Connect",
       "type": "picture_description",
-      "instruction": "ดูภาพแล้วแต่งประโยคโดยใช้โครงสร้าง Core + Context + Connect",
-      "grammar_focus": "Core (S + is/am/are + V.ing) + Context (time/place) + Connect (because + reason)",
-      "structure_required": {
-        "Core": "S + is/am/are + V.ing (เช่น The man is drinking coffee / I am drinking coffee)",
-        "Context": "time/place (เช่น at the cafe, right now)",
-        "Connect": "because + reason (เช่น because it gives energy / for refreshment)"
-      },
+      "instruction": "ดูภาพแล้วแต่งประโยคโดยใช้โครงสร้าง 3 ส่วน",
       "items": [
         {
           "id": 1,
           "image_description": "ผู้ชายกำลังดื่มกาแฟในคาเฟ่",
           "context_hint": "ดื่มกาแฟ / ในคาเฟ่ / เพื่อความสดชื่น",
-          "icon": "Coffee",
-          "model_answer": "The man is drinking coffee at the cafe right now for refreshment.",
-          "acceptable_answers": [
-            "He is drinking coffee in the cafe because he feels sleepy.",
-            "I am drinking coffee at the cafe right now to feel refreshed."
-          ],
-          "teacher_guidance": "ตรวจ Core (S + is/am/are + V.ing), Context (สถานที่/เวลา), Connect (because/for/to) และจุด Full stop (.)"
+          "model_answer": "I am drinking coffee at the cafe right now to feel refreshed."
         },
         {
           "id": 2,
           "image_description": "ผู้หญิงกำลังวิ่งออกกำลังกายในสวนสาธารณะ",
           "context_hint": "วิ่งออกกำลังกาย / ในสวนสาธารณะ / เพื่อสุขภาพดี",
-          "icon": "Activity",
-          "model_answer": "The woman is running in the park right now because it is healthy.",
-          "acceptable_answers": [
-            "She is running in the park to stay healthy.",
-            "I am running in the park at the moment for good health."
-          ],
-          "teacher_guidance": "ตรวจ Core (The woman is running / She is running / I am running), Context (in the park), Connect (because/to/for) และจุด Full stop (.)"
+          "model_answer": "I am running in the park right now because it is healthy."
         },
         {
           "id": 3,
           "image_description": "ผู้หญิงกำลังเลือกซื้อของสุขภาพในซูเปอร์มาร์เก็ต",
           "context_hint": "ซื้อของสุขภาพ / ในซูเปอร์มาร์เก็ต / เพราะห่วงสุขภาพ",
-          "icon": "ShoppingCart",
-          "model_answer": "The woman is buying healthy food at the supermarket now because she cares about her health.",
-          "acceptable_answers": [
-            "She is shopping for health products in the supermarket because it is good for her."
-          ],
-          "teacher_guidance": "ตรวจ Core (The woman is buying/shopping), Context (supermarket), Connect (because...) และจุด Full stop (.)"
+          "model_answer": "I am buying healthy food at the supermarket now because I care about my health."
         }
       ]
     }
