@@ -6,8 +6,6 @@ import {
   Save, 
   Lock, 
   Unlock, 
-  Plus, 
-  Trash2, 
   ArrowLeft,
   RefreshCw,
   CheckCircle2
@@ -22,8 +20,6 @@ export default function BackendAdminPage() {
   const [data, setData] = useState<any>(initialChapterData);
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-
-  const [newVariation, setNewVariation] = useState<Record<string, string>>({});
 
   useEffect(() => {
     fetch('/api/admin/save')
@@ -62,7 +58,7 @@ export default function BackendAdminPage() {
 
       const resData = await res.json();
       if (res.ok && resData.success) {
-        setSaveMessage({ type: 'success', text: '🎉 บันทึกเฉลยและคำตอบทั้งหมดเรียบร้อยแล้ว!' });
+        setSaveMessage({ type: 'success', text: '🎉 บันทึกเฉลยเรียบร้อยแล้ว!' });
       } else {
         setSaveMessage({ type: 'error', text: resData.error || 'เกิดข้อผิดพลาดในการบันทึก' });
       }
@@ -79,32 +75,6 @@ export default function BackendAdminPage() {
       const copy = JSON.parse(JSON.stringify(prev));
       if (copy.exercises[exId] && copy.exercises[exId].items[itemIdx]) {
         copy.exercises[exId].items[itemIdx][field] = value;
-      }
-      return copy;
-    });
-  };
-
-  const addVariation = (key: string, exId: string, itemIdx: number) => {
-    const text = (newVariation[key] || '').trim();
-    if (!text) return;
-
-    setData((prev: any) => {
-      const copy = JSON.parse(JSON.stringify(prev));
-      const item = copy.exercises[exId].items[itemIdx];
-      if (!item.acceptable_answers) item.acceptable_answers = [];
-      item.acceptable_answers.push(text);
-      return copy;
-    });
-
-    setNewVariation(prev => ({ ...prev, [key]: '' }));
-  };
-
-  const removeVariation = (exId: string, itemIdx: number, varIdx: number) => {
-    setData((prev: any) => {
-      const copy = JSON.parse(JSON.stringify(prev));
-      const item = copy.exercises[exId].items[itemIdx];
-      if (item.acceptable_answers) {
-        item.acceptable_answers.splice(varIdx, 1);
       }
       return copy;
     });
@@ -169,13 +139,13 @@ export default function BackendAdminPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white rounded-2xl p-6 border border-slate-200 mb-6 shadow-sm">
         <div>
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#1e3a8a]/10 text-[#1e3a8a] text-xs font-bold uppercase tracking-wider mb-2">
-            ⚙️ Teacher Backend Admin (Single Page - No Tabs)
+            ⚙️ Teacher Backend Admin
           </div>
           <h1 className="text-2xl font-extrabold text-slate-900 font-heading">
             จัดการเฉลย Unit {data.chapter}: {data.subtitle || 'ฉันกำลัง...'}
           </h1>
           <p className="text-slate-600 text-xs mt-1">
-            แก้ไขเฉลยภาษาอังกฤษสำหรับแบบฝึกหัดทุกข้อในหน้านี้หน้าเดียว
+            แก้ไขโจทย์และเฉลยภาษาอังกฤษสำหรับแบบฝึกหัดแต่ละข้อ
           </p>
         </div>
 
@@ -201,7 +171,7 @@ export default function BackendAdminPage() {
             ) : (
               <>
                 <Save className="w-4 h-4" />
-                <span>บันทึกการเปลี่ยนแปลงทั้งหมด</span>
+                <span>บันทึกการเปลี่ยนแปลง</span>
               </>
             )}
           </button>
@@ -233,72 +203,39 @@ export default function BackendAdminPage() {
           </h2>
 
           <div className="space-y-6">
-            {ex1.items?.map((item: any, idx: number) => {
-              const key = `ex1_${idx}`;
-              return (
-                <div key={key} className="bg-[#f8fafc] border border-slate-200 rounded-xl p-5 shadow-2xs">
-                  <div className="font-bold text-[#1e3a8a] text-sm mb-3">
-                    ข้อ {idx + 1}: {item.thai}
+            {ex1.items?.map((item: any, idx: number) => (
+              <div key={idx} className="bg-[#f8fafc] border border-slate-200 rounded-xl p-5 shadow-2xs">
+                <div className="font-bold text-[#1e3a8a] text-sm mb-3">
+                  ข้อ {idx + 1}
+                </div>
+
+                <div className="space-y-3 text-xs">
+                  <div>
+                    <label className="block font-bold text-slate-700 uppercase mb-1">
+                      📍 โจทย์ภาษาไทย:
+                    </label>
+                    <input
+                      type="text"
+                      value={item.thai || ''}
+                      onChange={(e) => updateItemField('ex-1', idx, 'thai', e.target.value)}
+                      className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs text-slate-900 font-medium focus:outline-none focus:border-[#2563eb]"
+                    />
                   </div>
 
-                  <div className="space-y-3 text-xs">
-                    <div>
-                      <label className="block font-bold text-slate-700 uppercase mb-1">
-                        📍 โจทย์ภาษาไทย:
-                      </label>
-                      <input
-                        type="text"
-                        value={item.thai || ''}
-                        onChange={(e) => updateItemField('ex-1', idx, 'thai', e.target.value)}
-                        className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs text-slate-900 font-medium focus:outline-none focus:border-[#2563eb]"
-                      />
-                    </div>
-
-                    <div className="bg-blue-50/70 p-3 rounded-xl border border-blue-100">
-                      <label className="block font-extrabold text-[#1e3a8a] uppercase mb-1">
-                        🎯 เฉลยเป้าหมายหลัก (Model Answer):
-                      </label>
-                      <input
-                        type="text"
-                        value={item.model_answer || ''}
-                        onChange={(e) => updateItemField('ex-1', idx, 'model_answer', e.target.value)}
-                        className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs text-slate-900 font-bold font-mono focus:outline-none focus:border-[#2563eb]"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block font-bold text-slate-700 uppercase mb-1">
-                        ✅ เฉลยย่อย/คำตอบอื่นที่ยอมรับ:
-                      </label>
-                      <div className="flex flex-wrap gap-2 mb-2">
-                        {item.acceptable_answers?.map((acc: string, aIdx: number) => (
-                          <span key={aIdx} className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-mono font-medium">
-                            <span>{acc}</span>
-                            <button type="button" onClick={() => removeVariation('ex-1', idx, aIdx)} className="text-emerald-600 hover:text-red-600">
-                              <Trash2 className="w-3 h-3" />
-                            </button>
-                          </span>
-                        ))}
-                      </div>
-
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          value={newVariation[key] || ''}
-                          onChange={(e) => setNewVariation(prev => ({ ...prev, [key]: e.target.value }))}
-                          placeholder="พิมพ์คำตอบทางเลือกอื่น..."
-                          className="flex-1 rounded-xl bg-white border border-slate-300 px-3.5 py-1.5 text-xs text-slate-900 font-mono focus:outline-none focus:border-[#2563eb]"
-                        />
-                        <button type="button" onClick={() => addVariation(key, 'ex-1', idx)} className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1 cursor-pointer">
-                          <Plus className="w-3.5 h-3.5" />
-                          <span>เพิ่มเฉลยย่อย</span>
-                        </button>
-                      </div>
-                    </div>
+                  <div>
+                    <label className="block font-extrabold text-[#1e3a8a] uppercase mb-1">
+                      🎯 เฉลย:
+                    </label>
+                    <input
+                      type="text"
+                      value={item.model_answer || ''}
+                      onChange={(e) => updateItemField('ex-1', idx, 'model_answer', e.target.value)}
+                      className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2.5 text-xs text-slate-900 font-bold font-mono focus:outline-none focus:border-[#2563eb]"
+                    />
                   </div>
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -313,72 +250,39 @@ export default function BackendAdminPage() {
           </h2>
 
           <div className="space-y-6">
-            {ex2.items?.map((item: any, idx: number) => {
-              const key = `ex2_${idx}`;
-              return (
-                <div key={key} className="bg-[#f8fafc] border border-slate-200 rounded-xl p-5 shadow-2xs">
-                  <div className="font-bold text-[#1e3a8a] text-sm mb-3">
-                    ข้อ {idx + 1}: {item.prompt}
+            {ex2.items?.map((item: any, idx: number) => (
+              <div key={idx} className="bg-[#f8fafc] border border-slate-200 rounded-xl p-5 shadow-2xs">
+                <div className="font-bold text-[#1e3a8a] text-sm mb-3">
+                  ข้อ {idx + 1}
+                </div>
+
+                <div className="space-y-3 text-xs">
+                  <div>
+                    <label className="block font-bold text-slate-700 uppercase mb-1">
+                      📍 โจทย์ข้อความ:
+                    </label>
+                    <input
+                      type="text"
+                      value={item.prompt || ''}
+                      onChange={(e) => updateItemField('ex-2', idx, 'prompt', e.target.value)}
+                      className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs text-slate-900 font-medium focus:outline-none focus:border-[#2563eb]"
+                    />
                   </div>
 
-                  <div className="space-y-3 text-xs">
-                    <div>
-                      <label className="block font-bold text-slate-700 uppercase mb-1">
-                        📍 โจทย์ข้อความ (Prompt):
-                      </label>
-                      <input
-                        type="text"
-                        value={item.prompt || ''}
-                        onChange={(e) => updateItemField('ex-2', idx, 'prompt', e.target.value)}
-                        className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs text-slate-900 font-medium focus:outline-none focus:border-[#2563eb]"
-                      />
-                    </div>
-
-                    <div className="bg-blue-50/70 p-3 rounded-xl border border-blue-100">
-                      <label className="block font-extrabold text-[#1e3a8a] uppercase mb-1">
-                        🎯 เฉลยเป้าหมายหลัก (Model Answer):
-                      </label>
-                      <input
-                        type="text"
-                        value={item.model_answer || ''}
-                        onChange={(e) => updateItemField('ex-2', idx, 'model_answer', e.target.value)}
-                        className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs text-slate-900 font-bold font-mono focus:outline-none focus:border-[#2563eb]"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block font-bold text-slate-700 uppercase mb-1">
-                        ✅ เฉลยย่อย/คำตอบอื่นที่ยอมรับ:
-                      </label>
-                      <div className="flex flex-wrap gap-2 mb-2">
-                        {item.acceptable_answers?.map((acc: string, aIdx: number) => (
-                          <span key={aIdx} className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-mono font-medium">
-                            <span>{acc}</span>
-                            <button type="button" onClick={() => removeVariation('ex-2', idx, aIdx)} className="text-emerald-600 hover:text-red-600">
-                              <Trash2 className="w-3 h-3" />
-                            </button>
-                          </span>
-                        ))}
-                      </div>
-
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          value={newVariation[key] || ''}
-                          onChange={(e) => setNewVariation(prev => ({ ...prev, [key]: e.target.value }))}
-                          placeholder="พิมพ์คำตอบทางเลือกอื่น..."
-                          className="flex-1 rounded-xl bg-white border border-slate-300 px-3.5 py-1.5 text-xs text-slate-900 font-mono focus:outline-none focus:border-[#2563eb]"
-                        />
-                        <button type="button" onClick={() => addVariation(key, 'ex-2', idx)} className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1 cursor-pointer">
-                          <Plus className="w-3.5 h-3.5" />
-                          <span>เพิ่มเฉลยย่อย</span>
-                        </button>
-                      </div>
-                    </div>
+                  <div>
+                    <label className="block font-extrabold text-[#1e3a8a] uppercase mb-1">
+                      🎯 เฉลย:
+                    </label>
+                    <input
+                      type="text"
+                      value={item.model_answer || ''}
+                      onChange={(e) => updateItemField('ex-2', idx, 'model_answer', e.target.value)}
+                      className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2.5 text-xs text-slate-900 font-bold font-mono focus:outline-none focus:border-[#2563eb]"
+                    />
                   </div>
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -393,54 +297,52 @@ export default function BackendAdminPage() {
           </h2>
 
           <div className="space-y-6">
-            {ex3.items?.map((item: any, idx: number) => {
-              return (
-                <div key={idx} className="bg-[#f8fafc] border border-slate-200 rounded-xl p-5 shadow-2xs">
-                  <div className="font-bold text-[#1e3a8a] text-sm mb-3">
-                    ภาพที่ {idx + 1}: {item.image_description}
-                  </div>
+            {ex3.items?.map((item: any, idx: number) => (
+              <div key={idx} className="bg-[#f8fafc] border border-slate-200 rounded-xl p-5 shadow-2xs">
+                <div className="font-bold text-[#1e3a8a] text-sm mb-3">
+                  ภาพที่ {idx + 1}
+                </div>
 
-                  <div className="space-y-3 text-xs">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label className="block font-bold text-slate-700 uppercase mb-1">
-                          🖼️ คำบรรยายภาพ:
-                        </label>
-                        <input
-                          type="text"
-                          value={item.image_description || ''}
-                          onChange={(e) => updateItemField('ex-3', idx, 'image_description', e.target.value)}
-                          className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs text-slate-900 font-medium focus:outline-none focus:border-[#2563eb]"
-                        />
-                      </div>
-                      <div>
-                        <label className="block font-bold text-slate-700 uppercase mb-1">
-                          💡 คำใบ้บริบทภาพ:
-                        </label>
-                        <input
-                          type="text"
-                          value={item.context_hint || ''}
-                          onChange={(e) => updateItemField('ex-3', idx, 'context_hint', e.target.value)}
-                          className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs text-slate-900 font-medium focus:outline-none focus:border-[#2563eb]"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="bg-blue-50/70 p-3 rounded-xl border border-blue-100">
-                      <label className="block font-extrabold text-[#1e3a8a] uppercase mb-1">
-                        🎯 เฉลยเป้าหมายหลัก (Model Answer):
+                <div className="space-y-3 text-xs">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block font-bold text-slate-700 uppercase mb-1">
+                        🖼️ คำบรรยายภาพ:
                       </label>
                       <input
                         type="text"
-                        value={item.model_answer || ''}
-                        onChange={(e) => updateItemField('ex-3', idx, 'model_answer', e.target.value)}
-                        className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs text-slate-900 font-bold font-mono focus:outline-none focus:border-[#2563eb]"
+                        value={item.image_description || ''}
+                        onChange={(e) => updateItemField('ex-3', idx, 'image_description', e.target.value)}
+                        className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs text-slate-900 font-medium focus:outline-none focus:border-[#2563eb]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-slate-700 uppercase mb-1">
+                        💡 คำใบ้บริบทภาพ:
+                      </label>
+                      <input
+                        type="text"
+                        value={item.context_hint || ''}
+                        onChange={(e) => updateItemField('ex-3', idx, 'context_hint', e.target.value)}
+                        className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs text-slate-900 font-medium focus:outline-none focus:border-[#2563eb]"
                       />
                     </div>
                   </div>
+
+                  <div>
+                    <label className="block font-extrabold text-[#1e3a8a] uppercase mb-1">
+                      🎯 เฉลย:
+                    </label>
+                    <input
+                      type="text"
+                      value={item.model_answer || ''}
+                      onChange={(e) => updateItemField('ex-3', idx, 'model_answer', e.target.value)}
+                      className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2.5 text-xs text-slate-900 font-bold font-mono focus:outline-none focus:border-[#2563eb]"
+                    />
+                  </div>
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </div>
         </div>
       )}
