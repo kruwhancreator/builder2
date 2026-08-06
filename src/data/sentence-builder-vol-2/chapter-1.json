@@ -20,7 +20,7 @@
             "traveling",
             "heading home"
           ],
-          "model_answer": "I am commuting to get home. (test-edit)",
+          "model_answer": "I am commuting to get home.",
           "acceptable_answers": [
             "I am commuting to get home.",
             "I am traveling to go home.",

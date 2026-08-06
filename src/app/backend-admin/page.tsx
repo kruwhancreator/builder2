@@ -3,11 +3,9 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
-  Sparkles, 
   Save, 
   Lock, 
   Unlock, 
-  Check, 
   Plus, 
   Trash2, 
   BookOpen, 
@@ -15,12 +13,11 @@ import {
   Image as ImageIcon, 
   ArrowLeft,
   RefreshCw,
-  HelpCircle,
   CheckCircle2
 } from 'lucide-react';
 import initialChapterData from '@/data/sentence-builder-vol-2/chapter-1.json';
 
-export default function AdminPage() {
+export default function BackendAdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passcode, setPasscode] = useState('');
   const [authError, setAuthError] = useState('');
@@ -70,7 +67,7 @@ export default function AdminPage() {
 
       const resData = await res.json();
       if (res.ok && resData.success) {
-        setSaveMessage({ type: 'success', text: '🎉 บันทึกเฉลยและคำแนะนำ AI สำหรับทุกข้อเรียบร้อยแล้ว!' });
+        setSaveMessage({ type: 'success', text: '🎉 บันทึกเฉลยและคำแนะนำสำหรับทุกข้อเรียบร้อยแล้ว!' });
       } else {
         setSaveMessage({ type: 'error', text: resData.error || 'เกิดข้อผิดพลาดในการบันทึก' });
       }
@@ -148,14 +145,14 @@ export default function AdminPage() {
     return (
       <div className="max-w-md mx-auto px-4 pt-16 pb-20">
         <div className="glass-panel rounded-2xl p-8 border border-slate-200 shadow-xl text-center">
-          <div className="w-14 h-14 rounded-2xl bg-[#1374bc]/10 text-[#1374bc] flex items-center justify-center mx-auto mb-4 border border-[#1374bc]/20">
+          <div className="w-14 h-14 rounded-2xl bg-[#1e3a8a]/10 text-[#1e3a8a] flex items-center justify-center mx-auto mb-4 border border-[#1e3a8a]/20">
             <Lock className="w-7 h-7" />
           </div>
-          <h1 className="text-2xl font-extrabold text-slate-900 mb-1">
-            Admin CMS Login
+          <h1 className="text-2xl font-extrabold text-slate-900 mb-1 font-heading">
+            Backend Admin CMS Login
           </h1>
           <p className="text-slate-500 text-xs mb-6">
-            ระบบจัดการเฉลยและคำแนะนำ AI สำหรับคุณครู / Admin
+            ระบบจัดการเฉลยและคำแนะนำสำหรับคุณครู / Admin
           </p>
 
           <form onSubmit={handleLogin} className="space-y-4">
@@ -164,26 +161,26 @@ export default function AdminPage() {
                 type="password"
                 value={passcode}
                 onChange={(e) => setPasscode(e.target.value)}
-                placeholder="กรอก Admin Passcode (รหัสผ่านเริ่มต้น: admin123)"
-                className="w-full rounded-xl bg-white border border-slate-300 px-4 py-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#1374bc] focus:ring-2 focus:ring-[#1374bc]/20 shadow-2xs text-center font-mono"
+                placeholder="กรอก Backend Admin Passcode ( admin123 )"
+                className="w-full rounded-xl bg-white border border-slate-300 px-4 py-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/20 text-center font-mono"
               />
             </div>
 
             {authError && (
-              <p className="text-xs text-[#de3030] font-semibold">{authError}</p>
+              <p className="text-xs text-[#dc2626] font-semibold">{authError}</p>
             )}
 
             <button
               type="submit"
-              className="w-full gradient-button py-3 rounded-xl font-bold text-sm shadow-md flex items-center justify-center gap-2"
+              className="w-full bg-[#2563eb] hover:bg-[#1d4ed8] text-white py-3 rounded-xl font-bold text-sm shadow-md flex items-center justify-center gap-2 transition-colors"
             >
               <Unlock className="w-4 h-4" />
-              <span>เข้าสู่ระบบ Admin</span>
+              <span>เข้าสู่ระบบ Backend Admin</span>
             </button>
           </form>
 
           <div className="mt-6 pt-4 border-t border-slate-200">
-            <Link href="/sentence-builder-vol-2/chapter-1" className="text-xs text-[#1374bc] font-bold hover:underline flex items-center justify-center gap-1">
+            <Link href="/sentence-builder-vol-2/chapter-1" className="text-xs text-[#2563eb] font-bold hover:underline flex items-center justify-center gap-1">
               <ArrowLeft className="w-3.5 h-3.5" />
               <span>กลับสู่หน้าแบบฝึกหัด</span>
             </Link>
@@ -201,14 +198,14 @@ export default function AdminPage() {
       {/* Header Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white rounded-2xl p-6 border border-slate-200 mb-6 shadow-sm">
         <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#1374bc]/10 text-[#1374bc] text-xs font-bold uppercase tracking-wider mb-2">
-            ⚙️ Teacher & Admin CMS
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#1e3a8a]/10 text-[#1e3a8a] text-xs font-bold uppercase tracking-wider mb-2">
+            ⚙️ Teacher Backend Admin CMS
           </div>
-          <h1 className="text-2xl font-extrabold text-slate-900">
-            จัดการเฉลย & คำแนะนำ AI (Answer Context)
+          <h1 className="text-2xl font-extrabold text-slate-900 font-heading">
+            จัดการเฉลย & คำแนะนำแบบฝึกหัด (JSON Data)
           </h1>
           <p className="text-slate-600 text-xs mt-1">
-            ใส่เฉลยเป้าหมาย (Model Answer) และคำแนะนำ (Teacher Guidance) เพื่อฝึก AI ในการตรวจข้อสอบ
+            แก้ไขเฉลยเป้าหมาย (Model Answer) และคำตอบที่ยอมรับสำหรับแบบฝึกหัดแต่ละข้อ
           </p>
         </div>
 
@@ -224,7 +221,7 @@ export default function AdminPage() {
           <button
             onClick={handleSave}
             disabled={isSaving}
-            className="gradient-button px-5 py-2.5 rounded-xl font-bold text-xs shadow-md flex items-center gap-2 disabled:opacity-50"
+            className="bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-md flex items-center gap-2 disabled:opacity-50 transition-colors"
           >
             {isSaving ? (
               <>
@@ -234,7 +231,7 @@ export default function AdminPage() {
             ) : (
               <>
                 <Save className="w-4 h-4" />
-                <span>บันทึกการเปลี่ยนแปลงทั้งหมด</span>
+                <span>บันทึกการเปลี่ยนแปลง</span>
               </>
             )}
           </button>
@@ -262,7 +259,7 @@ export default function AdminPage() {
           onClick={() => setActiveTab('ex-1')}
           className={`flex-1 min-w-[120px] py-2.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
             activeTab === 'ex-1'
-              ? 'bg-[#1374bc] text-white shadow-md'
+              ? 'bg-[#1e3a8a] text-white shadow-md'
               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
           }`}
         >
@@ -274,19 +271,19 @@ export default function AdminPage() {
           onClick={() => setActiveTab('ex-2')}
           className={`flex-1 min-w-[120px] py-2.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
             activeTab === 'ex-2'
-              ? 'bg-indigo-600 text-white shadow-md'
+              ? 'bg-[#2563eb] text-white shadow-md'
               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
           }`}
         >
           <FormInput className="w-3.5 h-3.5" />
-          <span>Ex 2: เติมคำ & Free Style ({data.exercises['ex-2']?.items?.length || 0} ข้อ)</span>
+          <span>Ex 2: เลือกคำมาแต่ง ({data.exercises['ex-2']?.items?.length || 0} ข้อ)</span>
         </button>
 
         <button
           onClick={() => setActiveTab('ex-3')}
           className={`flex-1 min-w-[120px] py-2.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
             activeTab === 'ex-3'
-              ? 'bg-[#de3030] text-white shadow-md'
+              ? 'bg-[#8b5cf6] text-white shadow-md'
               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
           }`}
         >
@@ -298,13 +295,13 @@ export default function AdminPage() {
       {/* Question Items Editor List */}
       <div className="space-y-6">
         {items.map((item: any, idx: number) => (
-          <div key={item.id || idx} className="glass-panel rounded-2xl p-6 border border-slate-200 notebook-margin shadow-sm">
+          <div key={item.id || idx} className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
             <div className="flex items-center justify-between border-b border-slate-200 pb-3 mb-4">
               <div className="flex items-center gap-2">
-                <span className="w-7 h-7 rounded-lg bg-[#1374bc] text-white font-extrabold text-xs flex items-center justify-center shadow-xs">
+                <span className="w-7 h-7 rounded-lg bg-[#1e3a8a] text-white font-extrabold text-xs flex items-center justify-center shadow-xs">
                   {idx + 1}
                 </span>
-                <h2 className="text-base font-extrabold text-slate-900">
+                <h2 className="text-base font-extrabold text-slate-900 font-heading">
                   {activeTab === 'ex-1' ? `โจทย์ภาษาไทย: "${item.thai}"` : (item.prompt || item.image_description)}
                 </h2>
               </div>
@@ -321,7 +318,7 @@ export default function AdminPage() {
                     type="text"
                     value={item.thai || ''}
                     onChange={(e) => updateItemField(activeTab, idx, 'thai', e.target.value)}
-                    className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs text-slate-900 font-medium focus:outline-none focus:border-[#1374bc]"
+                    className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs text-slate-900 font-medium focus:outline-none focus:border-[#2563eb]"
                   />
                 </div>
               )}
@@ -335,7 +332,7 @@ export default function AdminPage() {
                     type="text"
                     value={item.prompt || ''}
                     onChange={(e) => updateItemField(activeTab, idx, 'prompt', e.target.value)}
-                    className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs text-slate-900 font-medium focus:outline-none focus:border-[#1374bc]"
+                    className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs text-slate-900 font-medium focus:outline-none focus:border-[#2563eb]"
                   />
                 </div>
               )}
@@ -350,7 +347,7 @@ export default function AdminPage() {
                       type="text"
                       value={item.image_description || ''}
                       onChange={(e) => updateItemField(activeTab, idx, 'image_description', e.target.value)}
-                      className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs text-slate-900 font-medium focus:outline-none focus:border-[#1374bc]"
+                      className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs text-slate-900 font-medium focus:outline-none focus:border-[#2563eb]"
                     />
                   </div>
                   <div>
@@ -361,15 +358,15 @@ export default function AdminPage() {
                       type="text"
                       value={item.context_hint || ''}
                       onChange={(e) => updateItemField(activeTab, idx, 'context_hint', e.target.value)}
-                      className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs text-slate-900 font-medium focus:outline-none focus:border-[#1374bc]"
+                      className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs text-slate-900 font-medium focus:outline-none focus:border-[#2563eb]"
                     />
                   </div>
                 </div>
               )}
 
               {/* Target Model Answer */}
-              <div className="bg-[#1374bc]/5 rounded-xl p-4 border border-[#1374bc]/20">
-                <label className="block font-extrabold text-[#1374bc] uppercase mb-1">
+              <div className="bg-[#1e3a8a]/5 rounded-xl p-4 border border-[#1e3a8a]/20">
+                <label className="block font-extrabold text-[#1e3a8a] uppercase mb-1">
                   🎯 เฉลยเป้าหมายหลัก (Model Answer / Ground Truth):
                 </label>
                 <input
@@ -377,7 +374,7 @@ export default function AdminPage() {
                   value={item.model_answer || ''}
                   onChange={(e) => updateItemField(activeTab, idx, 'model_answer', e.target.value)}
                   placeholder="เช่น I am commuting to get home."
-                  className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2.5 text-xs text-slate-900 font-bold font-mono focus:outline-none focus:border-[#1374bc] shadow-2xs"
+                  className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2.5 text-xs text-slate-900 font-bold font-mono focus:outline-none focus:border-[#2563eb]"
                 />
               </div>
 
@@ -410,12 +407,12 @@ export default function AdminPage() {
                     value={newVariation[idx] || ''}
                     onChange={(e) => setNewVariation(prev => ({ ...prev, [idx]: e.target.value }))}
                     placeholder="พิมพ์ประโยคตัวเลือกอื่นแล้วกด เพิ่ม..."
-                    className="flex-1 rounded-xl bg-white border border-slate-300 px-3.5 py-1.5 text-xs text-slate-900 font-mono focus:outline-none focus:border-[#1374bc]"
+                    className="flex-1 rounded-xl bg-white border border-slate-300 px-3.5 py-1.5 text-xs text-slate-900 font-mono focus:outline-none focus:border-[#2563eb]"
                   />
                   <button
                     type="button"
                     onClick={() => addVariation(activeTab, idx)}
-                    className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1 shadow-2xs"
+                    className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>เพิ่มเฉลยย่อย</span>
@@ -426,14 +423,14 @@ export default function AdminPage() {
               {/* Teacher Guidance / Grading Instructions */}
               <div>
                 <label className="block font-bold text-purple-700 uppercase mb-1">
-                  💡 คำแนะนำในการตรวจและให้คะแนนสำหรับ Gemini AI (Teacher Guidance Notes):
+                  💡 คำแนะนำในการตรวจสำหรับครู (Teacher Guidance Notes):
                 </label>
                 <textarea
                   rows={2}
                   value={item.teacher_guidance || ''}
                   onChange={(e) => updateItemField(activeTab, idx, 'teacher_guidance', e.target.value)}
-                  placeholder="คำสั่งพิเศษถึง AI เช่น เน้นตรวจ Present Continuous, ตรวจการสะกดคำ makeing -> making..."
-                  className="w-full rounded-xl bg-purple-50/50 border border-purple-200 px-3.5 py-2 text-xs text-purple-950 font-medium focus:outline-none focus:border-purple-500 shadow-2xs"
+                  placeholder="คำแนะนำพิเศษ..."
+                  className="w-full rounded-xl bg-purple-50/50 border border-purple-200 px-3.5 py-2 text-xs text-purple-950 font-medium focus:outline-none focus:border-purple-500"
                 />
               </div>
 
@@ -467,7 +464,7 @@ export default function AdminPage() {
                       value={newKeyword[idx] || ''}
                       onChange={(e) => setNewKeyword(prev => ({ ...prev, [idx]: e.target.value }))}
                       placeholder="เพิ่ม Keyword..."
-                      className="flex-1 rounded-xl bg-white border border-slate-300 px-3 py-1 text-xs text-slate-900 focus:outline-none focus:border-[#1374bc]"
+                      className="flex-1 rounded-xl bg-white border border-slate-300 px-3 py-1 text-xs text-slate-900 focus:outline-none focus:border-[#2563eb]"
                     />
                     <button
                       type="button"
@@ -490,7 +487,7 @@ export default function AdminPage() {
         <button
           onClick={handleSave}
           disabled={isSaving}
-          className="gradient-button px-6 py-3.5 rounded-2xl font-bold text-sm shadow-xl flex items-center gap-2 border border-white/20"
+          className="bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-6 py-3.5 rounded-2xl font-bold text-sm shadow-xl flex items-center gap-2 border border-white/20 transition-colors"
         >
           {isSaving ? (
             <>
@@ -500,7 +497,7 @@ export default function AdminPage() {
           ) : (
             <>
               <Save className="w-5 h-5" />
-              <span>💾 บันทึกการเปลี่ยนแปลงทั้งหมดเข้าสู่ระบบ</span>
+              <span>💾 บันทึกการเปลี่ยนแปลงทั้งหมด</span>
             </>
           )}
         </button>
