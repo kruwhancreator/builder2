@@ -70,3 +70,31 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'เกิดข้อผิดพลาดในการเพิ่มหนังสือ' }, { status: 500 });
   }
 }
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const bookId = searchParams.get('id');
+
+    if (!bookId) {
+      return NextResponse.json({ error: 'กรุณาระบุ ID หนังสือที่ต้องการลบ' }, { status: 400 });
+    }
+
+    if (isSupabaseConfigured() && supabase) {
+      const { error } = await supabase
+        .from('books')
+        .delete()
+        .eq('id', bookId);
+
+      if (error) {
+        console.error('Supabase book delete error:', error);
+        return NextResponse.json({ error: `Supabase Error: ${error.message}` }, { status: 500 });
+      }
+    }
+
+    return NextResponse.json({ success: true, message: `ลบหนังสือ ${bookId} เรียบร้อยแล้ว!` });
+  } catch (err: any) {
+    console.error('Delete book API error:', err);
+    return NextResponse.json({ error: 'เกิดข้อผิดพลาดในการลบหนังสือ' }, { status: 500 });
+  }
+}

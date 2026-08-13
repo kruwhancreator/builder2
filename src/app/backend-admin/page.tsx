@@ -17,7 +17,8 @@ import {
   BookOpen,
   Plus,
   Settings,
-  ChevronRight
+  ChevronRight,
+  Trash2
 } from 'lucide-react';
 import initialChapterData from '@/data/sentence-builder-vol-2/chapter-1.json';
 
@@ -43,6 +44,7 @@ export default function BackendAdminPage() {
   const [newBookSubtitle, setNewBookSubtitle] = useState('');
   const [isAddingBook, setIsAddingBook] = useState(false);
   const [showAddBookModal, setShowAddBookModal] = useState(false);
+  const [deletingBookId, setDeletingBookId] = useState<string | null>(null);
 
   const [data, setData] = useState<any>(initialChapterData);
   const [isSaving, setIsSaving] = useState(false);
@@ -145,6 +147,37 @@ export default function BackendAdminPage() {
       setSaveMessage({ type: 'error', text: 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์' });
     } finally {
       setIsAddingBook(false);
+    }
+  };
+
+  const handleDeleteBook = async (bookId: string, bookTitle: string) => {
+    if (!confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบหนังสือ "${bookTitle}" (${bookId})?\n\nการลบนี้จะลบ Unit และสถิติทั้งหมดของหนังสือเล่มนี้อย่างถาวร!`)) {
+      return;
+    }
+
+    setDeletingBookId(bookId);
+    setSaveMessage(null);
+
+    try {
+      const res = await fetch(`/api/admin/books?id=${encodeURIComponent(bookId)}`, {
+        method: 'DELETE'
+      });
+
+      const resData = await res.json();
+      if (res.ok && resData.success) {
+        setSaveMessage({ type: 'success', text: `🗑️ ลบหนังสือ "${bookTitle}" เรียบร้อยแล้ว!` });
+        setBooksList(prev => prev.filter(b => b.id !== bookId));
+        if (selectedBook === bookId) {
+          setSelectedBook('sentence-builder-vol-2');
+        }
+      } else {
+        setSaveMessage({ type: 'error', text: resData.error || 'เกิดข้อผิดพลาดในการลบหนังสือ' });
+      }
+    } catch (err) {
+      console.error(err);
+      setSaveMessage({ type: 'error', text: 'เกิดข้อผิดพลาดในการลบหนังสือ' });
+    } finally {
+      setDeletingBookId(null);
     }
   };
 
@@ -272,7 +305,7 @@ export default function BackendAdminPage() {
                 รายชื่อหนังสือทั้งหมดในระบบ (Books Directory)
               </h1>
               <p className="text-slate-600 text-xs mt-1">
-                คลิกเลือกหนังสือเพื่อจัดการเฉลย (CRUD Units / Exercises / Answers) หรือกดเพิ่มหนังสือเล่มใหม่
+                คลิกเลือกหนังสือเพื่อจัดการเฉลย (CRUD Units / Exercises / Answers) หรือกดเพิ่ม/ลบหนังสือ
               </p>
             </div>
 
@@ -297,9 +330,25 @@ export default function BackendAdminPage() {
                     <div className="w-10 h-10 rounded-xl bg-[#2563eb]/10 text-[#2563eb] flex items-center justify-center font-bold">
                       <BookOpen className="w-5 h-5" />
                     </div>
-                    <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-blue-50 text-[#2563eb] border border-blue-100">
-                      {book.total_units || book.totalUnits || 30} Units
-                    </span>
+
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-blue-50 text-[#2563eb] border border-blue-100">
+                        {book.total_units || book.totalUnits || 30} Units
+                      </span>
+
+                      <button
+                        onClick={() => handleDeleteBook(book.id, book.title)}
+                        disabled={deletingBookId === book.id}
+                        title="ลบหนังสือเล่มนี้"
+                        className="p-1 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                      >
+                        {deletingBookId === book.id ? (
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin text-red-600" />
+                        ) : (
+                          <Trash2 className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+                    </div>
                   </div>
 
                   <h2 className="text-lg font-bold text-slate-900 font-heading mb-1">
