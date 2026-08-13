@@ -15,12 +15,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'รูปแบบข้อมูลไม่ถูกต้อง' }, { status: 400 });
     }
 
-    const success = await saveChapterDataToDb(chapterData);
+    const result = await saveChapterDataToDb(chapterData);
 
-    if (success) {
+    if (result.success) {
       return NextResponse.json({ success: true, message: 'บันทึกข้อมูลเฉลยลง Supabase SQL Database เรียบร้อยแล้ว!' });
     } else {
-      return NextResponse.json({ error: 'ไม่สามารถบันทึกข้อมูลลงฐานข้อมูลได้' }, { status: 500 });
+      return NextResponse.json({ error: result.error || 'ไม่สามารถบันทึกข้อมูลลง Supabase ได้' }, { status: 500 });
     }
   } catch (error: any) {
     console.error('Error saving admin changes:', error);

@@ -21,7 +21,7 @@ export async function getChapterDataFromDb(bookName: string = 'sentence-builder-
           .eq('unit_id', unitData.id)
           .order('item_number', { ascending: true });
 
-        if (itemsData) {
+        if (itemsData && itemsData.length > 0) {
           const ex1Items = itemsData.filter(i => i.exercise_code === 'ex-1');
           const ex2Items = itemsData.filter(i => i.exercise_code === 'ex-2');
           const ex3Items = itemsData.filter(i => i.exercise_code === 'ex-3');
@@ -81,59 +81,76 @@ export async function getChapterDataFromDb(bookName: string = 'sentence-builder-
 }
 
 // Save/Update Exercise Item into Supabase SQL Database
-export async function saveChapterDataToDb(newData: any): Promise<boolean> {
-  if (isSupabaseConfigured() && supabase) {
-    try {
-      const bookName = newData.book || 'sentence-builder-vol-2';
-      const unitNumber = Number(newData.chapter || 1);
+export async function saveChapterDataToDb(newData: any): Promise<{ success: boolean; error?: string }> {
+  if (!isSupabaseConfigured() || !supabase) {
+    return {
+      success: false,
+      error: 'ยังไม่ได้เชื่อมต่อ Supabase! กรุณากรอก NEXT_PUBLIC_SUPABASE_URL และ NEXT_PUBLIC_SUPABASE_ANON_KEY ในไฟล์ .env.local'
+    };
+  }
 
-      // Upsert Unit row into SQL 'units' table
-      const { data: unitRow, error: unitErr } = await supabase
-        .from('units')
-        .upsert({
-          book_name: bookName,
-          unit_number: unitNumber,
-          title: newData.title || 'Present Continuous & Sentence Expansion',
-          subtitle: newData.subtitle || `บทที่ ${unitNumber} : ฉันกำลัง…`
-        }, { onConflict: 'unit_number' })
-        .select('id')
-        .single();
+  try {
+    const bookName = newData.book || 'sentence-builder-vol-2';
+    const unitNumber = Number(newData.chapter || 1);
 
-      if (unitErr || !unitRow) {
-        console.error('Failed to upsert unit row:', unitErr);
-        return false;
-      }
+    // Upsert Unit row into SQL 'units' table
+    const { data: unitRow, error: unitErr } = await supabase
+      .from('units')
+      .upsert({
+        book_name: bookName,
+        unit_number: unitNumber,
+        title: newData.title || 'Present Continuous & Sentence Expansion',
+        subtitle: newData.subtitle || `บทที่ ${unitNumber} : ฉันกำลัง…`
+      }, { onConflict: 'book_name,unit_number' })
+      .select('id')
+      .single();
 
-      const unitId = unitRow.id;
+    if (unitErr || !unitRow) {
+      console.error('Failed to upsert unit row:', unitErr);
+      return {
+        success: false,
+        error: `Supabase Error (units table): ${unitErr?.message || 'Failed to update units table'}`
+      };
+    }
 
-      // Upsert Exercise Items into SQL 'exercise_items' table
-      for (const exKey of ['ex-1', 'ex-2', 'ex-3']) {
-        const exGroup = newData.exercises[exKey];
-        if (exGroup && exGroup.items) {
-          for (let idx = 0; idx < exGroup.items.length; idx++) {
-            const item = exGroup.items[idx];
-            await supabase.from('exercise_items').upsert({
-              unit_id: unitId,
-              exercise_code: exKey,
-              item_number: idx + 1,
-              thai_prompt: item.thai || null,
-              prompt: item.prompt || null,
-              model_answer: item.model_answer,
-              acceptable_answers: item.acceptable_answers || [item.model_answer],
-              image_description: item.image_description || null,
-              context_hint: item.context_hint || null,
-              image_url: item.image_url || null
-            }, { onConflict: 'unit_id,exercise_code,item_number' });
+    const unitId = unitRow.id;
+
+    // Upsert Exercise Items into SQL 'exercise_items' table
+    for (const exKey of ['ex-1', 'ex-2', 'ex-3']) {
+      const exGroup = newData.exercises[exKey];
+      if (exGroup && exGroup.items) {
+        for (let idx = 0; idx < exGroup.items.length; idx++) {
+          const item = exGroup.items[idx];
+          const { error: itemErr } = await supabase.from('exercise_items').upsert({
+            unit_id: unitId,
+            exercise_code: exKey,
+            item_number: idx + 1,
+            thai_prompt: item.thai || null,
+            prompt: item.prompt || null,
+            model_answer: item.model_answer,
+            acceptable_answers: item.acceptable_answers || [item.model_answer],
+            image_description: item.image_description || null,
+            context_hint: item.context_hint || null,
+            image_url: item.image_url || null
+          }, { onConflict: 'unit_id,exercise_code,item_number' });
+
+          if (itemErr) {
+            console.error('Failed to upsert exercise item:', itemErr);
+            return {
+              success: false,
+              error: `Supabase Error (exercise_items table): ${itemErr.message}`
+            };
           }
         }
       }
-
-      return true;
-    } catch (err) {
-      console.error('Supabase DB save error:', err);
-      return false;
     }
-  }
 
-  return true;
+    return { success: true };
+  } catch (err: any) {
+    console.error('Supabase DB save error:', err);
+    return {
+      success: false,
+      error: `เกิดข้อผิดพลาดในการเชื่อมต่อ Supabase: ${err?.message || String(err)}`
+    };
+  }
 }
