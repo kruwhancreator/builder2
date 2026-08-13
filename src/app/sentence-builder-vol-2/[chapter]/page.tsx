@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import ExerciseWorkspace from '@/components/ExerciseWorkspace';
-import { getChapterData } from '@/lib/data-manager';
+import { getChapterDataFromDb } from '@/lib/data-manager';
 
 interface PageProps {
   params: Promise<{
@@ -11,11 +11,12 @@ interface PageProps {
 export default async function ChapterPage({ params }: PageProps) {
   const { chapter } = await params;
 
-  if (chapter !== 'chapter-1') {
+  if (!chapter.startsWith('chapter-')) {
     notFound();
   }
 
-  const chapterData = getChapterData(chapter);
+  const unitNum = Number(chapter.replace('chapter-', '')) || 1;
+  const chapterData = await getChapterDataFromDb('sentence-builder-vol-2', unitNum);
 
   return (
     <ExerciseWorkspace chapter={chapter} chapterData={chapterData} />

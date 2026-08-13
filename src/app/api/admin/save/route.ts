@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { saveChapterData, getChapterData } from '@/lib/data-manager';
+import { saveChapterDataToDb, getChapterDataFromDb } from '@/lib/data-manager';
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { chapterData, passcode } = body;
 
-    // Optional passcode verification (default: admin123)
+    // Passcode verification (default: admin123)
     if (passcode !== 'admin123' && process.env.ADMIN_PASSCODE && passcode !== process.env.ADMIN_PASSCODE) {
       return NextResponse.json({ error: 'Passcode ไม่ถูกต้อง' }, { status: 401 });
     }
@@ -15,12 +15,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'รูปแบบข้อมูลไม่ถูกต้อง' }, { status: 400 });
     }
 
-    const success = await saveChapterData(chapterData, 'chapter-1');
+    const success = await saveChapterDataToDb(chapterData);
 
     if (success) {
-      return NextResponse.json({ success: true, message: 'บันทึกข้อมูลและคำแนะนำ AI เรียบร้อยแล้ว!' });
+      return NextResponse.json({ success: true, message: 'บันทึกข้อมูลเฉลยลง Supabase SQL Database เรียบร้อยแล้ว!' });
     } else {
-      return NextResponse.json({ error: 'ไม่สามารถบันทึกไฟล์ได้' }, { status: 500 });
+      return NextResponse.json({ error: 'ไม่สามารถบันทึกข้อมูลลงฐานข้อมูลได้' }, { status: 500 });
     }
   } catch (error: any) {
     console.error('Error saving admin changes:', error);
@@ -28,7 +28,11 @@ export async function POST(req: NextRequest) {
   }
 }
 
-export async function GET() {
-  const data = getChapterData('chapter-1');
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const book = searchParams.get('book') || 'sentence-builder-vol-2';
+  const unit = Number(searchParams.get('unit') || 1);
+
+  const data = await getChapterDataFromDb(book, unit);
   return NextResponse.json(data);
 }
