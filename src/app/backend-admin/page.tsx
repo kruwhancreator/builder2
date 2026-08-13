@@ -13,22 +13,37 @@ import {
   QrCode,
   GraduationCap,
   TrendingUp,
-  Users
+  Users,
+  BookOpen,
+  Plus
 } from 'lucide-react';
 import initialChapterData from '@/data/sentence-builder-vol-2/chapter-1.json';
+
+const INITIAL_BOOKS = [
+  { id: 'sentence-builder-vol-1', title: 'Sentence Builder Vol. 1', totalUnits: 30 },
+  { id: 'sentence-builder-vol-2', title: 'Sentence Builder Vol. 2', totalUnits: 30 },
+  { id: 'sentence-builder-vol-3', title: 'Sentence Builder Vol. 3', totalUnits: 30 },
+];
 
 export default function BackendAdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passcode, setPasscode] = useState('');
   const [authError, setAuthError] = useState('');
 
+  // Multi-Book & Multi-Unit State
+  const [booksList, setBooksList] = useState(INITIAL_BOOKS);
+  const [selectedBook, setSelectedBook] = useState<string>('sentence-builder-vol-2');
   const [selectedUnit, setSelectedUnit] = useState<number>(1);
+  const [newBookTitle, setNewBookTitle] = useState('');
+  const [showAddBookModal, setShowAddBookModal] = useState(false);
+
   const [data, setData] = useState<any>(initialChapterData);
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  // Analytics Metrics State
+  // Analytics Metrics State per selected book
   const [analytics, setAnalytics] = useState<{
+    bookName: string;
     totalQrScans: number;
     unit1Views: number;
     unit30Views: number;
@@ -36,6 +51,18 @@ export default function BackendAdminPage() {
     courseCompletionRate: number;
     unitViews: Array<{ unit_number: number; view_count: number }>;
   } | null>(null);
+
+  // Refetch analytics whenever selectedBook changes
+  useEffect(() => {
+    fetch(`/api/analytics/summary?book=${selectedBook}`)
+      .then(res => res.json())
+      .then(analyticsData => {
+        if (analyticsData && !analyticsData.error) {
+          setAnalytics(analyticsData);
+        }
+      })
+      .catch(err => console.warn('Could not fetch analytics data:', err));
+  }, [selectedBook]);
 
   useEffect(() => {
     // Fetch Exercise Content Data
@@ -47,16 +74,6 @@ export default function BackendAdminPage() {
         }
       })
       .catch(err => console.warn('Could not fetch dynamic admin data:', err));
-
-    // Fetch Analytics Metrics Summary
-    fetch('/api/analytics/summary?book=sentence-builder-vol-2')
-      .then(res => res.json())
-      .then(analyticsData => {
-        if (analyticsData && !analyticsData.error) {
-          setAnalytics(analyticsData);
-        }
-      })
-      .catch(err => console.warn('Could not fetch analytics data:', err));
   }, []);
 
   const handleLogin = (e: React.FormEvent) => {
@@ -69,6 +86,20 @@ export default function BackendAdminPage() {
     }
   };
 
+  const handleAddNewBook = () => {
+    if (!newBookTitle.trim()) return;
+    const slug = newBookTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    const newBookObj = {
+      id: slug || `book-${Date.now()}`,
+      title: newBookTitle.trim(),
+      totalUnits: 30
+    };
+    setBooksList(prev => [...prev, newBookObj]);
+    setSelectedBook(newBookObj.id);
+    setNewBookTitle('');
+    setShowAddBookModal(false);
+  };
+
   const handleSave = async () => {
     setIsSaving(true);
     setSaveMessage(null);
@@ -78,14 +109,14 @@ export default function BackendAdminPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          chapterData: data,
+          chapterData: { ...data, book: selectedBook },
           passcode: passcode || 'admin123'
         })
       });
 
       const resData = await res.json();
       if (res.ok && resData.success) {
-        setSaveMessage({ type: 'success', text: '🎉 บันทึกเฉลยเรียบร้อยแล้ว!' });
+        setSaveMessage({ type: 'success', text: `🎉 บันทึกเฉลยสำหรับหนังสือ "${selectedBook}" เรียบร้อยแล้ว!` });
       } else {
         setSaveMessage({ type: 'error', text: resData.error || 'เกิดข้อผิดพลาดในการบันทึก' });
       }
@@ -118,7 +149,7 @@ export default function BackendAdminPage() {
             Backend Admin Login
           </h1>
           <p className="text-slate-500 text-xs mb-6">
-            ระบบจัดการเฉลย & Analytics สำหรับคุณครู / Admin
+            ระบบจัดการเฉลย & Analytics หลายเล่มสำหรับคุณครู / Admin
           </p>
 
           <form onSubmit={handleLogin} className="space-y-4">
@@ -156,6 +187,7 @@ export default function BackendAdminPage() {
     );
   }
 
+  const activeBookObj = booksList.find(b => b.id === selectedBook) || booksList[0];
   const ex1 = data.exercises['ex-1'];
   const ex2 = data.exercises['ex-2'];
   const ex3 = data.exercises['ex-3'];
@@ -166,23 +198,23 @@ export default function BackendAdminPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white rounded-2xl p-6 border border-slate-200 mb-6 shadow-sm">
         <div>
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#1e3a8a]/10 text-[#1e3a8a] text-xs font-bold uppercase tracking-wider mb-2">
-            ⚙️ Teacher Backend Admin CMS & Analytics
+            ⚙️ Multi-Book Teacher Backend Admin CMS
           </div>
           <h1 className="text-2xl font-extrabold text-slate-900 font-heading">
-            ระบบจัดการเฉลย & ติดตามสถิติผู้ใช้งาน
+            ระบบจัดการหนังสือ & สถิติผู้ใช้งาน (Multi-Book)
           </h1>
           <p className="text-slate-600 text-xs mt-1">
-            หนังสือ Sentence Builder Vol. 2 (Units 1 - 30)
+            เลือกหนังสือเพื่อแก้ไขเฉลยและดูสถิติการสแกน QR Code จำแนกตามเล่ม
           </p>
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
           <Link
-            href="/sentence-builder-vol-2"
+            href={`/${selectedBook}`}
             className="text-xs px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold border border-slate-300 transition-colors flex items-center gap-1.5"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            <span>ดูหน้าแบบฝึกหัด</span>
+            <span>ดูหน้าหนังสือ</span>
           </Link>
 
           <button
@@ -206,17 +238,87 @@ export default function BackendAdminPage() {
       </div>
 
       {/* ========================================================= */}
-      {/* 📊 ANALYTICS DASHBOARD CARD */}
+      {/* 📘 MULTI-BOOK SELECTOR BAR */}
+      {/* ========================================================= */}
+      <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-2xs mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-[#2563eb]/10 text-[#2563eb] flex items-center justify-center font-bold">
+            <BookOpen className="w-5 h-5" />
+          </div>
+          <div>
+            <label className="block text-[11px] font-bold text-slate-500 uppercase">
+              📚 เลือกหนังสือที่ต้องการจัดการ (Select Book):
+            </label>
+            <select
+              value={selectedBook}
+              onChange={(e) => setSelectedBook(e.target.value)}
+              className="mt-0.5 rounded-xl bg-slate-50 border border-slate-300 px-3.5 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:border-[#2563eb]"
+            >
+              {booksList.map(book => (
+                <option key={book.id} value={book.id}>
+                  {book.title} ({book.id})
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <button
+          onClick={() => setShowAddBookModal(true)}
+          className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
+        >
+          <Plus className="w-4 h-4" />
+          <span>+ เพิ่มหนังสือเล่มใหม่</span>
+        </button>
+      </div>
+
+      {/* Add New Book Modal */}
+      {showAddBookModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-slate-200">
+            <h3 className="text-lg font-bold text-slate-900 mb-2 font-heading">
+              📚 เพิ่มหนังสือเล่มใหม่สู่ระบบ
+            </h3>
+            <p className="text-xs text-slate-600 mb-4">
+              กรอกชื่อหนังสือภาษาอังกฤษหรือภาษาไทย (ระบบจะสร้าง URL Slug อัตโนมัติ)
+            </p>
+            <input
+              type="text"
+              value={newBookTitle}
+              onChange={(e) => setNewBookTitle(e.target.value)}
+              placeholder="เช่น Sentence Builder Vol. 3"
+              className="w-full rounded-xl bg-white border border-slate-300 px-4 py-2.5 text-xs text-slate-900 font-bold mb-4 focus:outline-none focus:border-[#2563eb]"
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowAddBookModal(false)}
+                className="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold"
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={handleAddNewBook}
+                className="px-4 py-2 rounded-xl bg-[#2563eb] text-white text-xs font-bold"
+              >
+                เพิ่มหนังสือ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* 📊 MULTI-BOOK ANALYTICS DASHBOARD CARD */}
       {/* ========================================================= */}
       {analytics && (
         <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs mb-8">
           <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-5">
             <h2 className="text-lg font-bold text-[#1e3a8a] font-heading flex items-center gap-2">
               <BarChart3 className="w-5 h-5 text-[#2563eb]" />
-              <span>สถิติการสแกน QR Code & อัตราเรียนจบ (Course Completion Funnel)</span>
+              <span>สถิติผู้ใช้งาน: {activeBookObj.title}</span>
             </h2>
-            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-50 text-[#2563eb]">
-              Book: Sentence Builder Vol. 2
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-50 text-[#2563eb] font-mono">
+              /{selectedBook}
             </span>
           </div>
 
@@ -224,13 +326,13 @@ export default function BackendAdminPage() {
             {/* Metric 1: Total QR Scans */}
             <div className="bg-[#f8fafc] rounded-xl p-4 border border-slate-200">
               <div className="flex items-center justify-between text-slate-500 mb-2">
-                <span className="text-xs font-semibold">ยอดสแกน QR Code ทั้งหมด</span>
+                <span className="text-xs font-semibold">ยอดสแกน QR Code</span>
                 <QrCode className="w-4 h-4 text-[#2563eb]" />
               </div>
               <div className="text-2xl font-extrabold text-slate-900 font-heading">
                 {analytics.totalQrScans.toLocaleString()} <span className="text-xs font-normal text-slate-500">ครั้ง</span>
               </div>
-              <p className="text-[11px] text-slate-500 mt-1">ผู้เรียนที่สแกนเข้าสู่หน้าหลัก</p>
+              <p className="text-[11px] text-slate-500 mt-1">สแกนเข้าหน้ารวมเล่ม</p>
             </div>
 
             {/* Metric 2: Unit 1 Starts */}
@@ -243,7 +345,7 @@ export default function BackendAdminPage() {
                 {analytics.unit1Views.toLocaleString()} <span className="text-xs font-normal text-slate-500">คน</span>
               </div>
               <p className="text-[11px] text-emerald-600 mt-1 font-semibold">
-                Conversion: {analytics.qrToUnit1Conversion}% จากคนสแกน
+                Conversion: {analytics.qrToUnit1Conversion}%
               </p>
             </div>
 
@@ -257,7 +359,7 @@ export default function BackendAdminPage() {
                 {analytics.unit30Views.toLocaleString()} <span className="text-xs font-normal text-slate-500">คน</span>
               </div>
               <p className="text-[11px] text-purple-600 mt-1 font-semibold">
-                100% Course Finishers
+                100% Finishers
               </p>
             </div>
 
@@ -274,10 +376,10 @@ export default function BackendAdminPage() {
             </div>
           </div>
 
-          {/* Unit Completion Progress Bar Grid (Units 1 to 30) */}
+          {/* Unit Completion Progress Bar Grid */}
           <div>
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
-              📊 จำนวนผู้เข้าเรียนจำแนกตาม Unit (Units 1 - 30)
+              📊 จำนวนผู้เข้าเรียนจำแนกตาม Unit ของเล่มนี้ (Units 1 - 30)
             </h3>
             <div className="grid grid-cols-2 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-10 gap-2">
               {analytics.unitViews.slice(0, 30).map((u) => {
@@ -319,7 +421,7 @@ export default function BackendAdminPage() {
       {/* Select Unit Selector */}
       <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-2xs mb-6 flex items-center justify-between gap-4">
         <label className="text-xs font-bold text-slate-700 uppercase">
-          📌 เลือก Unit ที่ต้องการแก้ไขเฉลย:
+          📌 เลือก Unit ของ {activeBookObj.title} ที่ต้องการแก้ไขเฉลย:
         </label>
         <select
           value={selectedUnit}
@@ -340,7 +442,7 @@ export default function BackendAdminPage() {
       {ex1 && (
         <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs mb-8">
           <h2 className="text-xl font-bold text-[#1e3a8a] font-heading border-b border-slate-200 pb-3 mb-6">
-            ✏️ Exercise 1: แปลประโยคภาษาอังกฤษ (Unit {selectedUnit})
+            ✏️ Exercise 1: แปลประโยคภาษาอังกฤษ ({activeBookObj.title} • Unit {selectedUnit})
           </h2>
 
           <div className="space-y-6">
@@ -387,7 +489,7 @@ export default function BackendAdminPage() {
       {ex2 && (
         <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs mb-8">
           <h2 className="text-xl font-bold text-[#1e3a8a] font-heading border-b border-slate-200 pb-3 mb-6">
-            🧩 Exercise 2: เลือกคำจากที่มีให้มาแต่งประโยค (Unit {selectedUnit})
+            🧩 Exercise 2: เลือกคำจากที่มีให้มาแต่งประโยค ({activeBookObj.title} • Unit {selectedUnit})
           </h2>
 
           <div className="space-y-6">
@@ -434,7 +536,7 @@ export default function BackendAdminPage() {
       {ex3 && (
         <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs mb-8">
           <h2 className="text-xl font-bold text-[#1e3a8a] font-heading border-b border-slate-200 pb-3 mb-6">
-            🖼️ Exercise 3: แต่งจากภาพ (Unit {selectedUnit})
+            🖼️ Exercise 3: แต่งจากภาพ ({activeBookObj.title} • Unit {selectedUnit})
           </h2>
 
           <div className="space-y-6">
@@ -503,7 +605,7 @@ export default function BackendAdminPage() {
           ) : (
             <>
               <Save className="w-5 h-5" />
-              <span>💾 บันทึกการเปลี่ยนแปลงทั้งหมด</span>
+              <span>💾 บันทึกการเปลี่ยนแปลงทั้งหมด ({activeBookObj.title})</span>
             </>
           )}
         </button>
