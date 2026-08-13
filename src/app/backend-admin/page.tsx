@@ -22,9 +22,9 @@ import {
 import initialChapterData from '@/data/sentence-builder-vol-2/chapter-1.json';
 
 const INITIAL_BOOKS = [
-  { id: 'sentence-builder-vol-1', title: 'Sentence Builder Vol. 1', subtitle: 'แบบฝึกหัดแต่งประโยคภาษาอังกฤษ Vol. 1', totalUnits: 30 },
-  { id: 'sentence-builder-vol-2', title: 'Sentence Builder Vol. 2', subtitle: 'แบบฝึกหัดแต่งประโยคและขยายประโยค Vol. 2', totalUnits: 30 },
-  { id: 'sentence-builder-vol-3', title: 'Sentence Builder Vol. 3', subtitle: 'แบบฝึกหัดแต่งประโยคขั้นสูง Vol. 3', totalUnits: 30 },
+  { id: 'sentence-builder-vol-1', title: 'Sentence Builder Vol. 1', subtitle: 'แบบฝึกหัดแต่งประโยคภาษาอังกฤษ Vol. 1', total_units: 30 },
+  { id: 'sentence-builder-vol-2', title: 'Sentence Builder Vol. 2', subtitle: 'แบบฝึกหัดแต่งประโยคและขยายประโยค Vol. 2', total_units: 30 },
+  { id: 'sentence-builder-vol-3', title: 'Sentence Builder Vol. 3', subtitle: 'แบบฝึกหัดแต่งประโยคขั้นสูง Vol. 3', total_units: 30 },
 ];
 
 export default function BackendAdminPage() {
@@ -34,13 +34,14 @@ export default function BackendAdminPage() {
 
   // Level 1: Books List, Level 2: Book Content Management
   const [activeView, setActiveView] = useState<'books_list' | 'book_editor'>('books_list');
-  const [booksList, setBooksList] = useState(INITIAL_BOOKS);
+  const [booksList, setBooksList] = useState<any[]>(INITIAL_BOOKS);
   const [selectedBook, setSelectedBook] = useState<string>('sentence-builder-vol-2');
   const [selectedUnit, setSelectedUnit] = useState<number>(1);
 
   // New Book Form State
   const [newBookTitle, setNewBookTitle] = useState('');
   const [newBookSubtitle, setNewBookSubtitle] = useState('');
+  const [isAddingBook, setIsAddingBook] = useState(false);
   const [showAddBookModal, setShowAddBookModal] = useState(false);
 
   const [data, setData] = useState<any>(initialChapterData);
@@ -57,6 +58,22 @@ export default function BackendAdminPage() {
     courseCompletionRate: number;
     unitViews: Array<{ unit_number: number; view_count: number }>;
   } | null>(null);
+
+  // Fetch dynamic Books List from Supabase Database
+  const fetchBooksList = () => {
+    fetch('/api/admin/books')
+      .then(res => res.json())
+      .then(fetchedBooks => {
+        if (Array.isArray(fetchedBooks) && fetchedBooks.length > 0) {
+          setBooksList(fetchedBooks);
+        }
+      })
+      .catch(err => console.warn('Could not fetch books list:', err));
+  };
+
+  useEffect(() => {
+    fetchBooksList();
+  }, []);
 
   // Refetch analytics whenever selectedBook changes
   useEffect(() => {
@@ -92,8 +109,10 @@ export default function BackendAdminPage() {
     }
   };
 
-  const handleAddNewBook = () => {
+  const handleAddNewBook = async () => {
     if (!newBookTitle.trim()) return;
+    setIsAddingBook(true);
+
     const slug = newBookTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     const newBookObj = {
       id: slug || `book-${Date.now()}`,
@@ -101,12 +120,32 @@ export default function BackendAdminPage() {
       subtitle: newBookSubtitle.trim() || 'แบบฝึกหัดแต่งประโยคภาษาอังกฤษ',
       totalUnits: 30
     };
-    setBooksList(prev => [...prev, newBookObj]);
-    setSelectedBook(newBookObj.id);
-    setNewBookTitle('');
-    setNewBookSubtitle('');
-    setShowAddBookModal(false);
-    setActiveView('book_editor');
+
+    try {
+      const res = await fetch('/api/admin/books', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newBookObj)
+      });
+
+      const resData = await res.json();
+      if (res.ok && resData.success) {
+        setSaveMessage({ type: 'success', text: `🎉 บันทึกหนังสือใหม่ "${newBookTitle}" ลง Supabase เรียบร้อยแล้ว!` });
+        fetchBooksList();
+        setSelectedBook(newBookObj.id);
+        setNewBookTitle('');
+        setNewBookSubtitle('');
+        setShowAddBookModal(false);
+        setActiveView('book_editor');
+      } else {
+        setSaveMessage({ type: 'error', text: resData.error || 'เกิดข้อผิดพลาดในการบันทึกหนังสือ' });
+      }
+    } catch (err) {
+      console.error(err);
+      setSaveMessage({ type: 'error', text: 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์' });
+    } finally {
+      setIsAddingBook(false);
+    }
   };
 
   const handleSave = async () => {
@@ -203,6 +242,21 @@ export default function BackendAdminPage() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
+      {/* Toast Notification */}
+      {saveMessage && (
+        <div className={`mb-6 p-4 rounded-xl text-xs font-bold border flex items-center justify-between ${
+          saveMessage.type === 'success' 
+            ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
+            : 'bg-red-50 text-red-800 border-red-200'
+        }`}>
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4" />
+            <span>{saveMessage.text}</span>
+          </div>
+          <button onClick={() => setSaveMessage(null)} className="text-slate-400 hover:text-slate-600">✕</button>
+        </div>
+      )}
+
       {/* ========================================================= */}
       {/* LEVEL 1: BOOKS LIST DASHBOARD */}
       {/* ========================================================= */}
@@ -212,7 +266,7 @@ export default function BackendAdminPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white rounded-2xl p-6 border border-slate-200 mb-6 shadow-sm">
             <div>
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#1e3a8a]/10 text-[#1e3a8a] text-xs font-bold uppercase tracking-wider mb-2">
-                ⚙️ Multi-Book Backend Admin CMS
+                ⚙️ Multi-Book Backend Admin CMS (Supabase SQL)
               </div>
               <h1 className="text-2xl font-extrabold text-slate-900 font-heading">
                 รายชื่อหนังสือทั้งหมดในระบบ (Books Directory)
@@ -244,7 +298,7 @@ export default function BackendAdminPage() {
                       <BookOpen className="w-5 h-5" />
                     </div>
                     <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-blue-50 text-[#2563eb] border border-blue-100">
-                      {book.totalUnits} Units
+                      {book.total_units || book.totalUnits || 30} Units
                     </span>
                   </div>
 
@@ -432,21 +486,6 @@ export default function BackendAdminPage() {
                   })}
                 </div>
               </div>
-            </div>
-          )}
-
-          {/* Notification Toast */}
-          {saveMessage && (
-            <div className={`mb-6 p-4 rounded-xl text-xs font-bold border flex items-center justify-between ${
-              saveMessage.type === 'success' 
-                ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
-                : 'bg-red-50 text-red-800 border-red-200'
-            }`}>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4" />
-                <span>{saveMessage.text}</span>
-              </div>
-              <button onClick={() => setSaveMessage(null)} className="text-slate-400 hover:text-slate-600">✕</button>
             </div>
           )}
 
@@ -644,10 +683,10 @@ export default function BackendAdminPage() {
         <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-slate-200">
             <h3 className="text-lg font-bold text-slate-900 mb-2 font-heading">
-              📚 เพิ่มหนังสือเล่มใหม่สู่ระบบ
+              📚 เพิ่มหนังสือเล่มใหม่สู่ระบบ Supabase
             </h3>
             <p className="text-xs text-slate-600 mb-4">
-              กรอกชื่อหนังสือภาษาอังกฤษหรือภาษาไทย (ระบบจะสร้าง URL Slug อัตโนมัติ)
+              กรอกชื่อหนังสือ (ระบบจะบันทึกลง SQL table &apos;books&apos; และสร้าง Units 1-30 อัตโนมัติ)
             </p>
 
             <div className="space-y-3 mb-5 text-xs">
@@ -687,9 +726,17 @@ export default function BackendAdminPage() {
               </button>
               <button
                 onClick={handleAddNewBook}
-                className="px-4 py-2 rounded-xl bg-[#2563eb] text-white text-xs font-bold"
+                disabled={isAddingBook}
+                className="px-4 py-2 rounded-xl bg-[#2563eb] text-white text-xs font-bold flex items-center gap-1.5 disabled:opacity-50"
               >
-                เพิ่มหนังสือ
+                {isAddingBook ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>กำลังบันทึกลง Supabase...</span>
+                  </>
+                ) : (
+                  <span>บันทึกหนังสือใหม่</span>
+                )}
               </button>
             </div>
           </div>
