@@ -19,7 +19,9 @@ import {
   Layers,
   FileText,
   Sparkles,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Bot,
+  Sliders
 } from 'lucide-react';
 
 const INITIAL_BOOKS = [
@@ -71,6 +73,19 @@ export default function BackendAdminPage() {
   const [showUnitModal, setShowUnitModal] = useState(false);
   const [editingUnitNum, setEditingUnitNum] = useState<number | null>(null);
   const [unitFormData, setUnitFormData] = useState({ unit_number: 1, title: '', subtitle: '' });
+
+  // Exercise Modal State (CRUD Exercise)
+  const [showExerciseModal, setShowExerciseModal] = useState(false);
+  const [exerciseModalContext, setExerciseModalContext] = useState<{ unit: any; isEditing: boolean } | null>(null);
+  const [exerciseFormData, setExerciseFormData] = useState({
+    exercise_code: '',
+    title: '',
+    exercise_type: 'translation',
+    use_ai_check: true,
+    instruction: '',
+    guidance: ''
+  });
+  const [isSubmittingExercise, setIsSubmittingExercise] = useState(false);
 
   // Quiz Editor Modal State
   const [showQuizModal, setShowQuizModal] = useState(false);
@@ -264,6 +279,92 @@ export default function BackendAdminPage() {
     }
   };
 
+  // Exercise Config Handlers (CRUD)
+  const openAddExerciseModal = (unit: any) => {
+    const nextCode = `ex-${(unit.exercises?.length || 0) + 1}`;
+    setExerciseModalContext({ unit, isEditing: false });
+    setExerciseFormData({
+      exercise_code: nextCode,
+      title: `Exercise ${(unit.exercises?.length || 0) + 1}: แบบฝึกหัดแต่งประโยค`,
+      exercise_type: 'translation',
+      use_ai_check: true,
+      instruction: 'แปลประโยคภาษาไทยเป็นภาษาอังกฤษโดยใช้โครงสร้างที่กำหนด',
+      guidance: 'ตรวจสอบ Subject-Verb Agreement และความถูกต้องของไวยากรณ์'
+    });
+    setShowExerciseModal(true);
+  };
+
+  const openEditExerciseModal = (unit: any, exercise: any) => {
+    setExerciseModalContext({ unit, isEditing: true });
+    setExerciseFormData({
+      exercise_code: exercise.code,
+      title: exercise.title || '',
+      exercise_type: exercise.type || 'translation',
+      use_ai_check: exercise.use_ai_check !== false,
+      instruction: exercise.instruction || '',
+      guidance: exercise.guidance || ''
+    });
+    setShowExerciseModal(true);
+  };
+
+  const handleSaveExercise = async () => {
+    if (!exerciseModalContext || !exerciseFormData.title.trim()) {
+      alert('กรุณากรอกชื่อแบบฝึกหัด');
+      return;
+    }
+
+    setIsSubmittingExercise(true);
+    try {
+      const res = await fetch('/api/admin/curriculum', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'save_exercise',
+          bookName: selectedBook,
+          exerciseData: {
+            unit_id: exerciseModalContext.unit.id,
+            unit_number: exerciseModalContext.unit.unit_number,
+            ...exerciseFormData
+          }
+        })
+      });
+
+      const resData = await res.json();
+      if (res.ok && resData.success) {
+        setSaveMessage({ type: 'success', text: `🎉 ${resData.message || 'บันทึกแบบฝึกหัดเรียบร้อยแล้ว!'}` });
+        fetchCurriculum(selectedBook);
+        setShowExerciseModal(false);
+      } else {
+        setSaveMessage({ type: 'error', text: resData.error || 'เกิดข้อผิดพลาดในการบันทึกแบบฝึกหัด' });
+      }
+    } catch (err) {
+      console.error(err);
+      setSaveMessage({ type: 'error', text: 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์' });
+    } finally {
+      setIsSubmittingExercise(false);
+    }
+  };
+
+  const handleDeleteExercise = async (unit: any, exercise: any) => {
+    if (!confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบแบบฝึกหัด "${exercise.title}"?`)) return;
+
+    try {
+      const res = await fetch(`/api/admin/curriculum?action=delete_exercise&unit_id=${unit.id}&exercise_code=${exercise.code}`, {
+        method: 'DELETE'
+      });
+      const resData = await res.json();
+      if (res.ok && resData.success) {
+        setSaveMessage({ type: 'success', text: `🗑️ ลบแบบฝึกหัด ${exercise.title} เรียบร้อยแล้ว!` });
+        fetchCurriculum(selectedBook);
+      } else {
+        setSaveMessage({ type: 'error', text: resData.error || 'เกิดข้อผิดพลาดในการลบแบบฝึกหัด' });
+      }
+    } catch (err) {
+      console.error(err);
+      setSaveMessage({ type: 'error', text: 'เกิดข้อผิดพลาดในการลบ' });
+    }
+  };
+
   // Quiz Editor Handlers
   const openQuizEditor = (unit: any, exercise: any) => {
     setCurrentQuizExercise({ unit, exercise });
@@ -427,7 +528,7 @@ export default function BackendAdminPage() {
                 className="sidebar-nav-item active-nav-item w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-bold transition-all cursor-pointer bg-[#2563eb] text-white shadow-xs"
               >
                 <Layers className="nav-item-icon w-4 h-4" />
-                <span className="nav-item-label">Units & Curriculum</span>
+                <span className="nav-item-label">Units & Exercises</span>
               </button>
             )}
           </nav>
@@ -603,7 +704,7 @@ export default function BackendAdminPage() {
                   <Layers className="w-6 h-6 text-[#2563eb]" />
                   <div>
                     <h1 className="curriculum-main-title text-2xl font-extrabold text-slate-900 font-heading">
-                      Units Management (Curriculum)
+                      Units & Exercises Management
                     </h1>
                     <p className="curriculum-subtitle text-xs text-slate-500 mt-0.5">
                       {activeBookObj.title} ({curriculumUnits.length} Units)
@@ -664,6 +765,15 @@ export default function BackendAdminPage() {
                         {/* UNIT ACTION TOOLBAR */}
                         <div className="unit-action-toolbar flex items-center gap-1.5 text-slate-500">
                           <button
+                            onClick={() => openAddExerciseModal(unit)}
+                            title="Add Exercise to this Unit"
+                            className="btn-add-exercise-to-unit px-2.5 py-1 bg-white hover:bg-blue-50 text-[#2563eb] border border-blue-200 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer shadow-2xs"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>Add Exercise</span>
+                          </button>
+
+                          <button
                             onClick={() => openEditUnitModal(unit)}
                             title="Edit Unit Info"
                             className="btn-edit-unit p-1.5 hover:bg-slate-200/60 rounded-lg text-slate-600 transition-colors cursor-pointer"
@@ -683,50 +793,80 @@ export default function BackendAdminPage() {
 
                       {/* NESTED EXERCISES LIST */}
                       <div className="unit-exercises-container p-3 sm:px-6 space-y-2">
-                        {unit.exercises && unit.exercises.map((exercise: any) => (
-                          <div
-                            key={exercise.code}
-                            className="exercise-item-row bg-white border border-slate-200/80 rounded-xl p-3.5 flex items-center justify-between gap-4 hover:border-blue-300 hover:shadow-2xs transition-all"
-                          >
-                            <div className="exercise-main-content flex items-center gap-3 min-w-0">
-                              <GripVertical className="exercise-drag-handle w-3.5 h-3.5 text-slate-300 cursor-grab" />
-                              
-                              <div className="exercise-icon-badge w-8 h-8 rounded-lg bg-blue-50 text-[#2563eb] flex items-center justify-center font-bold shrink-0">
-                                {exercise.type === 'translation' && <FileText className="w-4 h-4" />}
-                                {exercise.type === 'guided_sentence' && <Sparkles className="w-4 h-4" />}
-                                {exercise.type === 'picture_description' && <ImageIcon className="w-4 h-4" />}
+                        {unit.exercises && unit.exercises.length > 0 ? (
+                          unit.exercises.map((exercise: any) => (
+                            <div
+                              key={exercise.code}
+                              className="exercise-item-row bg-white border border-slate-200/80 rounded-xl p-3.5 flex items-center justify-between gap-4 hover:border-blue-300 hover:shadow-2xs transition-all"
+                            >
+                              <div className="exercise-main-content flex items-center gap-3 min-w-0">
+                                <GripVertical className="exercise-drag-handle w-3.5 h-3.5 text-slate-300 cursor-grab" />
+                                
+                                <div className="exercise-icon-badge w-8 h-8 rounded-lg bg-blue-50 text-[#2563eb] flex items-center justify-center font-bold shrink-0">
+                                  {exercise.type === 'translation' && <FileText className="w-4 h-4" />}
+                                  {exercise.type === 'guided_sentence' && <Sparkles className="w-4 h-4" />}
+                                  {exercise.type === 'picture_description' && <ImageIcon className="w-4 h-4" />}
+                                </div>
+
+                                <div className="exercise-title-box truncate">
+                                  <span className="exercise-title-text font-bold text-slate-800 text-xs truncate block">
+                                    {exercise.title}
+                                  </span>
+                                  {exercise.instruction && (
+                                    <span className="exercise-instruction-preview text-[10px] text-slate-400 truncate block mt-0.5">
+                                      {exercise.instruction}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
 
-                              <div className="exercise-title-box truncate">
-                                <span className="exercise-title-text font-bold text-slate-800 text-xs truncate block">
-                                  {exercise.title}
+                              {/* EXERCISE BADGES & ACTION BUTTONS */}
+                              <div className="exercise-right-actions flex items-center gap-2.5 shrink-0">
+                                {exercise.use_ai_check && (
+                                  <span className="ai-badge text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-purple-50 text-purple-600 border border-purple-200 flex items-center gap-1">
+                                    <Bot className="w-3 h-3" />
+                                    <span>AI Check</span>
+                                  </span>
+                                )}
+
+                                <span className="exercise-item-count-badge text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+                                  {exercise.itemCount || (exercise.items ? exercise.items.length : 0)} Questions
                                 </span>
+
+                                <div className="exercise-actions-toolbar flex items-center gap-1 pl-2 border-l border-slate-100">
+                                  <button
+                                    onClick={() => openEditExerciseModal(unit, exercise)}
+                                    title="Edit Exercise Config (Title, AI Check, Type, Guidance)"
+                                    className="btn-edit-exercise-config p-1.5 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                                  >
+                                    <Sliders className="w-3.5 h-3.5" />
+                                  </button>
+
+                                  <button
+                                    onClick={() => openQuizEditor(unit, exercise)}
+                                    title="Manage Quiz & Questions"
+                                    className="btn-edit-quiz px-2.5 py-1 bg-blue-50 hover:bg-[#2563eb] text-[#2563eb] hover:text-white rounded-lg transition-colors cursor-pointer flex items-center gap-1 font-bold text-xs"
+                                  >
+                                    <Edit className="w-3.5 h-3.5" />
+                                    <span>จัดการเฉลย/ข้อ</span>
+                                  </button>
+
+                                  <button
+                                    onClick={() => handleDeleteExercise(unit, exercise)}
+                                    title="Delete Exercise"
+                                    className="btn-delete-exercise p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
                               </div>
                             </div>
-
-                            {/* EXERCISE BADGES & ACTION BUTTONS */}
-                            <div className="exercise-right-actions flex items-center gap-3 shrink-0">
-                              <span className="exercise-item-count-badge text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
-                                {exercise.itemCount || (exercise.items ? exercise.items.length : 0)} Questions
-                              </span>
-
-                              <span className="exercise-free-tag text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200">
-                                Free
-                              </span>
-
-                              <div className="exercise-actions-toolbar flex items-center gap-1 pl-2 border-l border-slate-100">
-                                <button
-                                  onClick={() => openQuizEditor(unit, exercise)}
-                                  title="Manage Quiz & Questions"
-                                  className="btn-edit-quiz p-1.5 text-[#2563eb] hover:bg-blue-50 rounded-lg transition-colors cursor-pointer flex items-center gap-1 font-bold text-xs"
-                                >
-                                  <Edit className="w-4 h-4" />
-                                  <span className="hidden sm:inline">จัดการเฉลย/ข้อ</span>
-                                </button>
-                              </div>
-                            </div>
+                          ))
+                        ) : (
+                          <div className="text-center py-6 text-slate-400 text-xs border border-dashed border-slate-200 rounded-xl">
+                            ยังไม่มีแบบฝึกหัดใน Unit นี้ คลิก &quot;Add Exercise&quot; เพื่อสร้าง
                           </div>
-                        ))}
+                        )}
                       </div>
                     </div>
                   ))}
@@ -736,6 +876,134 @@ export default function BackendAdminPage() {
           )}
         </main>
       </div>
+
+      {/* ========================================================= */}
+      {/* EXERCISE CONFIG MODAL (CREATE / EDIT EXERCISE) */}
+      {/* ========================================================= */}
+      {showExerciseModal && exerciseModalContext && (
+        <div className="modal-backdrop fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="modal-content-card bg-white rounded-2xl p-6 max-w-lg w-full shadow-2xl border border-slate-200">
+            <div className="modal-header flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+              <div>
+                <span className="text-[11px] font-bold text-[#2563eb] uppercase">
+                  Unit {exerciseModalContext.unit.unit_number}: {exerciseModalContext.unit.title}
+                </span>
+                <h3 className="modal-title text-lg font-bold text-slate-900 font-heading mt-0.5">
+                  {exerciseModalContext.isEditing ? '📝 แก้ไขการตั้งค่าแบบฝึกหัด' : '➕ สร้างแบบฝึกหัดใหม่ (Add Exercise)'}
+                </h3>
+              </div>
+              <button onClick={() => setShowExerciseModal(false)} className="modal-close-btn text-slate-400 hover:text-slate-600">✕</button>
+            </div>
+
+            <div className="modal-form-body space-y-4 text-xs">
+              {/* Exercise Title */}
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1">
+                  ชื่อแบบฝึกหัด (Exercise Title):
+                </label>
+                <input
+                  type="text"
+                  value={exerciseFormData.title}
+                  onChange={(e) => setExerciseFormData(prev => ({ ...prev, title: e.target.value }))}
+                  placeholder="เช่น Exercise 1: แปลประโยคภาษาอังกฤษ"
+                  className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:border-[#2563eb]"
+                />
+              </div>
+
+              {/* Exercise Type */}
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1">
+                  ประเภทแบบฝึกหัด (Exercise Type):
+                </label>
+                <select
+                  value={exerciseFormData.exercise_type}
+                  onChange={(e) => setExerciseFormData(prev => ({ ...prev, exercise_type: e.target.value }))}
+                  className="w-full rounded-xl bg-slate-50 border border-slate-300 px-3.5 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:border-[#2563eb]"
+                >
+                  <option value="translation">📌 Fix Answer / Translation (แปลประโยคภาษาอังกฤษ)</option>
+                  <option value="guided_sentence">🧩 Choose Provided Word (เลือกคำที่กำหนดให้มาแต่งประโยค)</option>
+                  <option value="picture_description">🖼️ Describe Image (ดูภาพแล้วแต่งประโยค Core + Context + Connect)</option>
+                </select>
+              </div>
+
+              {/* AI Check Toggle */}
+              <div className="p-3.5 rounded-xl bg-purple-50/60 border border-purple-200/80 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center font-bold">
+                    <Bot className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="font-extrabold text-purple-900 text-xs">ตรวจคำตอบด้วย AI (Use AI to check answer)</div>
+                    <div className="text-[11px] text-purple-700">เปิดให้ AI ช่วยวิเคราะห์ไวยากรณ์และให้คำแนะนำแบบละเอียด</div>
+                  </div>
+                </div>
+
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={exerciseFormData.use_ai_check}
+                    onChange={(e) => setExerciseFormData(prev => ({ ...prev, use_ai_check: e.target.checked }))}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#2563eb]"></div>
+                </label>
+              </div>
+
+              {/* Description / Instructions */}
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1">
+                  คำอธิบายแบบฝึกหัด (Description / Instruction for students):
+                </label>
+                <textarea
+                  rows={2}
+                  value={exerciseFormData.instruction}
+                  onChange={(e) => setExerciseFormData(prev => ({ ...prev, instruction: e.target.value }))}
+                  placeholder="เช่น แปลประโยคภาษาไทยเป็นภาษาอังกฤษโดยใช้ Present Continuous"
+                  className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs text-slate-900 focus:outline-none focus:border-[#2563eb]"
+                />
+              </div>
+
+              {/* Teacher / AI Guidance */}
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1">
+                  เกณฑ์การตรวจและคำแนะนำ (Teacher / AI Guidance):
+                </label>
+                <textarea
+                  rows={2}
+                  value={exerciseFormData.guidance}
+                  onChange={(e) => setExerciseFormData(prev => ({ ...prev, guidance: e.target.value }))}
+                  placeholder="เช่น ตรวจสอบ Subject-Verb Agreement, การเติม -ing และคำเชื่อมประโยค"
+                  className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs text-slate-900 focus:outline-none focus:border-[#2563eb]"
+                />
+              </div>
+            </div>
+
+            <div className="modal-footer flex justify-end gap-2 mt-6 border-t border-slate-100 pt-4">
+              <button
+                onClick={() => setShowExerciseModal(false)}
+                className="btn-modal-cancel px-4 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold cursor-pointer"
+              >
+                ยกเลิก
+              </button>
+
+              <button
+                onClick={handleSaveExercise}
+                disabled={isSubmittingExercise}
+                className="btn-modal-submit px-5 py-2 rounded-xl bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-xs font-bold flex items-center gap-1.5 disabled:opacity-50 transition-colors cursor-pointer shadow-md"
+              >
+                {isSubmittingExercise ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>กำลังบันทึก...</span>
+                  </>
+                ) : (
+                  <span>บันทึกแบบฝึกหัด</span>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ========================================================= */}
       {/* LEVEL 3: QUIZ / QUESTION ITEMS MANAGER MODAL */}
@@ -750,7 +1018,7 @@ export default function BackendAdminPage() {
                   Unit {currentQuizExercise.unit.unit_number}: {currentQuizExercise.unit.title}
                 </div>
                 <h3 className="quiz-modal-heading text-lg font-bold text-slate-900 font-heading mt-0.5">
-                  📝 {currentQuizExercise.exercise.title} (Quiz Manager)
+                  📝 {currentQuizExercise.exercise.title} (Quiz Questions Manager)
                 </h3>
               </div>
               <button onClick={() => setShowQuizModal(false)} className="modal-close-btn text-slate-400 hover:text-slate-600 text-lg">✕</button>

@@ -8,56 +8,92 @@ export async function GET(req: NextRequest) {
 
   if (isSupabaseConfigured() && supabase) {
     try {
+      const client = supabase;
       // 1. Fetch all units for this book
-      const { data: unitsData, error: unitErr } = await supabase
+      const { data: unitsData, error: unitErr } = await client
         .from('units')
         .select('*')
         .eq('book_name', bookName)
         .order('unit_number', { ascending: true });
 
       if (!unitErr && unitsData && unitsData.length > 0) {
-        // Fetch all exercise items for these units
         const unitIds = unitsData.map(u => u.id);
-        const { data: itemsData } = await supabase
+
+        // 2. Fetch exercises configuration from 'exercises' table
+        const { data: exercisesData } = await client
+          .from('exercises')
+          .select('*')
+          .in('unit_id', unitIds)
+          .order('created_at', { ascending: true });
+
+        // 3. Fetch exercise items from 'exercise_items' table
+        const { data: itemsData } = await client
           .from('exercise_items')
           .select('*')
           .in('unit_id', unitIds)
           .order('item_number', { ascending: true });
 
         const formattedUnits = unitsData.map(unit => {
+          const unitExercises = (exercisesData || []).filter(ex => ex.unit_id === unit.id);
           const unitItems = (itemsData || []).filter(item => item.unit_id === unit.id);
-          
-          // Group items by exercise_code
-          const ex1Items = unitItems.filter(i => i.exercise_code === 'ex-1');
-          const ex2Items = unitItems.filter(i => i.exercise_code === 'ex-2');
-          const ex3Items = unitItems.filter(i => i.exercise_code === 'ex-3');
 
-          const exercises = [
-            {
-              id: 'ex-1',
-              code: 'ex-1',
-              title: 'Exercise 1: แปลประโยคภาษาอังกฤษ',
-              type: 'translation',
-              itemCount: ex1Items.length,
-              items: ex1Items
-            },
-            {
-              id: 'ex-2',
-              code: 'ex-2',
-              title: 'Exercise 2: เลือกคำจากที่มีให้มาแต่งประโยค',
-              type: 'guided_sentence',
-              itemCount: ex2Items.length,
-              items: ex2Items
-            },
-            {
-              id: 'ex-3',
-              code: 'ex-3',
-              title: 'Exercise 3: ดูภาพแล้วแต่งประโยค (Core + Context + Connect)',
-              type: 'picture_description',
-              itemCount: ex3Items.length,
-              items: ex3Items
-            }
-          ];
+          let exercises = unitExercises.map(ex => {
+            const exItems = unitItems.filter(i => i.exercise_code === ex.exercise_code);
+            return {
+              id: ex.id,
+              code: ex.exercise_code,
+              title: ex.title,
+              type: ex.exercise_type || 'translation',
+              use_ai_check: ex.use_ai_check !== false,
+              instruction: ex.instruction || '',
+              guidance: ex.guidance || '',
+              itemCount: exItems.length,
+              items: exItems
+            };
+          });
+
+          // Fallback to default 3 exercises if none configured yet for this unit
+          if (exercises.length === 0) {
+            const ex1Items = unitItems.filter(i => i.exercise_code === 'ex-1');
+            const ex2Items = unitItems.filter(i => i.exercise_code === 'ex-2');
+            const ex3Items = unitItems.filter(i => i.exercise_code === 'ex-3');
+
+            exercises = [
+              {
+                id: 'ex-1',
+                code: 'ex-1',
+                title: 'Exercise 1: แปลประโยคภาษาอังกฤษ',
+                type: 'translation',
+                use_ai_check: true,
+                instruction: 'แปลประโยคภาษาไทยเป็นภาษาอังกฤษ',
+                guidance: 'ตรวจสอบ Subject-Verb Agreement และการเติม -ing',
+                itemCount: ex1Items.length,
+                items: ex1Items
+              },
+              {
+                id: 'ex-2',
+                code: 'ex-2',
+                title: 'Exercise 2: เลือกคำจากที่มีให้มาแต่งประโยค',
+                type: 'guided_sentence',
+                use_ai_check: true,
+                instruction: 'เลือกคำที่กำหนดให้มาเติมลงในประโยค',
+                guidance: 'ตรวจคำศัพท์ที่เลือกและการวางตำแหน่งในประโยค',
+                itemCount: ex2Items.length,
+                items: ex2Items
+              },
+              {
+                id: 'ex-3',
+                code: 'ex-3',
+                title: 'Exercise 3: ดูภาพแล้วแต่งประโยค (Core + Context + Connect)',
+                type: 'picture_description',
+                use_ai_check: true,
+                instruction: 'ดูภาพแล้วแต่งประโยคตามโครงสร้างที่กำหนด',
+                guidance: 'ตรวจ 3 องค์ประกอบ: Core + Context + Connect',
+                itemCount: ex3Items.length,
+                items: ex3Items
+              }
+            ];
+          }
 
           return {
             id: unit.id,
@@ -75,43 +111,50 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // Fallback initial dataset (3 chapters with exercises)
-  const defaultUnits = Array.from({ length: 5 }, (_, idx) => {
-    const uNum = idx + 1;
-    const isCh1 = uNum === 1;
-    return {
-      id: `unit-${uNum}`,
-      unit_number: uNum,
-      title: isCh1 ? 'Present Continuous & Sentence Expansion' : `Unit ${uNum}: Sentence Practice`,
-      subtitle: `บทที่ ${uNum} : แบบฝึกหัดแต่งประโยคภาษาอังกฤษชุดที่ ${uNum}`,
+  // Fallback initial dataset (1 unit with 3 exercises)
+  const defaultUnits = [
+    {
+      id: 'unit-1',
+      unit_number: 1,
+      title: 'Present Continuous & Sentence Expansion',
+      subtitle: 'บทที่ 1 : ฉันกำลัง… [ I + am + กริยาเติม -ing ]',
       exercises: [
         {
           id: 'ex-1',
           code: 'ex-1',
           title: 'Exercise 1: แปลประโยคภาษาอังกฤษ',
           type: 'translation',
-          itemCount: isCh1 ? 4 : 4,
-          items: isCh1 ? chapter1Fallback.exercises['ex-1'].items : []
+          use_ai_check: true,
+          instruction: 'แปลประโยคภาษาไทยเป็นภาษาอังกฤษ',
+          guidance: 'ตรวจสอบ Subject-Verb Agreement และการเติม -ing',
+          itemCount: 4,
+          items: chapter1Fallback.exercises['ex-1'].items
         },
         {
           id: 'ex-2',
           code: 'ex-2',
           title: 'Exercise 2: เลือกคำจากที่มีให้มาแต่งประโยค',
           type: 'guided_sentence',
-          itemCount: isCh1 ? 4 : 4,
-          items: isCh1 ? chapter1Fallback.exercises['ex-2'].items : []
+          use_ai_check: true,
+          instruction: 'เลือกคำที่กำหนดให้มาเติมลงในประโยค',
+          guidance: 'ตรวจคำศัพท์ที่เลือกและการวางตำแหน่งในประโยค',
+          itemCount: 4,
+          items: chapter1Fallback.exercises['ex-2'].items
         },
         {
           id: 'ex-3',
           code: 'ex-3',
           title: 'Exercise 3: ดูภาพแล้วแต่งประโยค (Core + Context + Connect)',
           type: 'picture_description',
-          itemCount: isCh1 ? 3 : 3,
-          items: isCh1 ? chapter1Fallback.exercises['ex-3'].items : []
+          use_ai_check: true,
+          instruction: 'ดูภาพแล้วแต่งประโยคตามโครงสร้างที่กำหนด',
+          guidance: 'ตรวจ 3 องค์ประกอบ: Core + Context + Connect',
+          itemCount: 3,
+          items: chapter1Fallback.exercises['ex-3'].items
         }
       ]
-    };
-  });
+    }
+  ];
 
   return NextResponse.json({ book: bookName, units: defaultUnits });
 }
@@ -119,8 +162,9 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { action, bookName, unitData, exerciseData, quizItems } = body;
+    const { action, bookName, unitData, exerciseData, items } = body;
 
+    // 1. SAVE UNIT
     if (action === 'save_unit') {
       const { unit_number, title, subtitle } = unitData;
       if (!title) {
@@ -143,11 +187,53 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, message: `บันทึก Unit ${unit_number} เรียบร้อยแล้ว!` });
     }
 
-    if (action === 'save_quiz_items') {
-      const { unit_id, unit_number, exercise_code, items } = body;
+    // 2. SAVE EXERCISE (CREATE / EDIT EXERCISE CONFIGURATION)
+    if (action === 'save_exercise') {
+      const { unit_id, unit_number, exercise_code, title, exercise_type, use_ai_check, instruction, guidance } = exerciseData;
+
+      if (!title) {
+        return NextResponse.json({ error: 'กรุณากรอกชื่อแบบฝึกหัด (Exercise Title)' }, { status: 400 });
+      }
+
+      const generatedCode = exercise_code || `ex-${Date.now().toString().slice(-4)}`;
 
       if (isSupabaseConfigured() && supabase) {
-        // Resolve unit_id if needed
+        let resolvedUnitId = unit_id;
+        if (!resolvedUnitId || resolvedUnitId.startsWith('unit-')) {
+          const { data: uRow } = await supabase
+            .from('units')
+            .select('id')
+            .eq('book_name', bookName)
+            .eq('unit_number', Number(unit_number))
+            .single();
+          if (uRow) resolvedUnitId = uRow.id;
+        }
+
+        if (resolvedUnitId) {
+          const { error: exErr } = await supabase.from('exercises').upsert({
+            unit_id: resolvedUnitId,
+            exercise_code: generatedCode,
+            title,
+            exercise_type: exercise_type || 'translation',
+            use_ai_check: use_ai_check !== false,
+            instruction: instruction || null,
+            guidance: guidance || null
+          }, { onConflict: 'unit_id,exercise_code' });
+
+          if (exErr) {
+            return NextResponse.json({ error: exErr.message }, { status: 500 });
+          }
+        }
+      }
+
+      return NextResponse.json({ success: true, message: `บันทึกแบบฝึกหัด "${title}" เรียบร้อยแล้ว!` });
+    }
+
+    // 3. SAVE QUIZ ITEMS
+    if (action === 'save_quiz_items') {
+      const { unit_id, unit_number, exercise_code } = body;
+
+      if (isSupabaseConfigured() && supabase) {
         let resolvedUnitId = unit_id;
         if (!resolvedUnitId || resolvedUnitId.startsWith('unit-')) {
           const { data: uRow } = await supabase
@@ -190,7 +276,7 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      return NextResponse.json({ success: true, message: 'บันทึกรายการคำถาม/เฉลยเรียบร้อยแล้ว!' });
+      return NextResponse.json({ success: true, message: 'บันทึกรายการคำถามและเฉลยเรียบร้อยแล้ว!' });
     }
 
     return NextResponse.json({ success: true });
@@ -206,7 +292,10 @@ export async function DELETE(req: NextRequest) {
     const action = searchParams.get('action');
     const bookName = searchParams.get('book');
     const unitNumber = searchParams.get('unit');
+    const unitId = searchParams.get('unit_id');
+    const exerciseCode = searchParams.get('exercise_code');
 
+    // 1. DELETE UNIT
     if (action === 'delete_unit' && bookName && unitNumber) {
       if (isSupabaseConfigured() && supabase) {
         const { error } = await supabase
@@ -220,6 +309,26 @@ export async function DELETE(req: NextRequest) {
         }
       }
       return NextResponse.json({ success: true, message: `ลบ Unit ${unitNumber} เรียบร้อยแล้ว!` });
+    }
+
+    // 2. DELETE EXERCISE
+    if (action === 'delete_exercise' && exerciseCode) {
+      if (isSupabaseConfigured() && supabase) {
+        if (unitId) {
+          await supabase
+            .from('exercises')
+            .delete()
+            .eq('unit_id', unitId)
+            .eq('exercise_code', exerciseCode);
+
+          await supabase
+            .from('exercise_items')
+            .delete()
+            .eq('unit_id', unitId)
+            .eq('exercise_code', exerciseCode);
+        }
+      }
+      return NextResponse.json({ success: true, message: `ลบแบบฝึกหัด ${exerciseCode} เรียบร้อยแล้ว!` });
     }
 
     return NextResponse.json({ error: 'Invalid delete action' }, { status: 400 });
