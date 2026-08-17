@@ -6,21 +6,21 @@ const INITIAL_BOOKS = [
     id: 'sentence-builder-vol-1', 
     title: 'Sentence Builder Vol. 1', 
     subtitle: 'แบบฝึกหัดแต่งประโยคภาษาอังกฤษ Vol. 1 (เทคนิคปูพื้นฐาน)', 
-    total_units: 30,
+    total_units: 0,
     created_at: '2026-07-22T00:00:00.000Z'
   },
   { 
     id: 'sentence-builder-vol-2', 
     title: 'Sentence Builder Vol. 2', 
     subtitle: 'แบบฝึกหัดแต่งประโยคและขยายประโยค Vol. 2 (Core + Context + Connect)', 
-    total_units: 30,
+    total_units: 1,
     created_at: '2026-07-20T00:00:00.000Z'
   },
   { 
     id: 'sentence-builder-vol-3', 
     title: 'Sentence Builder Vol. 3', 
     subtitle: 'แบบฝึกหัดแต่งประโยคขั้นสูง Vol. 3 (Advanced Business & Writing)', 
-    total_units: 30,
+    total_units: 0,
     created_at: '2026-07-01T00:00:00.000Z'
   },
 ];
@@ -28,13 +28,29 @@ const INITIAL_BOOKS = [
 export async function GET() {
   if (isSupabaseConfigured() && supabase) {
     try {
-      const { data: booksData, error } = await supabase
+      const client = supabase;
+      const { data: booksData, error } = await client
         .from('books')
         .select('*')
         .order('created_at', { ascending: false });
 
       if (!error && booksData && booksData.length > 0) {
-        return NextResponse.json(booksData);
+        // Compute the EXACT unit count for each book from the 'units' table
+        const booksWithActualUnitCounts = await Promise.all(
+          booksData.map(async (book) => {
+            const { count, error: countErr } = await client
+              .from('units')
+              .select('*', { count: 'exact', head: true })
+              .eq('book_name', book.id);
+
+            return {
+              ...book,
+              total_units: !countErr && count !== null ? count : (book.total_units || 0)
+            };
+          })
+        );
+
+        return NextResponse.json(booksWithActualUnitCounts);
       }
     } catch (err) {
       console.warn('Could not fetch books from Supabase DB:', err);
@@ -50,8 +66,7 @@ export async function POST(req: NextRequest) {
     const { 
       id, 
       title, 
-      subtitle, 
-      totalUnits = 30 
+      subtitle 
     } = body;
 
     if (!title) {
@@ -67,8 +82,7 @@ export async function POST(req: NextRequest) {
         .upsert({
           id: generatedSlug,
           title,
-          subtitle: subtitle || 'แบบฝึกหัดแต่งประโยคภาษาอังกฤษ',
-          total_units: totalUnits
+          subtitle: subtitle || 'แบบฝึกหัดแต่งประโยคภาษาอังกฤษ'
         });
 
       if (bookErr) {
@@ -76,19 +90,9 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: `Supabase Error: ${bookErr.message}` }, { status: 500 });
       }
 
-      // 2. Initialize 30 unit rows for this book in 'units' table
-      for (let uNum = 1; uNum <= totalUnits; uNum++) {
-        await supabase.from('units').upsert({
-          book_name: generatedSlug,
-          unit_number: uNum,
-          title: uNum === 1 ? 'Present Continuous & Sentence Expansion' : `Unit ${uNum}`,
-          subtitle: `บทที่ ${uNum} : แบบฝึกหัดแต่งประโยคชุดที่ ${uNum}`
-        }, { onConflict: 'book_name,unit_number' });
-      }
-
       return NextResponse.json({ 
         success: true, 
-        message: `บันทึกหนังสือ "${title}" ลง Supabase เรียบร้อยแล้ว!` 
+        message: `บันทึกหนังสือ "${title}" เรียบร้อยแล้ว! (สามารถกด "+ Add Chapter" ใน Curriculum เพื่อเพิ่ม Unit ได้ตามต้องการ)` 
       });
     }
 
