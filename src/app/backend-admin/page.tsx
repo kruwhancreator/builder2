@@ -18,7 +18,6 @@ import {
   Plus,
   Settings,
   Trash2,
-  Bell,
   Edit,
   ExternalLink,
   BookMarked
@@ -28,37 +27,22 @@ import initialChapterData from '@/data/sentence-builder-vol-2/chapter-1.json';
 const INITIAL_BOOKS = [
   { 
     id: 'sentence-builder-vol-1', 
-    sku: 'SB-VOL-01',
-    title: 'Sentence Builder Vol. 1 (เทคนิคปูพื้นฐาน)', 
-    subtitle: 'แบบฝึกหัดแต่งประโยคภาษาอังกฤษ Vol. 1 ปูพื้นฐานไวยากรณ์และโครงสร้างประโยค', 
-    price: 890,
-    original_price: 1900,
-    status: 'Published',
-    cover_image_url: null,
+    title: 'Sentence Builder Vol. 1', 
+    subtitle: 'แบบฝึกหัดแต่งประโยคภาษาอังกฤษ Vol. 1 (เทคนิคปูพื้นฐาน)', 
     total_units: 30,
     created_at: '2026-07-22T00:00:00.000Z'
   },
   { 
     id: 'sentence-builder-vol-2', 
-    sku: 'SB-VOL-02',
-    title: 'Sentence Builder Vol. 2 (Core + Context + Connect)', 
-    subtitle: 'แบบฝึกหัดแต่งประโยคและขยายประโยค Vol. 2 ฝึกแต่งประโยคยาวอย่างเป็นธรรมชาติ', 
-    price: 1590,
-    original_price: 3160,
-    status: 'Published',
-    cover_image_url: null,
+    title: 'Sentence Builder Vol. 2', 
+    subtitle: 'แบบฝึกหัดแต่งประโยคและขยายประโยค Vol. 2 (Core + Context + Connect)', 
     total_units: 30,
     created_at: '2026-07-20T00:00:00.000Z'
   },
   { 
     id: 'sentence-builder-vol-3', 
-    sku: 'SB-VOL-03',
-    title: 'Sentence Builder Vol. 3 (Advanced Business & Writing)', 
-    subtitle: 'แบบฝึกหัดแต่งประโยคขั้นสูง Vol. 3 การแต่งประโยคระดับสูงสำหรับการทำงานและการเขียน', 
-    price: 2590,
-    original_price: 5160,
-    status: 'Published',
-    cover_image_url: null,
+    title: 'Sentence Builder Vol. 3', 
+    subtitle: 'แบบฝึกหัดแต่งประโยคขั้นสูง Vol. 3 (Advanced Business & Writing)', 
     total_units: 30,
     created_at: '2026-07-01T00:00:00.000Z'
   },
@@ -69,8 +53,7 @@ export default function BackendAdminPage() {
   const [passcode, setPasscode] = useState('');
   const [authError, setAuthError] = useState('');
 
-  // Navigation State: 'books' is the primary core menu
-  const [activeTab, setActiveTab] = useState<'books'>('books');
+  // Navigation State
   const [activeView, setActiveView] = useState<'books_list' | 'book_editor'>('books_list');
   const [booksList, setBooksList] = useState<any[]>(INITIAL_BOOKS);
   const [selectedBook, setSelectedBook] = useState<string>('sentence-builder-vol-2');
@@ -81,13 +64,9 @@ export default function BackendAdminPage() {
   const [editingBookId, setEditingBookId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     id: '',
-    sku: '',
     title: '',
     subtitle: '',
-    price: 0,
-    original_price: 0,
-    status: 'Published',
-    cover_image_url: ''
+    totalUnits: 30
   });
   const [isSubmittingBook, setIsSubmittingBook] = useState(false);
   const [deletingBookId, setDeletingBookId] = useState<string | null>(null);
@@ -161,13 +140,9 @@ export default function BackendAdminPage() {
     setEditingBookId(null);
     setFormData({
       id: '',
-      sku: `SB-VOL-${(booksList.length + 1).toString().padStart(2, '0')}`,
       title: '',
       subtitle: '',
-      price: 890,
-      original_price: 1900,
-      status: 'Published',
-      cover_image_url: ''
+      totalUnits: 30
     });
     setShowBookModal(true);
   };
@@ -176,13 +151,9 @@ export default function BackendAdminPage() {
     setEditingBookId(book.id);
     setFormData({
       id: book.id,
-      sku: book.sku || `SB-${book.id.toUpperCase()}`,
       title: book.title || '',
       subtitle: book.subtitle || '',
-      price: book.price || 0,
-      original_price: book.original_price || 0,
-      status: book.status || 'Published',
-      cover_image_url: book.cover_image_url || ''
+      totalUnits: book.total_units || 30
     });
     setShowBookModal(true);
   };
@@ -297,7 +268,7 @@ export default function BackendAdminPage() {
             Engonair Admin Login
           </h1>
           <p className="text-slate-500 text-xs mb-6">
-            ระบบจัดการหนังสือ SKU, เฉลย & Analytics
+            ระบบจัดการหนังสือ, เฉลย & Analytics
           </p>
 
           <form onSubmit={handleLogin} className="space-y-4">
@@ -343,47 +314,27 @@ export default function BackendAdminPage() {
   return (
     <div className="min-h-screen bg-[#f4f6f8] text-slate-800 flex flex-col font-sans">
       {/* ========================================================= */}
-      {/* ENGONAIR ADMIN TOP NAVBAR */}
+      {/* ENGONAIR ADMIN TOP NAVBAR (CLEAN: NO RIGHT PROFILE/BELL) */}
       {/* ========================================================= */}
-      <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between sticky top-0 z-30 shadow-xs">
+      <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center sticky top-0 z-30 shadow-xs">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-[#2563eb] text-white flex items-center justify-center font-extrabold text-lg">
+          <div className="w-8 h-8 rounded-lg bg-[#2563eb] text-white flex items-center justify-center font-extrabold text-lg font-heading">
             E
           </div>
           <span className="text-lg font-extrabold text-[#1e3a8a] tracking-tight font-heading">
             Engonair <span className="text-[#2563eb] font-bold">Admin</span>
           </span>
         </div>
-
-        <div className="flex items-center gap-5">
-          {/* Notification Icon */}
-          <button className="relative p-2 text-slate-500 hover:text-slate-700 rounded-full hover:bg-slate-100 transition-colors">
-            <Bell className="w-5 h-5" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
-          </button>
-
-          {/* User Profile */}
-          <div className="flex items-center gap-3 pl-4 border-l border-slate-200">
-            <div className="w-9 h-9 rounded-full bg-[#2563eb] text-white flex items-center justify-center font-bold text-sm shadow-xs">
-              ก
-            </div>
-            <div className="hidden sm:block text-left">
-              <div className="text-xs font-bold text-slate-900">กฤษติกาล แก้วประดิษฐ์</div>
-              <div className="text-[10px] text-slate-500 font-semibold">Admin</div>
-            </div>
-          </div>
-        </div>
       </header>
 
       <div className="flex-1 flex">
         {/* ========================================================= */}
-        {/* ENGONAIR ADMIN LEFT SIDEBAR (CLEAN: ONLY BOOKS) */}
+        {/* ENGONAIR ADMIN LEFT SIDEBAR (ONLY BOOKS) */}
         {/* ========================================================= */}
         <aside className="w-60 bg-white border-r border-slate-200 py-6 flex flex-col justify-between shrink-0 hidden lg:flex">
           <nav className="space-y-1.5 px-3">
             <button
               onClick={() => {
-                setActiveTab('books');
                 setActiveView('books_list');
               }}
               className="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-bold transition-all cursor-pointer bg-[#2563eb] text-white shadow-xs"
@@ -418,7 +369,7 @@ export default function BackendAdminPage() {
           )}
 
           {/* ========================================================= */}
-          {/* LEVEL 1: BOOKS MANAGEMENT TABLE (CLEAN & CORE) */}
+          {/* LEVEL 1: BOOKS MANAGEMENT TABLE (MATCHING SCHEMA) */}
           {/* ========================================================= */}
           {activeView === 'books_list' && (
             <div>
@@ -429,7 +380,7 @@ export default function BackendAdminPage() {
                     Books Management
                   </h1>
                   <p className="text-slate-500 text-xs mt-1">
-                    จัดการรายการหนังสือ, กำหนด SKU, ราคา, สถานะ และปรับแต่งเฉลยประจำเล่ม
+                    จัดการรายการหนังสือ (Units 1 - 30) และปรับแต่งเฉลยประจำแต่ละเล่ม
                   </p>
                 </div>
 
@@ -449,9 +400,7 @@ export default function BackendAdminPage() {
                     <thead>
                       <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-extrabold uppercase tracking-wider text-slate-500">
                         <th className="py-4 px-6">Title</th>
-                        <th className="py-4 px-4">SKU</th>
-                        <th className="py-4 px-4">Price</th>
-                        <th className="py-4 px-4">Status</th>
+                        <th className="py-4 px-4">Units</th>
                         <th className="py-4 px-4">Date Added</th>
                         <th className="py-4 px-6 text-right">Actions</th>
                       </tr>
@@ -461,16 +410,11 @@ export default function BackendAdminPage() {
                         const dateStr = book.created_at ? new Date(book.created_at).toLocaleDateString('en-US') : '7/20/2026';
                         return (
                           <tr key={book.id} className="hover:bg-slate-50/80 transition-colors">
-                            {/* Title & Cover Image */}
+                            {/* Title & Subtitle */}
                             <td className="py-4 px-6">
                               <div className="flex items-center gap-3">
-                                <div className="w-11 h-11 rounded-xl bg-blue-50 border border-blue-100 text-[#2563eb] flex items-center justify-center font-bold shrink-0 overflow-hidden">
-                                  {book.cover_image_url ? (
-                                    // eslint-disable-next-line @next/next/no-img-element
-                                    <img src={book.cover_image_url} alt={book.title} className="w-full h-full object-cover" />
-                                  ) : (
-                                    <BookMarked className="w-6 h-6" />
-                                  )}
+                                <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 text-[#2563eb] flex items-center justify-center font-bold shrink-0">
+                                  <BookMarked className="w-5 h-5" />
                                 </div>
                                 <div>
                                   <div className="font-extrabold text-slate-900 text-sm line-clamp-1">
@@ -479,39 +423,17 @@ export default function BackendAdminPage() {
                                   <div className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">
                                     {book.subtitle}
                                   </div>
+                                  <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                                    URL: /{book.id}
+                                  </div>
                                 </div>
                               </div>
                             </td>
 
-                            {/* SKU Code */}
+                            {/* Total Units */}
                             <td className="py-4 px-4">
-                              <span className="font-mono text-xs font-bold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200">
-                                {book.sku || `SB-${book.id.toUpperCase()}`}
-                              </span>
-                            </td>
-
-                            {/* Price (Original crossed-out & sale price) */}
-                            <td className="py-4 px-4">
-                              <div className="flex items-center gap-1.5 font-heading">
-                                {book.original_price > 0 && (
-                                  <span className="line-through text-slate-400 text-[11px]">
-                                    ฿{Number(book.original_price).toLocaleString()}
-                                  </span>
-                                )}
-                                <span className="font-extrabold text-slate-900">
-                                  ฿{Number(book.price || 0).toLocaleString()}
-                                </span>
-                              </div>
-                            </td>
-
-                            {/* Status Pill Badge */}
-                            <td className="py-4 px-4">
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-extrabold ${
-                                book.status === 'Published' 
-                                  ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
-                                  : 'bg-amber-50 text-amber-600 border border-amber-200'
-                              }`}>
-                                {book.status || 'Published'}
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-blue-50 text-[#2563eb] border border-blue-100">
+                                {book.total_units || 30} Units
                               </span>
                             </td>
 
@@ -520,12 +442,12 @@ export default function BackendAdminPage() {
                               {dateStr}
                             </td>
 
-                            {/* Actions (Edit & Delete icons) */}
+                            {/* Actions (Edit info, Manage answers/stats & Delete) */}
                             <td className="py-4 px-6 text-right">
                               <div className="flex items-center justify-end gap-2">
                                 <button
                                   onClick={() => openEditModal(book)}
-                                  title="แก้ไขข้อมูลหนังสือ / SKU"
+                                  title="แก้ไขชื่อและรายละเอียดหนังสือ"
                                   className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
                                 >
                                   <Edit className="w-4 h-4" />
@@ -537,10 +459,10 @@ export default function BackendAdminPage() {
                                     setActiveView('book_editor');
                                   }}
                                   title="จัดการเฉลย & สถิติ"
-                                  className="px-2.5 py-1.5 rounded-lg bg-blue-50 text-[#2563eb] hover:bg-[#2563eb] hover:text-white font-bold text-xs transition-all flex items-center gap-1 cursor-pointer"
+                                  className="px-3 py-1.5 rounded-lg bg-[#2563eb] text-white hover:bg-[#1d4ed8] font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
                                 >
                                   <Settings className="w-3.5 h-3.5" />
-                                  <span>เฉลย & สถิติ</span>
+                                  <span>จัดการเฉลย & สถิติ</span>
                                 </button>
 
                                 <button
@@ -587,7 +509,7 @@ export default function BackendAdminPage() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white rounded-2xl p-6 border border-slate-200 mb-6 shadow-sm">
                 <div>
                   <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#1e3a8a]/10 text-[#1e3a8a] text-xs font-bold uppercase tracking-wider mb-2">
-                    📘 หนังสือ: {activeBookObj.title} ({activeBookObj.sku || 'SB-VOL-02'})
+                    📘 หนังสือ: {activeBookObj.title}
                   </div>
                   <h1 className="text-2xl font-extrabold text-slate-900 font-heading">
                     จัดการเฉลย & ดูสถิติ ({activeBookObj.title})
@@ -884,49 +806,19 @@ export default function BackendAdminPage() {
       </div>
 
       {/* ========================================================= */}
-      {/* CREATE / EDIT BOOK MODAL */}
+      {/* CREATE / EDIT BOOK MODAL (MATCHING SCHEMA) */}
       {/* ========================================================= */}
       {showBookModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-lg w-full shadow-2xl border border-slate-200">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-slate-200">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
               <h3 className="text-lg font-bold text-slate-900 font-heading">
-                {editingBookId ? '📝 แก้ไขข้อมูลหนังสือ & SKU' : '➕ สร้างหนังสือใหม่ (Create New Book)'}
+                {editingBookId ? '📝 แก้ไขข้อมูลหนังสือ' : '➕ สร้างหนังสือใหม่ (Create New Book)'}
               </h3>
               <button onClick={() => setShowBookModal(false)} className="text-slate-400 hover:text-slate-600">✕</button>
             </div>
 
             <div className="space-y-4 text-xs">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-slate-700 uppercase mb-1">
-                    Book SKU Code:
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.sku}
-                    onChange={(e) => setFormData(prev => ({ ...prev, sku: e.target.value }))}
-                    placeholder="เช่น SB-VOL-01"
-                    className="w-full rounded-xl bg-slate-50 border border-slate-300 px-3.5 py-2 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-[#2563eb]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 uppercase mb-1">
-                    Status:
-                  </label>
-                  <select
-                    value={formData.status}
-                    onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value }))}
-                    className="w-full rounded-xl bg-slate-50 border border-slate-300 px-3.5 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:border-[#2563eb]"
-                  >
-                    <option value="Published">Published</option>
-                    <option value="Draft">Draft</option>
-                    <option value="Archived">Archived</option>
-                  </select>
-                </div>
-              </div>
-
               <div>
                 <label className="block font-bold text-slate-700 uppercase mb-1">
                   ชื่อหนังสือ (Title):
@@ -945,40 +837,12 @@ export default function BackendAdminPage() {
                   คำอธิบายแบบย่อ (Subtitle):
                 </label>
                 <textarea
-                  rows={2}
+                  rows={3}
                   value={formData.subtitle}
                   onChange={(e) => setFormData(prev => ({ ...prev, subtitle: e.target.value }))}
                   placeholder="เช่น แบบฝึกหัดแต่งประโยคและขยายประโยคภาษาอังกฤษ"
                   className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs text-slate-900 focus:outline-none focus:border-[#2563eb]"
                 />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-slate-700 uppercase mb-1">
-                    ราคาขาย (Price ฿):
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.price}
-                    onChange={(e) => setFormData(prev => ({ ...prev, price: Number(e.target.value) }))}
-                    placeholder="เช่น 890"
-                    className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:border-[#2563eb]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 uppercase mb-1">
-                    ราคาเต็ม (Original Price ฿):
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.original_price}
-                    onChange={(e) => setFormData(prev => ({ ...prev, original_price: Number(e.target.value) }))}
-                    placeholder="เช่น 1900"
-                    className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs font-medium text-slate-900 focus:outline-none focus:border-[#2563eb]"
-                  />
-                </div>
               </div>
             </div>
 

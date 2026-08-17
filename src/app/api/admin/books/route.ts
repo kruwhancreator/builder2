@@ -4,37 +4,22 @@ import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 const INITIAL_BOOKS = [
   { 
     id: 'sentence-builder-vol-1', 
-    sku: 'SB-VOL-01',
     title: 'Sentence Builder Vol. 1', 
     subtitle: 'แบบฝึกหัดแต่งประโยคภาษาอังกฤษ Vol. 1 (เทคนิคปูพื้นฐาน)', 
-    price: 890,
-    original_price: 1900,
-    status: 'Published',
-    cover_image_url: null,
     total_units: 30,
     created_at: '2026-07-22T00:00:00.000Z'
   },
   { 
     id: 'sentence-builder-vol-2', 
-    sku: 'SB-VOL-02',
     title: 'Sentence Builder Vol. 2', 
     subtitle: 'แบบฝึกหัดแต่งประโยคและขยายประโยค Vol. 2 (Core + Context + Connect)', 
-    price: 1590,
-    original_price: 3160,
-    status: 'Published',
-    cover_image_url: null,
     total_units: 30,
     created_at: '2026-07-20T00:00:00.000Z'
   },
   { 
     id: 'sentence-builder-vol-3', 
-    sku: 'SB-VOL-03',
     title: 'Sentence Builder Vol. 3', 
     subtitle: 'แบบฝึกหัดแต่งประโยคขั้นสูง Vol. 3 (Advanced Business & Writing)', 
-    price: 2590,
-    original_price: 5160,
-    status: 'Published',
-    cover_image_url: null,
     total_units: 30,
     created_at: '2026-07-01T00:00:00.000Z'
   },
@@ -64,13 +49,8 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { 
       id, 
-      sku, 
       title, 
       subtitle, 
-      price = 0, 
-      original_price = 0, 
-      status = 'Published', 
-      cover_image_url = null, 
       totalUnits = 30 
     } = body;
 
@@ -79,7 +59,6 @@ export async function POST(req: NextRequest) {
     }
 
     const generatedSlug = id || title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-    const generatedSku = sku || `SKU-${Date.now().toString().slice(-6)}`;
 
     if (isSupabaseConfigured() && supabase) {
       // 1. Insert/Upsert book into 'books' table
@@ -87,13 +66,8 @@ export async function POST(req: NextRequest) {
         .from('books')
         .upsert({
           id: generatedSlug,
-          sku: generatedSku,
           title,
           subtitle: subtitle || 'แบบฝึกหัดแต่งประโยคภาษาอังกฤษ',
-          price: Number(price) || 0,
-          original_price: Number(original_price) || 0,
-          status: status || 'Published',
-          cover_image_url,
           total_units: totalUnits
         });
 
@@ -114,7 +88,7 @@ export async function POST(req: NextRequest) {
 
       return NextResponse.json({ 
         success: true, 
-        message: `บันทึกหนังสือ "${title}" (SKU: ${generatedSku}) ลง Supabase เรียบร้อยแล้ว!` 
+        message: `บันทึกหนังสือ "${title}" ลง Supabase เรียบร้อยแล้ว!` 
       });
     }
 
