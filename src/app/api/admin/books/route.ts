@@ -2,9 +2,42 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
 const INITIAL_BOOKS = [
-  { id: 'sentence-builder-vol-1', title: 'Sentence Builder Vol. 1', subtitle: 'แบบฝึกหัดแต่งประโยคภาษาอังกฤษ Vol. 1', total_units: 30 },
-  { id: 'sentence-builder-vol-2', title: 'Sentence Builder Vol. 2', subtitle: 'แบบฝึกหัดแต่งประโยคและขยายประโยค Vol. 2', total_units: 30 },
-  { id: 'sentence-builder-vol-3', title: 'Sentence Builder Vol. 3', subtitle: 'แบบฝึกหัดแต่งประโยคขั้นสูง Vol. 3', total_units: 30 },
+  { 
+    id: 'sentence-builder-vol-1', 
+    sku: 'SB-VOL-01',
+    title: 'Sentence Builder Vol. 1', 
+    subtitle: 'แบบฝึกหัดแต่งประโยคภาษาอังกฤษ Vol. 1 (เทคนิคปูพื้นฐาน)', 
+    price: 890,
+    original_price: 1900,
+    status: 'Published',
+    cover_image_url: null,
+    total_units: 30,
+    created_at: '2026-07-22T00:00:00.000Z'
+  },
+  { 
+    id: 'sentence-builder-vol-2', 
+    sku: 'SB-VOL-02',
+    title: 'Sentence Builder Vol. 2', 
+    subtitle: 'แบบฝึกหัดแต่งประโยคและขยายประโยค Vol. 2 (Core + Context + Connect)', 
+    price: 1590,
+    original_price: 3160,
+    status: 'Published',
+    cover_image_url: null,
+    total_units: 30,
+    created_at: '2026-07-20T00:00:00.000Z'
+  },
+  { 
+    id: 'sentence-builder-vol-3', 
+    sku: 'SB-VOL-03',
+    title: 'Sentence Builder Vol. 3', 
+    subtitle: 'แบบฝึกหัดแต่งประโยคขั้นสูง Vol. 3 (Advanced Business & Writing)', 
+    price: 2590,
+    original_price: 5160,
+    status: 'Published',
+    cover_image_url: null,
+    total_units: 30,
+    created_at: '2026-07-01T00:00:00.000Z'
+  },
 ];
 
 export async function GET() {
@@ -13,7 +46,7 @@ export async function GET() {
       const { data: booksData, error } = await supabase
         .from('books')
         .select('*')
-        .order('created_at', { ascending: true });
+        .order('created_at', { ascending: false });
 
       if (!error && booksData && booksData.length > 0) {
         return NextResponse.json(booksData);
@@ -29,20 +62,38 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { id, title, subtitle, totalUnits = 30 } = body;
+    const { 
+      id, 
+      sku, 
+      title, 
+      subtitle, 
+      price = 0, 
+      original_price = 0, 
+      status = 'Published', 
+      cover_image_url = null, 
+      totalUnits = 30 
+    } = body;
 
-    if (!id || !title) {
-      return NextResponse.json({ error: 'ชื่อหนังสือและ ID ห้ามเป็นค่าว่าง' }, { status: 400 });
+    if (!title) {
+      return NextResponse.json({ error: 'กรุณากรอกชื่อหนังสือ' }, { status: 400 });
     }
+
+    const generatedSlug = id || title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    const generatedSku = sku || `SKU-${Date.now().toString().slice(-6)}`;
 
     if (isSupabaseConfigured() && supabase) {
       // 1. Insert/Upsert book into 'books' table
       const { error: bookErr } = await supabase
         .from('books')
         .upsert({
-          id,
+          id: generatedSlug,
+          sku: generatedSku,
           title,
           subtitle: subtitle || 'แบบฝึกหัดแต่งประโยคภาษาอังกฤษ',
+          price: Number(price) || 0,
+          original_price: Number(original_price) || 0,
+          status: status || 'Published',
+          cover_image_url,
           total_units: totalUnits
         });
 
@@ -54,20 +105,23 @@ export async function POST(req: NextRequest) {
       // 2. Initialize 30 unit rows for this book in 'units' table
       for (let uNum = 1; uNum <= totalUnits; uNum++) {
         await supabase.from('units').upsert({
-          book_name: id,
+          book_name: generatedSlug,
           unit_number: uNum,
           title: uNum === 1 ? 'Present Continuous & Sentence Expansion' : `Unit ${uNum}`,
           subtitle: `บทที่ ${uNum} : แบบฝึกหัดแต่งประโยคชุดที่ ${uNum}`
         }, { onConflict: 'book_name,unit_number' });
       }
 
-      return NextResponse.json({ success: true, message: `เพิ่มหนังสือ "${title}" ลง Supabase เรียบร้อยแล้ว!` });
+      return NextResponse.json({ 
+        success: true, 
+        message: `บันทึกหนังสือ "${title}" (SKU: ${generatedSku}) ลง Supabase เรียบร้อยแล้ว!` 
+      });
     }
 
     return NextResponse.json({ success: true, message: 'เพิ่มหนังสือในระบบเรียบร้อยแล้ว' });
   } catch (err: any) {
     console.error('Add book API error:', err);
-    return NextResponse.json({ error: 'เกิดข้อผิดพลาดในการเพิ่มหนังสือ' }, { status: 500 });
+    return NextResponse.json({ error: 'เกิดข้อผิดพลาดในการบันทึกหนังสือ' }, { status: 500 });
   }
 }
 
