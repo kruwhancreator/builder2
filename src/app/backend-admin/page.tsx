@@ -9,20 +9,22 @@ import {
   ArrowLeft,
   RefreshCw,
   CheckCircle2,
-  BarChart3,
-  QrCode,
-  GraduationCap,
-  TrendingUp,
-  Users,
   BookOpen,
   Plus,
   Settings,
   Trash2,
   Edit,
   ExternalLink,
-  BookMarked
+  BookMarked,
+  GripVertical,
+  Layers,
+  HelpCircle,
+  FileText,
+  Sparkles,
+  ChevronDown,
+  ChevronUp,
+  Image as ImageIcon
 } from 'lucide-react';
-import initialChapterData from '@/data/sentence-builder-vol-2/chapter-1.json';
 
 const INITIAL_BOOKS = [
   { 
@@ -54,39 +56,38 @@ export default function BackendAdminPage() {
   const [authError, setAuthError] = useState('');
 
   // Navigation State
-  const [activeView, setActiveView] = useState<'books_list' | 'book_editor'>('books_list');
+  const [activeView, setActiveView] = useState<'books_list' | 'curriculum_view'>('books_list');
   const [booksList, setBooksList] = useState<any[]>(INITIAL_BOOKS);
   const [selectedBook, setSelectedBook] = useState<string>('sentence-builder-vol-2');
-  const [selectedUnit, setSelectedUnit] = useState<number>(1);
 
-  // Create/Edit Book Modal State
+  // Curriculum Data State
+  const [curriculumUnits, setCurriculumUnits] = useState<any[]>([]);
+  const [isLoadingCurriculum, setIsLoadingCurriculum] = useState(false);
+
+  // Modals State
   const [showBookModal, setShowBookModal] = useState(false);
   const [editingBookId, setEditingBookId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
-    id: '',
-    title: '',
-    subtitle: '',
-    totalUnits: 30
-  });
+  const [bookFormData, setBookFormData] = useState({ id: '', title: '', subtitle: '', totalUnits: 30 });
   const [isSubmittingBook, setIsSubmittingBook] = useState(false);
   const [deletingBookId, setDeletingBookId] = useState<string | null>(null);
 
-  const [data, setData] = useState<any>(initialChapterData);
-  const [isSaving, setIsSaving] = useState(false);
+  // Chapter Modal State
+  const [showChapterModal, setShowChapterModal] = useState(false);
+  const [editingChapterNum, setEditingChapterNum] = useState<number | null>(null);
+  const [chapterFormData, setChapterFormData] = useState({ unit_number: 1, title: '', subtitle: '' });
+
+  // Quiz Editor Modal State
+  const [showQuizModal, setShowQuizModal] = useState(false);
+  const [currentQuizExercise, setCurrentQuizExercise] = useState<{
+    unit: any;
+    exercise: any;
+  } | null>(null);
+  const [quizItems, setQuizItems] = useState<any[]>([]);
+  const [isSavingQuiz, setIsSavingQuiz] = useState(false);
+
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  // Analytics Metrics State per selected book
-  const [analytics, setAnalytics] = useState<{
-    bookName: string;
-    totalQrScans: number;
-    unit1Views: number;
-    unit30Views: number;
-    qrToUnit1Conversion: number;
-    courseCompletionRate: number;
-    unitViews: Array<{ unit_number: number; view_count: number }>;
-  } | null>(null);
-
-  // Fetch dynamic Books List from Supabase Database
+  // Fetch dynamic Books List
   const fetchBooksList = () => {
     fetch('/api/admin/books')
       .then(res => res.json())
@@ -98,33 +99,29 @@ export default function BackendAdminPage() {
       .catch(err => console.warn('Could not fetch books list:', err));
   };
 
+  // Fetch Curriculum Units & Exercises for selected book
+  const fetchCurriculum = (bookId: string) => {
+    setIsLoadingCurriculum(true);
+    fetch(`/api/admin/curriculum?book=${bookId}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data && Array.isArray(data.units)) {
+          setCurriculumUnits(data.units);
+        }
+      })
+      .catch(err => console.warn('Error fetching curriculum:', err))
+      .finally(() => setIsLoadingCurriculum(false));
+  };
+
   useEffect(() => {
     fetchBooksList();
   }, []);
 
-  // Refetch analytics whenever selectedBook changes
   useEffect(() => {
-    fetch(`/api/analytics/summary?book=${selectedBook}`)
-      .then(res => res.json())
-      .then(analyticsData => {
-        if (analyticsData && !analyticsData.error) {
-          setAnalytics(analyticsData);
-        }
-      })
-      .catch(err => console.warn('Could not fetch analytics data:', err));
+    if (selectedBook) {
+      fetchCurriculum(selectedBook);
+    }
   }, [selectedBook]);
-
-  useEffect(() => {
-    // Fetch Exercise Content Data
-    fetch('/api/admin/save')
-      .then(res => res.json())
-      .then(fetchedData => {
-        if (fetchedData && fetchedData.exercises) {
-          setData(fetchedData);
-        }
-      })
-      .catch(err => console.warn('Could not fetch dynamic admin data:', err));
-  }, []);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -136,30 +133,21 @@ export default function BackendAdminPage() {
     }
   };
 
-  const openCreateModal = () => {
+  // Book Handlers
+  const openCreateBookModal = () => {
     setEditingBookId(null);
-    setFormData({
-      id: '',
-      title: '',
-      subtitle: '',
-      totalUnits: 30
-    });
+    setBookFormData({ id: '', title: '', subtitle: '', totalUnits: 30 });
     setShowBookModal(true);
   };
 
-  const openEditModal = (book: any) => {
+  const openEditBookModal = (book: any) => {
     setEditingBookId(book.id);
-    setFormData({
-      id: book.id,
-      title: book.title || '',
-      subtitle: book.subtitle || '',
-      totalUnits: book.total_units || 30
-    });
+    setBookFormData({ id: book.id, title: book.title || '', subtitle: book.subtitle || '', totalUnits: book.total_units || 30 });
     setShowBookModal(true);
   };
 
-  const handleSaveBookForm = async () => {
-    if (!formData.title.trim()) {
+  const handleSaveBook = async () => {
+    if (!bookFormData.title.trim()) {
       alert('กรุณากรอกชื่อหนังสือ');
       return;
     }
@@ -169,7 +157,7 @@ export default function BackendAdminPage() {
       const res = await fetch('/api/admin/books', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(bookFormData)
       });
 
       const resData = await res.json();
@@ -189,25 +177,17 @@ export default function BackendAdminPage() {
   };
 
   const handleDeleteBook = async (bookId: string, bookTitle: string) => {
-    if (!confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบหนังสือ "${bookTitle}" (${bookId})?\n\nการลบนี้จะลบ Unit และสถิติทั้งหมดของหนังสือเล่มนี้อย่างถาวร!`)) {
+    if (!confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบหนังสือ "${bookTitle}" (${bookId})?\n\nการลบนี้จะลบ Unit และเฉลยทั้งหมดของหนังสือเล่มนี้อย่างถาวร!`)) {
       return;
     }
 
     setDeletingBookId(bookId);
-    setSaveMessage(null);
-
     try {
-      const res = await fetch(`/api/admin/books?id=${encodeURIComponent(bookId)}`, {
-        method: 'DELETE'
-      });
-
+      const res = await fetch(`/api/admin/books?id=${encodeURIComponent(bookId)}`, { method: 'DELETE' });
       const resData = await res.json();
       if (res.ok && resData.success) {
         setSaveMessage({ type: 'success', text: `🗑️ ลบหนังสือ "${bookTitle}" เรียบร้อยแล้ว!` });
         setBooksList(prev => prev.filter(b => b.id !== bookId));
-        if (selectedBook === bookId) {
-          setSelectedBook('sentence-builder-vol-2');
-        }
       } else {
         setSaveMessage({ type: 'error', text: resData.error || 'เกิดข้อผิดพลาดในการลบหนังสือ' });
       }
@@ -219,42 +199,146 @@ export default function BackendAdminPage() {
     }
   };
 
-  const handleSave = async () => {
-    setIsSaving(true);
-    setSaveMessage(null);
+  // Chapter Handlers
+  const openAddChapterModal = () => {
+    const nextNum = curriculumUnits.length + 1;
+    setEditingChapterNum(null);
+    setChapterFormData({
+      unit_number: nextNum,
+      title: `Unit ${nextNum}: Sentence Practice`,
+      subtitle: `บทที่ ${nextNum} : แบบฝึกหัดแต่งประโยคภาษาอังกฤษชุดที่ ${nextNum}`
+    });
+    setShowChapterModal(true);
+  };
 
+  const openEditChapterModal = (unit: any) => {
+    setEditingChapterNum(unit.unit_number);
+    setChapterFormData({
+      unit_number: unit.unit_number,
+      title: unit.title || '',
+      subtitle: unit.subtitle || ''
+    });
+    setShowChapterModal(true);
+  };
+
+  const handleSaveChapter = async () => {
     try {
-      const res = await fetch('/api/admin/save', {
+      const res = await fetch('/api/admin/curriculum', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          chapterData: { ...data, book: selectedBook },
-          passcode: passcode || 'admin123'
+          action: 'save_unit',
+          bookName: selectedBook,
+          unitData: chapterFormData
+        })
+      });
+      const resData = await res.json();
+      if (res.ok && resData.success) {
+        setSaveMessage({ type: 'success', text: `🎉 บันทึก Unit ${chapterFormData.unit_number} เรียบร้อยแล้ว!` });
+        fetchCurriculum(selectedBook);
+        setShowChapterModal(false);
+      } else {
+        setSaveMessage({ type: 'error', text: resData.error || 'เกิดข้อผิดพลาดในการบันทึก Unit' });
+      }
+    } catch (err) {
+      console.error(err);
+      setSaveMessage({ type: 'error', text: 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์' });
+    }
+  };
+
+  const handleDeleteChapter = async (unitNumber: number, title: string) => {
+    if (!confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบ Unit ${unitNumber} (${title})?`)) return;
+
+    try {
+      const res = await fetch(`/api/admin/curriculum?action=delete_unit&book=${selectedBook}&unit=${unitNumber}`, {
+        method: 'DELETE'
+      });
+      const resData = await res.json();
+      if (res.ok && resData.success) {
+        setSaveMessage({ type: 'success', text: `🗑️ ลบ Unit ${unitNumber} เรียบร้อยแล้ว!` });
+        fetchCurriculum(selectedBook);
+      } else {
+        setSaveMessage({ type: 'error', text: resData.error || 'เกิดข้อผิดพลาดในการลบ Unit' });
+      }
+    } catch (err) {
+      console.error(err);
+      setSaveMessage({ type: 'error', text: 'เกิดข้อผิดพลาดในการลบ' });
+    }
+  };
+
+  // Quiz Editor Handlers
+  const openQuizEditor = (unit: any, exercise: any) => {
+    setCurrentQuizExercise({ unit, exercise });
+    setQuizItems(JSON.parse(JSON.stringify(exercise.items || [])));
+    setShowQuizModal(true);
+  };
+
+  const handleAddQuestion = () => {
+    const nextIdx = quizItems.length + 1;
+    const exType = currentQuizExercise?.exercise.type;
+    
+    const newItem: any = {
+      id: nextIdx,
+      item_number: nextIdx,
+      model_answer: ''
+    };
+
+    if (exType === 'translation') {
+      newItem.thai = 'พิมพ์โจทย์ภาษาไทย...';
+    } else if (exType === 'guided_sentence') {
+      newItem.prompt = 'I am ____________________.';
+    } else if (exType === 'picture_description') {
+      newItem.image_description = 'คำบรรยายภาพ...';
+      newItem.context_hint = 'คำใบ้บริบท...';
+    }
+
+    setQuizItems(prev => [...prev, newItem]);
+  };
+
+  const handleUpdateQuestion = (idx: number, field: string, value: any) => {
+    setQuizItems(prev => {
+      const copy = [...prev];
+      copy[idx] = { ...copy[idx], [field]: value };
+      return copy;
+    });
+  };
+
+  const handleDeleteQuestion = (idx: number) => {
+    setQuizItems(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleSaveQuiz = async () => {
+    if (!currentQuizExercise) return;
+    setIsSavingQuiz(true);
+
+    try {
+      const res = await fetch('/api/admin/curriculum', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'save_quiz_items',
+          bookName: selectedBook,
+          unit_id: currentQuizExercise.unit.id,
+          unit_number: currentQuizExercise.unit.unit_number,
+          exercise_code: currentQuizExercise.exercise.code,
+          items: quizItems
         })
       });
 
       const resData = await res.json();
       if (res.ok && resData.success) {
-        setSaveMessage({ type: 'success', text: `🎉 บันทึกเฉลยสำหรับหนังสือ "${selectedBook}" เรียบร้อยแล้ว!` });
+        setSaveMessage({ type: 'success', text: `🎉 บันทึกคำถามและเฉลยสำหรับ ${currentQuizExercise.exercise.title} เรียบร้อยแล้ว!` });
+        fetchCurriculum(selectedBook);
+        setShowQuizModal(false);
       } else {
-        setSaveMessage({ type: 'error', text: resData.error || 'เกิดข้อผิดพลาดในการบันทึก' });
+        setSaveMessage({ type: 'error', text: resData.error || 'เกิดข้อผิดพลาดในการบันทึกคำถาม' });
       }
     } catch (err) {
       console.error(err);
       setSaveMessage({ type: 'error', text: 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์' });
     } finally {
-      setIsSaving(false);
+      setIsSavingQuiz(false);
     }
-  };
-
-  const updateItemField = (exId: string, itemIdx: number, field: string, value: any) => {
-    setData((prev: any) => {
-      const copy = JSON.parse(JSON.stringify(prev));
-      if (copy.exercises[exId] && copy.exercises[exId].items[itemIdx]) {
-        copy.exercises[exId].items[itemIdx][field] = value;
-      }
-      return copy;
-    });
   };
 
   if (!isAuthenticated) {
@@ -268,7 +352,7 @@ export default function BackendAdminPage() {
             Engonair Admin Login
           </h1>
           <p className="login-subtitle text-slate-500 text-xs mb-6">
-            ระบบจัดการหนังสือ, เฉลย & Analytics
+            ระบบจัดการ Curriculum, Unit, Exercise & Quiz
           </p>
 
           <form onSubmit={handleLogin} className="login-form space-y-4">
@@ -307,9 +391,6 @@ export default function BackendAdminPage() {
   }
 
   const activeBookObj = booksList.find(b => b.id === selectedBook) || booksList[0];
-  const ex1 = data.exercises['ex-1'];
-  const ex2 = data.exercises['ex-2'];
-  const ex3 = data.exercises['ex-3'];
 
   return (
     <div className="admin-page-layout min-h-screen bg-[#f4f6f8] text-slate-800 flex flex-col font-sans">
@@ -334,14 +415,23 @@ export default function BackendAdminPage() {
         <aside className="admin-sidebar w-60 bg-white border-r border-slate-200 py-6 flex flex-col justify-between shrink-0 hidden lg:flex">
           <nav className="sidebar-nav-menu space-y-1.5 px-3">
             <button
-              onClick={() => {
-                setActiveView('books_list');
-              }}
-              className="sidebar-nav-item active-nav-item w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-bold transition-all cursor-pointer bg-[#2563eb] text-white shadow-xs"
+              onClick={() => setActiveView('books_list')}
+              className={`sidebar-nav-item w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                activeView === 'books_list' ? 'active-nav-item bg-[#2563eb] text-white shadow-xs' : 'text-slate-600 hover:bg-slate-100'
+              }`}
             >
               <BookOpen className="nav-item-icon w-4 h-4" />
               <span className="nav-item-label">Books Management</span>
             </button>
+
+            {activeView === 'curriculum_view' && (
+              <button
+                className="sidebar-nav-item active-nav-item w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-bold transition-all cursor-pointer bg-[#2563eb] text-white shadow-xs"
+              >
+                <Layers className="nav-item-icon w-4 h-4" />
+                <span className="nav-item-label">Curriculum</span>
+              </button>
+            )}
           </nav>
 
           <div className="sidebar-footer-box px-4 py-3 border-t border-slate-100 text-[11px] text-slate-400">
@@ -369,23 +459,22 @@ export default function BackendAdminPage() {
           )}
 
           {/* ========================================================= */}
-          {/* LEVEL 1: BOOKS MANAGEMENT TABLE (FULL WIDTH) */}
+          {/* LEVEL 1: BOOKS MANAGEMENT TABLE */}
           {/* ========================================================= */}
           {activeView === 'books_list' && (
             <section className="books-management-section w-full">
-              {/* Header Title + Create Button */}
               <div className="section-header-row flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 w-full">
                 <div className="section-title-box">
                   <h1 className="section-main-heading text-2xl font-extrabold text-slate-900 font-heading">
                     Books Management
                   </h1>
                   <p className="section-description text-slate-500 text-xs mt-1">
-                    จัดการรายการหนังสือ (Units 1 - 30) และปรับแต่งเฉลยประจำแต่ละเล่ม
+                    จัดการรายการหนังสือ (Units 1 - 30) และปรับแต่ง Curriculum ประจำแต่ละเล่ม
                   </p>
                 </div>
 
                 <button
-                  onClick={openCreateModal}
+                  onClick={openCreateBookModal}
                   className="btn-create-new-book bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-md flex items-center gap-2 transition-colors cursor-pointer shrink-0"
                 >
                   <Plus className="w-4 h-4" />
@@ -393,7 +482,6 @@ export default function BackendAdminPage() {
                 </button>
               </div>
 
-              {/* Data Table Container - FULL WIDTH */}
               <div className="books-table-card w-full bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
                 <div className="table-responsive-wrapper w-full overflow-x-auto">
                   <table className="crud-books-table w-full text-left border-collapse">
@@ -410,7 +498,6 @@ export default function BackendAdminPage() {
                         const dateStr = book.created_at ? new Date(book.created_at).toLocaleDateString('en-US') : '7/20/2026';
                         return (
                           <tr key={book.id} className="book-item-row hover:bg-slate-50/80 transition-colors">
-                            {/* Title & Subtitle */}
                             <td className="td-title-cell py-4 px-6">
                               <div className="book-title-container flex items-center gap-3">
                                 <div className="book-thumbnail-box w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 text-[#2563eb] flex items-center justify-center font-bold shrink-0">
@@ -430,24 +517,21 @@ export default function BackendAdminPage() {
                               </div>
                             </td>
 
-                            {/* Total Units */}
                             <td className="td-units-cell py-4 px-4">
                               <span className="units-count-pill inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-blue-50 text-[#2563eb] border border-blue-100">
                                 {book.total_units || 30} Units
                               </span>
                             </td>
 
-                            {/* Date Added */}
                             <td className="td-date-cell py-4 px-4 text-slate-500 font-mono text-[11px]">
                               {dateStr}
                             </td>
 
-                            {/* Actions */}
                             <td className="td-actions-cell py-4 px-6 text-right">
                               <div className="actions-button-group flex items-center justify-end gap-2">
                                 <button
-                                  onClick={() => openEditModal(book)}
-                                  title="แก้ไขชื่อและรายละเอียดหนังสือ"
+                                  onClick={() => openEditBookModal(book)}
+                                  title="แก้ไขข้อมูลหนังสือ"
                                   className="btn-edit-book p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
                                 >
                                   <Edit className="w-4 h-4" />
@@ -456,13 +540,13 @@ export default function BackendAdminPage() {
                                 <button
                                   onClick={() => {
                                     setSelectedBook(book.id);
-                                    setActiveView('book_editor');
+                                    setActiveView('curriculum_view');
                                   }}
-                                  title="จัดการเฉลย & สถิติ"
+                                  title="เข้าสู่หน้าจัดการ Curriculum"
                                   className="btn-manage-units px-3 py-1.5 rounded-lg bg-[#2563eb] text-white hover:bg-[#1d4ed8] font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
                                 >
-                                  <Settings className="w-3.5 h-3.5" />
-                                  <span>จัดการเฉลย & สถิติ</span>
+                                  <Layers className="w-3.5 h-3.5" />
+                                  <span>Curriculum & เฉลย</span>
                                 </button>
 
                                 <button
@@ -490,320 +574,427 @@ export default function BackendAdminPage() {
           )}
 
           {/* ========================================================= */}
-          {/* LEVEL 2: SELECTED BOOK CONTENT & ANALYTICS EDITOR */}
+          {/* LEVEL 2: LMS CURRICULUM MANAGEMENT VIEW */}
           {/* ========================================================= */}
-          {activeView === 'book_editor' && (
-            <section className="book-editor-section w-full">
-              {/* Back to Books Directory Link */}
-              <div className="back-navigation-bar mb-4">
+          {activeView === 'curriculum_view' && (
+            <section className="curriculum-management-section w-full">
+              {/* Back to Books Link */}
+              <div className="back-navigation-bar mb-4 flex items-center justify-between">
                 <button
                   onClick={() => setActiveView('books_list')}
                   className="btn-back-to-books inline-flex items-center gap-1.5 text-xs font-bold text-[#2563eb] hover:underline cursor-pointer"
                 >
                   <ArrowLeft className="w-4 h-4" />
-                  <span>← กลับสู่ Books Management Table</span>
+                  <span>← Back to Books Management</span>
                 </button>
-              </div>
 
-              {/* Header Banner for Selected Book */}
-              <div className="editor-banner-card w-full flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white rounded-2xl p-6 border border-slate-200 mb-6 shadow-sm">
-                <div className="editor-title-box">
-                  <div className="book-badge-pill inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#1e3a8a]/10 text-[#1e3a8a] text-xs font-bold uppercase tracking-wider mb-2">
-                    📘 หนังสือ: {activeBookObj.title}
-                  </div>
-                  <h1 className="editor-main-heading text-2xl font-extrabold text-slate-900 font-heading">
-                    จัดการเฉลย & ดูสถิติ ({activeBookObj.title})
-                  </h1>
-                  <p className="editor-sub-info text-slate-600 text-xs mt-1">
-                    URL: /{activeBookObj.id} • แก้ไขโจทย์และเฉลยภาษาอังกฤษประจำแต่ละ Unit
-                  </p>
-                </div>
-
-                <div className="editor-top-actions flex items-center gap-2 shrink-0">
-                  <Link
-                    href={`/${activeBookObj.id}`}
-                    target="_blank"
-                    className="btn-preview-book text-xs px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold border border-slate-300 transition-colors flex items-center gap-1.5"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                    <span>ดูหน้าหนังสือ</span>
-                  </Link>
-
-                  <button
-                    onClick={handleSave}
-                    disabled={isSaving}
-                    className="btn-save-answers-top bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-md flex items-center gap-2 disabled:opacity-50 transition-colors cursor-pointer"
-                  >
-                    {isSaving ? (
-                      <>
-                        <RefreshCw className="w-4 h-4 animate-spin" />
-                        <span>กำลังบันทึก...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Save className="w-4 h-4" />
-                        <span>บันทึกการเปลี่ยนแปลง</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              {/* 📊 ANALYTICS DASHBOARD CARD */}
-              {analytics && (
-                <div className="analytics-card-section w-full bg-white rounded-2xl p-6 border border-slate-200 shadow-xs mb-8">
-                  <div className="analytics-header flex items-center justify-between border-b border-slate-100 pb-4 mb-5">
-                    <h2 className="analytics-title text-lg font-bold text-[#1e3a8a] font-heading flex items-center gap-2">
-                      <BarChart3 className="w-5 h-5 text-[#2563eb]" />
-                      <span>สถิติผู้ใช้งาน: {activeBookObj.title}</span>
-                    </h2>
-                    <span className="analytics-book-slug text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-50 text-[#2563eb] font-mono">
-                      /{selectedBook}
-                    </span>
-                  </div>
-
-                  <div className="metrics-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                    <div className="metric-box bg-[#f8fafc] rounded-xl p-4 border border-slate-200">
-                      <div className="metric-header flex items-center justify-between text-slate-500 mb-2">
-                        <span className="metric-label text-xs font-semibold">ยอดสแกน QR Code</span>
-                        <QrCode className="w-4 h-4 text-[#2563eb]" />
-                      </div>
-                      <div className="metric-value text-2xl font-extrabold text-slate-900 font-heading">
-                        {analytics.totalQrScans.toLocaleString()} <span className="unit-label text-xs font-normal text-slate-500">ครั้ง</span>
-                      </div>
-                      <p className="metric-hint text-[11px] text-slate-500 mt-1">สแกนเข้าหน้ารวมเล่ม</p>
-                    </div>
-
-                    <div className="metric-box bg-[#f8fafc] rounded-xl p-4 border border-slate-200">
-                      <div className="metric-header flex items-center justify-between text-slate-500 mb-2">
-                        <span className="metric-label text-xs font-semibold">ผู้เรียนที่เริ่มทำ Unit 1</span>
-                        <Users className="w-4 h-4 text-emerald-600" />
-                      </div>
-                      <div className="metric-value text-2xl font-extrabold text-slate-900 font-heading">
-                        {analytics.unit1Views.toLocaleString()} <span className="unit-label text-xs font-normal text-slate-500">คน</span>
-                      </div>
-                      <p className="metric-hint text-[11px] text-emerald-600 mt-1 font-semibold">
-                        Conversion: {analytics.qrToUnit1Conversion}%
-                      </p>
-                    </div>
-
-                    <div className="metric-box bg-[#f8fafc] rounded-xl p-4 border border-slate-200">
-                      <div className="metric-header flex items-center justify-between text-slate-500 mb-2">
-                        <span className="metric-label text-xs font-semibold">ผู้เรียนที่เรียนถึง Unit 30</span>
-                        <GraduationCap className="w-4 h-4 text-purple-600" />
-                      </div>
-                      <div className="metric-value text-2xl font-extrabold text-slate-900 font-heading">
-                        {analytics.unit30Views.toLocaleString()} <span className="unit-label text-xs font-normal text-slate-500">คน</span>
-                      </div>
-                      <p className="metric-hint text-[11px] text-purple-600 mt-1 font-semibold">
-                        100% Finishers
-                      </p>
-                    </div>
-
-                    <div className="metric-box metric-box-highlight bg-gradient-to-br from-[#1e3a8a] to-[#2563eb] text-white rounded-xl p-4 shadow-sm">
-                      <div className="metric-header flex items-center justify-between opacity-90 mb-2">
-                        <span className="metric-label text-xs font-semibold">อัตราการเรียนจบทั้งเล่ม</span>
-                        <TrendingUp className="w-4 h-4 text-sky-300" />
-                      </div>
-                      <div className="metric-value text-3xl font-extrabold font-heading">
-                        {analytics.courseCompletionRate}%
-                      </div>
-                      <p className="metric-hint text-[11px] opacity-80 mt-1">คำนวณจาก (Unit 30 / Unit 1)</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Select Unit Selector */}
-              <div className="unit-selector-card w-full bg-white rounded-2xl p-4 border border-slate-200 shadow-2xs mb-6 flex items-center justify-between gap-4">
-                <label className="unit-selector-label text-xs font-bold text-slate-700 uppercase">
-                  📌 เลือก Unit ของ {activeBookObj.title} ที่ต้องการแก้ไขเฉลย:
-                </label>
-                <select
-                  value={selectedUnit}
-                  onChange={(e) => setSelectedUnit(Number(e.target.value))}
-                  className="unit-dropdown rounded-xl bg-slate-50 border border-slate-300 px-4 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:border-[#2563eb]"
+                <Link
+                  href={`/${activeBookObj.id}`}
+                  target="_blank"
+                  className="btn-preview-book text-xs px-3.5 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 font-bold border border-slate-200 shadow-2xs transition-colors flex items-center gap-1.5"
                 >
-                  {Array.from({ length: 30 }, (_, idx) => (
-                    <option key={idx + 1} value={idx + 1}>
-                      Unit {idx + 1}
-                    </option>
-                  ))}
-                </select>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>ดูหน้าหนังสือจริง (Student View)</span>
+                </Link>
               </div>
 
-              {/* EXERCISE 1 EDITOR */}
-              {ex1 && (
-                <div className="exercise-editor-card exercise-1-card w-full bg-white rounded-2xl p-6 border border-slate-200 shadow-xs mb-8">
-                  <h2 className="exercise-card-heading text-xl font-bold text-[#1e3a8a] font-heading border-b border-slate-200 pb-3 mb-6">
-                    ✏️ Exercise 1: แปลประโยคภาษาอังกฤษ ({activeBookObj.title} • Unit {selectedUnit})
-                  </h2>
-
-                  <div className="exercise-items-list space-y-6">
-                    {ex1.items?.map((item: any, idx: number) => (
-                      <div key={idx} className="exercise-item-box bg-[#f8fafc] border border-slate-200 rounded-xl p-5 shadow-2xs">
-                        <div className="item-number-label font-bold text-[#1e3a8a] text-sm mb-3">
-                          ข้อ {idx + 1}
-                        </div>
-
-                        <div className="item-inputs-stack space-y-3 text-xs">
-                          <div className="input-group-prompt">
-                            <label className="input-label block font-bold text-slate-700 uppercase mb-1">
-                              📍 โจทย์ภาษาไทย:
-                            </label>
-                            <input
-                              type="text"
-                              value={item.thai || ''}
-                              onChange={(e) => updateItemField('ex-1', idx, 'thai', e.target.value)}
-                              className="input-thai-prompt w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs text-slate-900 font-medium focus:outline-none focus:border-[#2563eb]"
-                            />
-                          </div>
-
-                          <div className="input-group-answer">
-                            <label className="input-label block font-extrabold text-[#1e3a8a] uppercase mb-1">
-                              🎯 เฉลย:
-                            </label>
-                            <input
-                              type="text"
-                              value={item.model_answer || ''}
-                              onChange={(e) => updateItemField('ex-1', idx, 'model_answer', e.target.value)}
-                              className="input-model-answer w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2.5 text-xs text-slate-900 font-bold font-mono focus:outline-none focus:border-[#2563eb]"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+              {/* CURRICULUM TOP HEADER (MATCHING LMS REFERENCE) */}
+              <div className="curriculum-top-header flex items-center justify-between mb-6 pb-2">
+                <div className="curriculum-title-container flex items-center gap-3">
+                  <Layers className="w-6 h-6 text-[#2563eb]" />
+                  <div>
+                    <h1 className="curriculum-main-title text-2xl font-extrabold text-slate-900 font-heading">
+                      Curriculum
+                    </h1>
+                    <p className="curriculum-subtitle text-xs text-slate-500 mt-0.5">
+                      {activeBookObj.title} ({curriculumUnits.length} Units / Chapters)
+                    </p>
                   </div>
                 </div>
-              )}
 
-              {/* EXERCISE 2 EDITOR */}
-              {ex2 && (
-                <div className="exercise-editor-card exercise-2-card w-full bg-white rounded-2xl p-6 border border-slate-200 shadow-xs mb-8">
-                  <h2 className="exercise-card-heading text-xl font-bold text-[#1e3a8a] font-heading border-b border-slate-200 pb-3 mb-6">
-                    🧩 Exercise 2: เลือกคำจากที่มีให้มาแต่งประโยค ({activeBookObj.title} • Unit {selectedUnit})
-                  </h2>
-
-                  <div className="exercise-items-list space-y-6">
-                    {ex2.items?.map((item: any, idx: number) => (
-                      <div key={idx} className="exercise-item-box bg-[#f8fafc] border border-slate-200 rounded-xl p-5 shadow-2xs">
-                        <div className="item-number-label font-bold text-[#1e3a8a] text-sm mb-3">
-                          ข้อ {idx + 1}
-                        </div>
-
-                        <div className="item-inputs-stack space-y-3 text-xs">
-                          <div className="input-group-prompt">
-                            <label className="input-label block font-bold text-slate-700 uppercase mb-1">
-                              📍 โจทย์ข้อความ:
-                            </label>
-                            <input
-                              type="text"
-                              value={item.prompt || ''}
-                              onChange={(e) => updateItemField('ex-2', idx, 'prompt', e.target.value)}
-                              className="input-guided-prompt w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs text-slate-900 font-medium focus:outline-none focus:border-[#2563eb]"
-                            />
-                          </div>
-
-                          <div className="input-group-answer">
-                            <label className="input-label block font-extrabold text-[#1e3a8a] uppercase mb-1">
-                              🎯 เฉลย:
-                            </label>
-                            <input
-                              type="text"
-                              value={item.model_answer || ''}
-                              onChange={(e) => updateItemField('ex-2', idx, 'model_answer', e.target.value)}
-                              className="input-model-answer w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2.5 text-xs text-slate-900 font-bold font-mono focus:outline-none focus:border-[#2563eb]"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* EXERCISE 3 EDITOR */}
-              {ex3 && (
-                <div className="exercise-editor-card exercise-3-card w-full bg-white rounded-2xl p-6 border border-slate-200 shadow-xs mb-8">
-                  <h2 className="exercise-card-heading text-xl font-bold text-[#1e3a8a] font-heading border-b border-slate-200 pb-3 mb-6">
-                    🖼️ Exercise 3: แต่งจากภาพ ({activeBookObj.title} • Unit {selectedUnit})
-                  </h2>
-
-                  <div className="exercise-items-list space-y-6">
-                    {ex3.items?.map((item: any, idx: number) => (
-                      <div key={idx} className="exercise-item-box bg-[#f8fafc] border border-slate-200 rounded-xl p-5 shadow-2xs">
-                        <div className="item-number-label font-bold text-[#1e3a8a] text-sm mb-3">
-                          ภาพที่ {idx + 1}
-                        </div>
-
-                        <div className="item-inputs-stack space-y-3 text-xs">
-                          <div className="image-details-grid grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div className="input-group-img-desc">
-                              <label className="input-label block font-bold text-slate-700 uppercase mb-1">
-                                🖼️ คำบรรยายภาพ:
-                              </label>
-                              <input
-                                type="text"
-                                value={item.image_description || ''}
-                                onChange={(e) => updateItemField('ex-3', idx, 'image_description', e.target.value)}
-                                className="input-img-description w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs text-slate-900 font-medium focus:outline-none focus:border-[#2563eb]"
-                              />
-                            </div>
-                            <div className="input-group-context-hint">
-                              <label className="input-label block font-bold text-slate-700 uppercase mb-1">
-                                💡 คำใบ้บริบทภาพ:
-                              </label>
-                              <input
-                                type="text"
-                                value={item.context_hint || ''}
-                                onChange={(e) => updateItemField('ex-3', idx, 'context_hint', e.target.value)}
-                                className="input-context-hint w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs text-slate-900 font-medium focus:outline-none focus:border-[#2563eb]"
-                              />
-                            </div>
-                          </div>
-
-                          <div className="input-group-answer">
-                            <label className="input-label block font-extrabold text-[#1e3a8a] uppercase mb-1">
-                              🎯 เฉลย:
-                            </label>
-                            <input
-                              type="text"
-                              value={item.model_answer || ''}
-                              onChange={(e) => updateItemField('ex-3', idx, 'model_answer', e.target.value)}
-                              className="input-model-answer w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2.5 text-xs text-slate-900 font-bold font-mono focus:outline-none focus:border-[#2563eb]"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Floating Save Button */}
-              <div className="floating-save-container sticky bottom-6 mt-8 flex justify-end">
                 <button
-                  onClick={handleSave}
-                  disabled={isSaving}
-                  className="btn-floating-save bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-6 py-3.5 rounded-2xl font-bold text-sm shadow-xl flex items-center gap-2 border border-white/20 transition-colors cursor-pointer"
+                  onClick={openAddChapterModal}
+                  className="btn-add-chapter bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 px-4 py-2 rounded-xl text-xs font-bold shadow-2xs flex items-center gap-1.5 cursor-pointer transition-all hover:border-slate-400"
                 >
-                  {isSaving ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      <span>กำลังบันทึก...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Save className="w-5 h-5" />
-                      <span>💾 บันทึกการเปลี่ยนแปลง ({activeBookObj.title})</span>
-                    </>
-                  )}
+                  <Plus className="w-4 h-4 text-[#2563eb]" />
+                  <span>+ Add Chapter</span>
                 </button>
               </div>
+
+              {/* CHAPTERS & EXERCISES LIST CONTAINER */}
+              {isLoadingCurriculum ? (
+                <div className="loading-state py-12 text-center text-slate-400 text-xs font-bold flex flex-col items-center gap-3">
+                  <RefreshCw className="w-6 h-6 animate-spin text-[#2563eb]" />
+                  <span>กำลังโหลดข้อมูล Curriculum...</span>
+                </div>
+              ) : (
+                <div className="curriculum-chapters-list space-y-4">
+                  {curriculumUnits.map((unit) => (
+                    <div 
+                      key={unit.unit_number} 
+                      className="chapter-card bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden"
+                    >
+                      {/* CHAPTER HEADER ROW (MATCHING LMS REFERENCE) */}
+                      <div className="chapter-header-row p-4 sm:px-6 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between gap-4">
+                        <div className="chapter-info-box flex items-center gap-3">
+                          <GripVertical className="chapter-drag-handle w-4 h-4 text-slate-400 cursor-grab" />
+                          <div className="chapter-title-group">
+                            <h2 className="chapter-title-text font-extrabold text-slate-900 text-sm">
+                              Chapter {unit.unit_number}: {unit.title}
+                            </h2>
+                            {unit.subtitle && (
+                              <p className="chapter-subtitle-text text-[11px] text-slate-500 mt-0.5">
+                                {unit.subtitle}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* CHAPTER ACTION TOOLBAR */}
+                        <div className="chapter-action-toolbar flex items-center gap-1.5 text-slate-500">
+                          <button
+                            onClick={() => {
+                              // Open create exercise for this chapter
+                              alert(`เพิ่มแบบฝึกหัดสำหรับ Chapter ${unit.unit_number}`);
+                            }}
+                            title="Add Exercise to this Chapter"
+                            className="btn-add-exercise p-1.5 hover:bg-slate-200/60 rounded-lg text-slate-600 transition-colors cursor-pointer"
+                          >
+                            <Plus className="w-4 h-4" />
+                          </button>
+
+                          <button
+                            onClick={() => openEditChapterModal(unit)}
+                            title="Edit Chapter Info"
+                            className="btn-edit-chapter p-1.5 hover:bg-slate-200/60 rounded-lg text-slate-600 transition-colors cursor-pointer"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+
+                          <button
+                            onClick={() => handleDeleteChapter(unit.unit_number, unit.title)}
+                            title="Delete Chapter"
+                            className="btn-delete-chapter p-1.5 hover:bg-red-50 rounded-lg text-red-500 transition-colors cursor-pointer"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* NESTED EXERCISES / LESSONS LIST */}
+                      <div className="chapter-exercises-container p-3 sm:px-6 space-y-2">
+                        {unit.exercises && unit.exercises.map((exercise: any) => (
+                          <div
+                            key={exercise.code}
+                            className="exercise-item-row bg-white border border-slate-200/80 rounded-xl p-3.5 flex items-center justify-between gap-4 hover:border-blue-300 hover:shadow-2xs transition-all"
+                          >
+                            <div className="exercise-main-content flex items-center gap-3 min-w-0">
+                              <GripVertical className="exercise-drag-handle w-3.5 h-3.5 text-slate-300 cursor-grab" />
+                              
+                              <div className="exercise-icon-badge w-8 h-8 rounded-lg bg-blue-50 text-[#2563eb] flex items-center justify-center font-bold shrink-0">
+                                {exercise.type === 'translation' && <FileText className="w-4 h-4" />}
+                                {exercise.type === 'guided_sentence' && <Sparkles className="w-4 h-4" />}
+                                {exercise.type === 'picture_description' && <ImageIcon className="w-4 h-4" />}
+                              </div>
+
+                              <div className="exercise-title-box truncate">
+                                <span className="exercise-title-text font-bold text-slate-800 text-xs truncate block">
+                                  {exercise.title}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* EXERCISE BADGES & ACTION BUTTONS */}
+                            <div className="exercise-right-actions flex items-center gap-3 shrink-0">
+                              <span className="exercise-item-count-badge text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+                                {exercise.itemCount || (exercise.items ? exercise.items.length : 0)} Questions
+                              </span>
+
+                              <span className="exercise-free-tag text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200">
+                                Free
+                              </span>
+
+                              <div className="exercise-actions-toolbar flex items-center gap-1 pl-2 border-l border-slate-100">
+                                <button
+                                  onClick={() => openQuizEditor(unit, exercise)}
+                                  title="Manage Quiz & Questions"
+                                  className="btn-edit-quiz p-1.5 text-[#2563eb] hover:bg-blue-50 rounded-lg transition-colors cursor-pointer flex items-center gap-1 font-bold text-xs"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                  <span className="hidden sm:inline">จัดการเฉลย/ข้อ</span>
+                                </button>
+
+                                <button
+                                  onClick={() => alert('ลบแบบฝึกหัดนี้')}
+                                  title="Delete Exercise"
+                                  className="btn-delete-exercise p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </section>
           )}
         </main>
       </div>
+
+      {/* ========================================================= */}
+      {/* LEVEL 3: QUIZ / QUESTION ITEMS MANAGER MODAL */}
+      {/* ========================================================= */}
+      {showQuizModal && currentQuizExercise && (
+        <div className="quiz-modal-backdrop fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="quiz-modal-card bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200">
+            {/* Modal Header */}
+            <div className="quiz-modal-header p-5 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <div className="text-[11px] font-extrabold text-[#2563eb] uppercase tracking-wider">
+                  Chapter {currentQuizExercise.unit.unit_number}: {currentQuizExercise.unit.title}
+                </div>
+                <h3 className="quiz-modal-heading text-lg font-bold text-slate-900 font-heading mt-0.5">
+                  📝 {currentQuizExercise.exercise.title} (Quiz Manager)
+                </h3>
+              </div>
+              <button onClick={() => setShowQuizModal(false)} className="modal-close-btn text-slate-400 hover:text-slate-600 text-lg">✕</button>
+            </div>
+
+            {/* Modal Questions Body */}
+            <div className="quiz-modal-body flex-1 overflow-y-auto p-6 space-y-6 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-slate-700 uppercase">
+                  รายการข้อสอบ/คำถาม ({quizItems.length} ข้อ):
+                </span>
+
+                <button
+                  type="button"
+                  onClick={handleAddQuestion}
+                  className="btn-add-question-item bg-blue-50 text-[#2563eb] hover:bg-[#2563eb] hover:text-white px-3 py-1.5 rounded-xl font-bold text-xs transition-colors flex items-center gap-1 cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>+ เพิ่มข้อใหม่</span>
+                </button>
+              </div>
+
+              {quizItems.length === 0 ? (
+                <div className="text-center py-8 text-slate-400 font-semibold border-2 border-dashed border-slate-200 rounded-xl">
+                  ยังไม่มีคำถามในแบบฝึกหัดนี้ คลิก &quot;+ เพิ่มข้อใหม่&quot; เพื่อสร้างข้อสอบ
+                </div>
+              ) : (
+                quizItems.map((q, idx) => (
+                  <div key={idx} className="quiz-item-box bg-slate-50 border border-slate-200 rounded-xl p-5 shadow-2xs relative">
+                    <div className="flex items-center justify-between mb-3 border-b border-slate-200/60 pb-2">
+                      <div className="font-extrabold text-[#1e3a8a] text-sm">
+                        ข้อที่ {idx + 1}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteQuestion(idx)}
+                        className="text-red-400 hover:text-red-600 p-1 hover:bg-red-50 rounded-lg transition-colors"
+                        title="ลบข้อนี้"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    <div className="space-y-3">
+                      {/* Translation Prompt */}
+                      {currentQuizExercise.exercise.type === 'translation' && (
+                        <div>
+                          <label className="block font-bold text-slate-700 uppercase mb-1">
+                            📍 โจทย์ภาษาไทย:
+                          </label>
+                          <input
+                            type="text"
+                            value={q.thai || q.thai_prompt || ''}
+                            onChange={(e) => handleUpdateQuestion(idx, 'thai', e.target.value)}
+                            placeholder="เช่น ฉันกำลังเดินทางเพื่อกลับบ้าน"
+                            className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs font-medium text-slate-900 focus:outline-none focus:border-[#2563eb]"
+                          />
+                        </div>
+                      )}
+
+                      {/* Guided Sentence Prompt */}
+                      {currentQuizExercise.exercise.type === 'guided_sentence' && (
+                        <div>
+                          <label className="block font-bold text-slate-700 uppercase mb-1">
+                            📍 โจทย์ข้อความ (Fill in the blanks):
+                          </label>
+                          <input
+                            type="text"
+                            value={q.prompt || ''}
+                            onChange={(e) => handleUpdateQuestion(idx, 'prompt', e.target.value)}
+                            placeholder="เช่น I am ____________________."
+                            className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs font-medium text-slate-900 focus:outline-none focus:border-[#2563eb]"
+                          />
+                        </div>
+                      )}
+
+                      {/* Picture Description */}
+                      {currentQuizExercise.exercise.type === 'picture_description' && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block font-bold text-slate-700 uppercase mb-1">
+                              🖼️ คำบรรยายภาพ:
+                            </label>
+                            <input
+                              type="text"
+                              value={q.image_description || ''}
+                              onChange={(e) => handleUpdateQuestion(idx, 'image_description', e.target.value)}
+                              placeholder="เช่น ผู้ชายกำลังดื่มกาแฟในคาเฟ่"
+                              className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs font-medium text-slate-900 focus:outline-none focus:border-[#2563eb]"
+                            />
+                          </div>
+                          <div>
+                            <label className="block font-bold text-slate-700 uppercase mb-1">
+                              💡 คำใบ้บริบทภาพ:
+                            </label>
+                            <input
+                              type="text"
+                              value={q.context_hint || ''}
+                              onChange={(e) => handleUpdateQuestion(idx, 'context_hint', e.target.value)}
+                              placeholder="เช่น ดื่มกาแฟ / ในคาเฟ่ / เพื่อความสดชื่น"
+                              className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs font-medium text-slate-900 focus:outline-none focus:border-[#2563eb]"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Target Model Answer */}
+                      <div>
+                        <label className="block font-extrabold text-[#1e3a8a] uppercase mb-1">
+                          🎯 เฉลยคำตอบภาษาอังกฤษ (Model Answer):
+                        </label>
+                        <input
+                          type="text"
+                          value={q.model_answer || ''}
+                          onChange={(e) => handleUpdateQuestion(idx, 'model_answer', e.target.value)}
+                          placeholder="เช่น I am commuting to get home."
+                          className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2.5 text-xs text-slate-900 font-bold font-mono focus:outline-none focus:border-[#2563eb]"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="quiz-modal-footer p-4 border-t border-slate-100 flex items-center justify-between bg-slate-50/50 rounded-b-2xl">
+              <span className="text-[11px] text-slate-500 font-medium">
+                ระบบจะบันทึกข้อสอบและอัปเดตลงฐานข้อมูล Supabase ทันที
+              </span>
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowQuizModal(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-200/80 text-slate-700 text-xs font-bold cursor-pointer hover:bg-slate-300"
+                >
+                  ยกเลิก
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleSaveQuiz}
+                  disabled={isSavingQuiz}
+                  className="px-5 py-2 rounded-xl bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-xs font-bold flex items-center gap-1.5 disabled:opacity-50 transition-colors cursor-pointer shadow-md"
+                >
+                  {isSavingQuiz ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>กำลังบันทึก...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-3.5 h-3.5" />
+                      <span>บันทึก Quiz ({quizItems.length} ข้อ)</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* ADD / EDIT CHAPTER MODAL */}
+      {/* ========================================================= */}
+      {showChapterModal && (
+        <div className="modal-backdrop fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="modal-content-card bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-slate-200">
+            <div className="modal-header flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+              <h3 className="modal-title text-lg font-bold text-slate-900 font-heading">
+                {editingChapterNum ? `📝 แก้ไข Chapter ${editingChapterNum}` : '➕ Add New Chapter'}
+              </h3>
+              <button onClick={() => setShowChapterModal(false)} className="modal-close-btn text-slate-400 hover:text-slate-600">✕</button>
+            </div>
+
+            <div className="modal-form-body space-y-4 text-xs">
+              <div className="form-group-unit-num">
+                <label className="form-label block font-bold text-slate-700 uppercase mb-1">
+                  Chapter Number (Unit):
+                </label>
+                <input
+                  type="number"
+                  value={chapterFormData.unit_number}
+                  onChange={(e) => setChapterFormData(prev => ({ ...prev, unit_number: Number(e.target.value) }))}
+                  className="input-unit-num w-full rounded-xl bg-slate-50 border border-slate-300 px-3.5 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:border-[#2563eb]"
+                />
+              </div>
+
+              <div className="form-group-title">
+                <label className="form-label block font-bold text-slate-700 uppercase mb-1">
+                  Chapter Title:
+                </label>
+                <input
+                  type="text"
+                  value={chapterFormData.title}
+                  onChange={(e) => setChapterFormData(prev => ({ ...prev, title: e.target.value }))}
+                  placeholder="เช่น Present Continuous & Sentence Expansion"
+                  className="input-chapter-title w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:border-[#2563eb]"
+                />
+              </div>
+
+              <div className="form-group-subtitle">
+                <label className="form-label block font-bold text-slate-700 uppercase mb-1">
+                  Chapter Subtitle:
+                </label>
+                <textarea
+                  rows={3}
+                  value={chapterFormData.subtitle}
+                  onChange={(e) => setChapterFormData(prev => ({ ...prev, subtitle: e.target.value }))}
+                  placeholder="เช่น บทที่ 1 : ฉันกำลัง… [ I + am + กริยาเติม -ing ]"
+                  className="input-chapter-subtitle w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs text-slate-900 focus:outline-none focus:border-[#2563eb]"
+                />
+              </div>
+            </div>
+
+            <div className="modal-footer flex justify-end gap-2 mt-6 border-t border-slate-100 pt-4">
+              <button
+                onClick={() => setShowChapterModal(false)}
+                className="btn-modal-cancel px-4 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold cursor-pointer"
+              >
+                ยกเลิก
+              </button>
+
+              <button
+                onClick={handleSaveChapter}
+                className="btn-modal-submit px-5 py-2 rounded-xl bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-md"
+              >
+                <span>บันทึก Chapter</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ========================================================= */}
       {/* CREATE / EDIT BOOK MODAL */}
@@ -825,8 +1016,8 @@ export default function BackendAdminPage() {
                 </label>
                 <input
                   type="text"
-                  value={formData.title}
-                  onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                  value={bookFormData.title}
+                  onChange={(e) => setBookFormData(prev => ({ ...prev, title: e.target.value }))}
                   placeholder="เช่น Sentence Builder Vol. 1"
                   className="input-book-title w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:border-[#2563eb]"
                 />
@@ -838,8 +1029,8 @@ export default function BackendAdminPage() {
                 </label>
                 <textarea
                   rows={3}
-                  value={formData.subtitle}
-                  onChange={(e) => setFormData(prev => ({ ...prev, subtitle: e.target.value }))}
+                  value={bookFormData.subtitle}
+                  onChange={(e) => setBookFormData(prev => ({ ...prev, subtitle: e.target.value }))}
                   placeholder="เช่น แบบฝึกหัดแต่งประโยคและขยายประโยคภาษาอังกฤษ"
                   className="input-book-subtitle w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs text-slate-900 focus:outline-none focus:border-[#2563eb]"
                 />
@@ -855,7 +1046,7 @@ export default function BackendAdminPage() {
               </button>
 
               <button
-                onClick={handleSaveBookForm}
+                onClick={handleSaveBook}
                 disabled={isSubmittingBook}
                 className="btn-modal-submit px-5 py-2 rounded-xl bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-xs font-bold flex items-center gap-1.5 disabled:opacity-50 transition-colors cursor-pointer shadow-md"
               >
