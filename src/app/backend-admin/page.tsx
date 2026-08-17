@@ -21,12 +21,15 @@ import {
   Sparkles,
   Image as ImageIcon,
   Bot,
-  Sliders
+  Sliders,
+  Link2,
+  QrCode
 } from 'lucide-react';
 
 const INITIAL_BOOKS = [
   { 
     id: 'sentence-builder-vol-1', 
+    slug: 'sentence-builder-vol-1',
     title: 'Sentence Builder Vol. 1', 
     subtitle: 'แบบฝึกหัดแต่งประโยคภาษาอังกฤษ Vol. 1 (เทคนิคปูพื้นฐาน)', 
     total_units: 0,
@@ -34,6 +37,7 @@ const INITIAL_BOOKS = [
   },
   { 
     id: 'sentence-builder-vol-2', 
+    slug: 'sentence-builder-vol-2',
     title: 'Sentence Builder Vol. 2', 
     subtitle: 'แบบฝึกหัดแต่งประโยคและขยายประโยค Vol. 2 (Core + Context + Connect)', 
     total_units: 1,
@@ -41,6 +45,7 @@ const INITIAL_BOOKS = [
   },
   { 
     id: 'sentence-builder-vol-3', 
+    slug: 'sentence-builder-vol-3',
     title: 'Sentence Builder Vol. 3', 
     subtitle: 'แบบฝึกหัดแต่งประโยคขั้นสูง Vol. 3 (Advanced Business & Writing)', 
     total_units: 0,
@@ -65,7 +70,7 @@ export default function BackendAdminPage() {
   // Book Modal State
   const [showBookModal, setShowBookModal] = useState(false);
   const [editingBookId, setEditingBookId] = useState<string | null>(null);
-  const [bookFormData, setBookFormData] = useState({ id: '', title: '', subtitle: '' });
+  const [bookFormData, setBookFormData] = useState({ id: '', slug: '', title: '', subtitle: '' });
   const [isSubmittingBook, setIsSubmittingBook] = useState(false);
   const [deletingBookId, setDeletingBookId] = useState<string | null>(null);
 
@@ -98,7 +103,7 @@ export default function BackendAdminPage() {
 
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  // Fetch dynamic Books List (with calculated unit counts)
+  // Fetch dynamic Books List (with calculated unit counts and custom slug)
   const fetchBooksList = () => {
     fetch('/api/admin/books')
       .then(res => res.json())
@@ -147,13 +152,18 @@ export default function BackendAdminPage() {
   // Book Handlers
   const openCreateBookModal = () => {
     setEditingBookId(null);
-    setBookFormData({ id: '', title: '', subtitle: '' });
+    setBookFormData({ id: '', slug: '', title: '', subtitle: '' });
     setShowBookModal(true);
   };
 
   const openEditBookModal = (book: any) => {
     setEditingBookId(book.id);
-    setBookFormData({ id: book.id, title: book.title || '', subtitle: book.subtitle || '' });
+    setBookFormData({ 
+      id: book.id, 
+      slug: book.slug || book.id, 
+      title: book.title || '', 
+      subtitle: book.subtitle || '' 
+    });
     setShowBookModal(true);
   };
 
@@ -568,7 +578,7 @@ export default function BackendAdminPage() {
                     Books Management
                   </h1>
                   <p className="section-description text-slate-500 text-xs mt-1">
-                    จัดการรายการหนังสือ และเข้าจัดการ Units ประจำแต่ละเล่ม
+                    จัดการรายการหนังสือ, Custom URL Slug สำหรับสร้าง QR Code และจัดการ Units
                   </p>
                 </div>
 
@@ -586,18 +596,19 @@ export default function BackendAdminPage() {
                   <table className="crud-books-table w-full text-left border-collapse">
                     <thead>
                       <tr className="table-header-row bg-slate-50 border-b border-slate-200 text-[11px] font-extrabold uppercase tracking-wider text-slate-500">
-                        <th className="th-title py-4 px-6 w-1/2">Title</th>
-                        <th className="th-units py-4 px-4 w-1/6">Units (Calculated)</th>
-                        <th className="th-date py-4 px-4 w-1/6">Date Added</th>
-                        <th className="th-actions py-4 px-6 text-right w-1/6">Actions</th>
+                        <th className="th-title py-4 px-6 w-5/12">Title</th>
+                        <th className="th-slug py-4 px-4 w-3/12">URL Slug & QR Code</th>
+                        <th className="th-units py-4 px-4 w-2/12">Units</th>
+                        <th className="th-actions py-4 px-6 text-right w-2/12">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="table-body-rows divide-y divide-slate-100 text-xs font-medium text-slate-700">
                       {booksList.map((book) => {
-                        const dateStr = book.created_at ? new Date(book.created_at).toLocaleDateString('en-US') : '7/20/2026';
                         const unitsCount = book.total_units || 0;
+                        const bookSlug = book.slug || book.id;
                         return (
                           <tr key={book.id} className="book-item-row hover:bg-slate-50/80 transition-colors">
+                            {/* Title & Subtitle */}
                             <td className="td-title-cell py-4 px-6">
                               <div className="book-title-container flex items-center gap-3">
                                 <div className="book-thumbnail-box w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 text-[#2563eb] flex items-center justify-center font-bold shrink-0">
@@ -610,28 +621,44 @@ export default function BackendAdminPage() {
                                   <div className="book-subtitle-text text-[11px] text-slate-500 line-clamp-1 mt-0.5">
                                     {book.subtitle}
                                   </div>
-                                  <div className="book-url-slug text-[10px] text-slate-400 font-mono mt-0.5">
-                                    URL: /{book.id}
-                                  </div>
                                 </div>
                               </div>
                             </td>
 
+                            {/* Slug Column with QR Link */}
+                            <td className="td-slug-cell py-4 px-4">
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-1.5 font-mono text-[11px] text-[#2563eb] font-bold">
+                                  <Link2 className="w-3.5 h-3.5 shrink-0" />
+                                  <span className="bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
+                                    /{bookSlug}
+                                  </span>
+                                </div>
+                                <Link 
+                                  href={`/${bookSlug}`} 
+                                  target="_blank"
+                                  className="text-[10px] text-slate-400 hover:text-[#2563eb] flex items-center gap-1 font-medium transition-colors"
+                                >
+                                  <QrCode className="w-3 h-3 text-slate-500" />
+                                  <span>Preview / QR Link</span>
+                                  <ExternalLink className="w-2.5 h-2.5" />
+                                </Link>
+                              </div>
+                            </td>
+
+                            {/* Units count */}
                             <td className="td-units-cell py-4 px-4">
                               <span className="units-count-pill inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-blue-50 text-[#2563eb] border border-blue-100">
                                 {unitsCount} {unitsCount === 1 ? 'Unit' : 'Units'}
                               </span>
                             </td>
 
-                            <td className="td-date-cell py-4 px-4 text-slate-500 font-mono text-[11px]">
-                              {dateStr}
-                            </td>
-
+                            {/* Actions Toolbar */}
                             <td className="td-actions-cell py-4 px-6 text-right">
                               <div className="actions-button-group flex items-center justify-end gap-2">
                                 <button
                                   onClick={() => openEditBookModal(book)}
-                                  title="แก้ไขข้อมูลหนังสือ"
+                                  title="แก้ไขข้อมูลหนังสือ / URL Slug"
                                   className="btn-edit-book p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
                                 >
                                   <Edit className="w-4 h-4" />
@@ -646,7 +673,7 @@ export default function BackendAdminPage() {
                                   className="btn-manage-units px-3 py-1.5 rounded-lg bg-[#2563eb] text-white hover:bg-[#1d4ed8] font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
                                 >
                                   <Layers className="w-3.5 h-3.5" />
-                                  <span>จัดการ Units & เฉลย</span>
+                                  <span>Units & เฉลย</span>
                                 </button>
 
                                 <button
@@ -689,12 +716,12 @@ export default function BackendAdminPage() {
                 </button>
 
                 <Link
-                  href={`/${activeBookObj.id}`}
+                  href={`/${activeBookObj.slug || activeBookObj.id}`}
                   target="_blank"
                   className="btn-preview-book text-xs px-3.5 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 font-bold border border-slate-200 shadow-2xs transition-colors flex items-center gap-1.5"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
-                  <span>ดูหน้าหนังสือจริง (Student View)</span>
+                  <span>ดูหน้าหนังสือจริง (/{activeBookObj.slug || activeBookObj.id})</span>
                 </Link>
               </div>
 
@@ -707,7 +734,7 @@ export default function BackendAdminPage() {
                       Units & Exercises Management
                     </h1>
                     <p className="curriculum-subtitle text-xs text-slate-500 mt-0.5">
-                      {activeBookObj.title} ({curriculumUnits.length} Units)
+                      {activeBookObj.title} ({curriculumUnits.length} Units) • Slug: <span className="font-mono text-[#2563eb]">/{activeBookObj.slug || activeBookObj.id}</span>
                     </p>
                   </div>
                 </div>
@@ -1257,19 +1284,20 @@ export default function BackendAdminPage() {
       )}
 
       {/* ========================================================= */}
-      {/* CREATE / EDIT BOOK MODAL */}
+      {/* CREATE / EDIT BOOK MODAL (WITH CUSTOM SLUG INPUT) */}
       {/* ========================================================= */}
       {showBookModal && (
         <div className="modal-backdrop fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="modal-content-card bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-slate-200">
             <div className="modal-header flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
               <h3 className="modal-title text-lg font-bold text-slate-900 font-heading">
-                {editingBookId ? '📝 แก้ไขข้อมูลหนังสือ' : '➕ สร้างหนังสือใหม่ (Create New Book)'}
+                {editingBookId ? '📝 แก้ไขข้อมูลหนังสือ & URL Slug' : '➕ สร้างหนังสือใหม่ (Create New Book)'}
               </h3>
               <button onClick={() => setShowBookModal(false)} className="modal-close-btn text-slate-400 hover:text-slate-600">✕</button>
             </div>
 
             <div className="modal-form-body space-y-4 text-xs">
+              {/* Book Title */}
               <div className="form-group-title">
                 <label className="form-label block font-bold text-slate-700 uppercase mb-1">
                   ชื่อหนังสือ (Title):
@@ -1277,12 +1305,41 @@ export default function BackendAdminPage() {
                 <input
                   type="text"
                   value={bookFormData.title}
-                  onChange={(e) => setBookFormData(prev => ({ ...prev, title: e.target.value }))}
+                  onChange={(e) => {
+                    const newTitle = e.target.value;
+                    setBookFormData(prev => ({
+                      ...prev,
+                      title: newTitle,
+                      slug: prev.slug || newTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+                    }));
+                  }}
                   placeholder="เช่น Sentence Builder Vol. 1"
                   className="input-book-title w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:border-[#2563eb]"
                 />
               </div>
 
+              {/* Book Custom Slug */}
+              <div className="form-group-slug">
+                <label className="form-label block font-bold text-slate-700 uppercase mb-1 flex items-center justify-between">
+                  <span>URL Slug (สำหรับเว็บ & QR Code):</span>
+                  <span className="text-[10px] text-slate-400 lowercase font-mono">domain.com/slug</span>
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-2.5 text-slate-400 font-mono font-bold">/</span>
+                  <input
+                    type="text"
+                    value={bookFormData.slug}
+                    onChange={(e) => setBookFormData(prev => ({ ...prev, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-_]+/g, '-') }))}
+                    placeholder="sentence-builder-vol-2"
+                    className="input-book-slug w-full rounded-xl bg-slate-50 border border-slate-300 pl-7 pr-3.5 py-2 text-xs font-mono font-bold text-[#2563eb] focus:outline-none focus:border-[#2563eb] focus:bg-white"
+                  />
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1">
+                  💡 Slug จะถูกนำไปใช้เป็น URL ของหน้าหนังสือ และใช้สร้าง QR Code ประจำเล่ม
+                </p>
+              </div>
+
+              {/* Book Subtitle */}
               <div className="form-group-subtitle">
                 <label className="form-label block font-bold text-slate-700 uppercase mb-1">
                   คำอธิบายแบบย่อ (Subtitle):

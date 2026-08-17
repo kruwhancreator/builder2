@@ -4,6 +4,7 @@ import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 const INITIAL_BOOKS = [
   { 
     id: 'sentence-builder-vol-1', 
+    slug: 'sentence-builder-vol-1',
     title: 'Sentence Builder Vol. 1', 
     subtitle: 'แบบฝึกหัดแต่งประโยคภาษาอังกฤษ Vol. 1 (เทคนิคปูพื้นฐาน)', 
     total_units: 0,
@@ -11,6 +12,7 @@ const INITIAL_BOOKS = [
   },
   { 
     id: 'sentence-builder-vol-2', 
+    slug: 'sentence-builder-vol-2',
     title: 'Sentence Builder Vol. 2', 
     subtitle: 'แบบฝึกหัดแต่งประโยคและขยายประโยค Vol. 2 (Core + Context + Connect)', 
     total_units: 1,
@@ -18,6 +20,7 @@ const INITIAL_BOOKS = [
   },
   { 
     id: 'sentence-builder-vol-3', 
+    slug: 'sentence-builder-vol-3',
     title: 'Sentence Builder Vol. 3', 
     subtitle: 'แบบฝึกหัดแต่งประโยคขั้นสูง Vol. 3 (Advanced Business & Writing)', 
     total_units: 0,
@@ -45,6 +48,7 @@ export async function GET() {
 
             return {
               ...book,
+              slug: book.slug || book.id,
               total_units: !countErr && count !== null ? count : (book.total_units || 0)
             };
           })
@@ -65,6 +69,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { 
       id, 
+      slug,
       title, 
       subtitle 
     } = body;
@@ -73,17 +78,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'กรุณากรอกชื่อหนังสือ' }, { status: 400 });
     }
 
-    const generatedSlug = id || title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    // Sanitize slug
+    const rawSlug = slug || id || title;
+    const formattedSlug = rawSlug
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9-_]+/g, '-')
+      .replace(/(^-|-$)/g, '');
+
+    const recordId = id || formattedSlug;
 
     if (isSupabaseConfigured() && supabase) {
-      // 1. Insert/Upsert book into 'books' table
+      // Insert/Upsert book into 'books' table with custom slug
       const { error: bookErr } = await supabase
         .from('books')
         .upsert({
-          id: generatedSlug,
+          id: recordId,
+          slug: formattedSlug,
           title,
           subtitle: subtitle || 'แบบฝึกหัดแต่งประโยคภาษาอังกฤษ'
-        });
+        }, { onConflict: 'id' });
 
       if (bookErr) {
         console.error('Supabase book insert error:', bookErr);
@@ -92,7 +106,7 @@ export async function POST(req: NextRequest) {
 
       return NextResponse.json({ 
         success: true, 
-        message: `บันทึกหนังสือ "${title}" เรียบร้อยแล้ว! (สามารถกด "+ Add Chapter" ใน Curriculum เพื่อเพิ่ม Unit ได้ตามต้องการ)` 
+        message: `บันทึกหนังสือ "${title}" เรียบร้อยแล้ว! (URL Slug: /${formattedSlug})` 
       });
     }
 
