@@ -17,22 +17,8 @@ import {
   BookOpen,
   Plus,
   Settings,
-  ChevronRight,
   Trash2,
-  Search,
   Bell,
-  ChevronDown,
-  LayoutDashboard,
-  Palette,
-  ShoppingBag,
-  ShoppingCart,
-  UserCheck,
-  Award,
-  FileText,
-  UserPlus,
-  CreditCard,
-  Globe,
-  Target,
   Edit,
   ExternalLink,
   BookMarked
@@ -83,13 +69,12 @@ export default function BackendAdminPage() {
   const [passcode, setPasscode] = useState('');
   const [authError, setAuthError] = useState('');
 
-  // Navigation State
-  const [activeTab, setActiveTab] = useState('all_courses');
+  // Navigation State: 'books' is the primary core menu
+  const [activeTab, setActiveTab] = useState<'books'>('books');
   const [activeView, setActiveView] = useState<'books_list' | 'book_editor'>('books_list');
   const [booksList, setBooksList] = useState<any[]>(INITIAL_BOOKS);
   const [selectedBook, setSelectedBook] = useState<string>('sentence-builder-vol-2');
   const [selectedUnit, setSelectedUnit] = useState<number>(1);
-  const [searchQuery, setSearchQuery] = useState('');
 
   // Create/Edit Book Modal State
   const [showBookModal, setShowBookModal] = useState(false);
@@ -351,11 +336,6 @@ export default function BackendAdminPage() {
   }
 
   const activeBookObj = booksList.find(b => b.id === selectedBook) || booksList[0];
-  const filteredBooks = booksList.filter(b => 
-    b.title?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    b.sku?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
   const ex1 = data.exercises['ex-1'];
   const ex2 = data.exercises['ex-2'];
   const ex3 = data.exercises['ex-3'];
@@ -366,15 +346,13 @@ export default function BackendAdminPage() {
       {/* ENGONAIR ADMIN TOP NAVBAR */}
       {/* ========================================================= */}
       <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between sticky top-0 z-30 shadow-xs">
-        <div className="flex items-center gap-8">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-[#2563eb] text-white flex items-center justify-center font-extrabold text-lg">
-              E
-            </div>
-            <span className="text-lg font-extrabold text-[#1e3a8a] tracking-tight font-heading">
-              Engonair <span className="text-[#2563eb] font-bold">Admin</span>
-            </span>
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-[#2563eb] text-white flex items-center justify-center font-extrabold text-lg">
+            E
           </div>
+          <span className="text-lg font-extrabold text-[#1e3a8a] tracking-tight font-heading">
+            Engonair <span className="text-[#2563eb] font-bold">Admin</span>
+          </span>
         </div>
 
         <div className="flex items-center gap-5">
@@ -391,7 +369,7 @@ export default function BackendAdminPage() {
             </div>
             <div className="hidden sm:block text-left">
               <div className="text-xs font-bold text-slate-900">กฤษติกาล แก้วประดิษฐ์</div>
-              <div className="text-[10px] text-slate-500 font-semibold">Super Admin</div>
+              <div className="text-[10px] text-slate-500 font-semibold">Admin</div>
             </div>
           </div>
         </div>
@@ -399,110 +377,25 @@ export default function BackendAdminPage() {
 
       <div className="flex-1 flex">
         {/* ========================================================= */}
-        {/* ENGONAIR ADMIN LEFT SIDEBAR */}
+        {/* ENGONAIR ADMIN LEFT SIDEBAR (CLEAN: ONLY BOOKS) */}
         {/* ========================================================= */}
-        <aside className="w-64 bg-white border-r border-slate-200 py-4 flex flex-col justify-between shrink-0 hidden lg:flex">
-          <nav className="space-y-1 px-3">
-            <a href="#" className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors">
-              <LayoutDashboard className="w-4 h-4 text-slate-400" />
-              <span>Overview</span>
-            </a>
-
-            <a href="#" className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors">
-              <div className="flex items-center gap-3">
-                <Palette className="w-4 h-4 text-slate-400" />
-                <span>Appearance</span>
-              </div>
-              <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-            </a>
-
-            <a href="#" className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors">
-              <div className="flex items-center gap-3">
-                <ShoppingBag className="w-4 h-4 text-slate-400" />
-                <span>Products</span>
-              </div>
-              <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-            </a>
-
-            <a href="#" className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors">
-              <ShoppingCart className="w-4 h-4 text-slate-400" />
-              <span>Orders</span>
-            </a>
-
-            <a href="#" className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors">
-              <UserCheck className="w-4 h-4 text-slate-400" />
-              <span>Instructors</span>
-            </a>
-
-            {/* Courses / Books Submenu (Expanded Active Section) */}
-            <div className="pt-2">
-              <div className="flex items-center justify-between px-3.5 py-2 rounded-xl text-xs font-bold text-[#2563eb] bg-blue-50/60 mb-1">
-                <div className="flex items-center gap-3">
-                  <BookOpen className="w-4 h-4 text-[#2563eb]" />
-                  <span>Courses / Books</span>
-                </div>
-                <ChevronDown className="w-3.5 h-3.5 text-[#2563eb]" />
-              </div>
-
-              <div className="pl-9 space-y-1 text-xs font-semibold">
-                <button
-                  onClick={() => {
-                    setActiveTab('all_courses');
-                    setActiveView('books_list');
-                  }}
-                  className={`w-full text-left px-3 py-2 rounded-lg transition-colors cursor-pointer ${
-                    activeTab === 'all_courses' ? 'bg-[#2563eb] text-white font-bold shadow-xs' : 'text-slate-600 hover:bg-slate-100'
-                  }`}
-                >
-                  All Courses / Books
-                </button>
-                <a href="#" className="block px-3 py-1.5 text-slate-500 hover:text-slate-900 rounded-md">Course Bundles</a>
-                <a href="#" className="block px-3 py-1.5 text-slate-500 hover:text-slate-900 rounded-md">Categories</a>
-                <a href="#" className="block px-3 py-1.5 text-slate-500 hover:text-slate-900 rounded-md">Tags</a>
-                <a href="#" className="block px-3 py-1.5 text-slate-500 hover:text-slate-900 rounded-md">Certificate Templates</a>
-                <a href="#" className="block px-3 py-1.5 text-slate-500 hover:text-slate-900 rounded-md">Assignments Inbox</a>
-              </div>
-            </div>
-
-            <a href="#" className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors">
-              <UserPlus className="w-4 h-4 text-slate-400" />
-              <span>Enrollments</span>
-            </a>
-
-            <a href="#" className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors">
-              <div className="flex items-center gap-3">
-                <CreditCard className="w-4 h-4 text-slate-400" />
-                <span>Subscriptions</span>
-              </div>
-              <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-            </a>
-
-            <a href="#" className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors">
-              <div className="flex items-center gap-3">
-                <FileText className="w-4 h-4 text-slate-400" />
-                <span>Posts (SEO)</span>
-              </div>
-              <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-            </a>
-
-            <a href="#" className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors">
-              <Award className="w-4 h-4 text-slate-400" />
-              <span>Memberships</span>
-            </a>
-
-            <a href="#" className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors">
-              <Globe className="w-4 h-4 text-slate-400" />
-              <span>Global Page SEO</span>
-            </a>
-
-            <a href="#" className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors">
-              <div className="flex items-center gap-3">
-                <Target className="w-4 h-4 text-slate-400" />
-                <span>Marketing</span>
-              </div>
-              <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-            </a>
+        <aside className="w-60 bg-white border-r border-slate-200 py-6 flex flex-col justify-between shrink-0 hidden lg:flex">
+          <nav className="space-y-1.5 px-3">
+            <button
+              onClick={() => {
+                setActiveTab('books');
+                setActiveView('books_list');
+              }}
+              className="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-bold transition-all cursor-pointer bg-[#2563eb] text-white shadow-xs"
+            >
+              <BookOpen className="w-4 h-4" />
+              <span>Books Management</span>
+            </button>
           </nav>
+
+          <div className="px-4 py-3 border-t border-slate-100 text-[11px] text-slate-400">
+            <span>Sentence Builder Advisor v2.0</span>
+          </div>
         </aside>
 
         {/* ========================================================= */}
@@ -525,7 +418,7 @@ export default function BackendAdminPage() {
           )}
 
           {/* ========================================================= */}
-          {/* LEVEL 1: COURSES / BOOKS MANAGEMENT TABLE (MOCKUP MATCH) */}
+          {/* LEVEL 1: BOOKS MANAGEMENT TABLE (CLEAN & CORE) */}
           {/* ========================================================= */}
           {activeView === 'books_list' && (
             <div>
@@ -533,10 +426,10 @@ export default function BackendAdminPage() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                 <div>
                   <h1 className="text-2xl font-extrabold text-slate-900 font-heading">
-                    Courses Management
+                    Books Management
                   </h1>
                   <p className="text-slate-500 text-xs mt-1">
-                    จัดการรายการหนังสือ/คอร์สเรียน, กำหนด SKU, ราคา, สถานะ และปรับแต่งเฉลยประจำเล่ม
+                    จัดการรายการหนังสือ, กำหนด SKU, ราคา, สถานะ และปรับแต่งเฉลยประจำเล่ม
                   </p>
                 </div>
 
@@ -545,7 +438,7 @@ export default function BackendAdminPage() {
                   className="bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-md flex items-center gap-2 transition-colors cursor-pointer shrink-0"
                 >
                   <Plus className="w-4 h-4" />
-                  <span>+ Create New Course</span>
+                  <span>+ Create New Book</span>
                 </button>
               </div>
 
@@ -564,7 +457,7 @@ export default function BackendAdminPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 text-xs font-medium text-slate-700">
-                      {filteredBooks.map((book) => {
+                      {booksList.map((book) => {
                         const dateStr = book.created_at ? new Date(book.created_at).toLocaleDateString('en-US') : '7/20/2026';
                         return (
                           <tr key={book.id} className="hover:bg-slate-50/80 transition-colors">
@@ -633,7 +526,7 @@ export default function BackendAdminPage() {
                                 <button
                                   onClick={() => openEditModal(book)}
                                   title="แก้ไขข้อมูลหนังสือ / SKU"
-                                  className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                  className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
                                 >
                                   <Edit className="w-4 h-4" />
                                 </button>
@@ -644,7 +537,7 @@ export default function BackendAdminPage() {
                                     setActiveView('book_editor');
                                   }}
                                   title="จัดการเฉลย & สถิติ"
-                                  className="px-2.5 py-1.5 rounded-lg bg-blue-50 text-[#2563eb] hover:bg-[#2563eb] hover:text-white font-bold text-xs transition-all flex items-center gap-1"
+                                  className="px-2.5 py-1.5 rounded-lg bg-blue-50 text-[#2563eb] hover:bg-[#2563eb] hover:text-white font-bold text-xs transition-all flex items-center gap-1 cursor-pointer"
                                 >
                                   <Settings className="w-3.5 h-3.5" />
                                   <span>เฉลย & สถิติ</span>
@@ -654,7 +547,7 @@ export default function BackendAdminPage() {
                                   onClick={() => handleDeleteBook(book.id, book.title)}
                                   disabled={deletingBookId === book.id}
                                   title="ลบหนังสือ"
-                                  className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                  className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
                                 >
                                   {deletingBookId === book.id ? (
                                     <RefreshCw className="w-4 h-4 animate-spin text-red-600" />
@@ -686,7 +579,7 @@ export default function BackendAdminPage() {
                   className="inline-flex items-center gap-1.5 text-xs font-bold text-[#2563eb] hover:underline cursor-pointer"
                 >
                   <ArrowLeft className="w-4 h-4" />
-                  <span>← กลับสู่ Courses / Books Management Table</span>
+                  <span>← กลับสู่ Books Management Table</span>
                 </button>
               </div>
 
@@ -998,7 +891,7 @@ export default function BackendAdminPage() {
           <div className="bg-white rounded-2xl p-6 max-w-lg w-full shadow-2xl border border-slate-200">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
               <h3 className="text-lg font-bold text-slate-900 font-heading">
-                {editingBookId ? '📝 แก้ไขข้อมูลหนังสือ & SKU' : '➕ สร้างหนังสือ/คอร์สใหม่ (Create New Course)'}
+                {editingBookId ? '📝 แก้ไขข้อมูลหนังสือ & SKU' : '➕ สร้างหนังสือใหม่ (Create New Book)'}
               </h3>
               <button onClick={() => setShowBookModal(false)} className="text-slate-400 hover:text-slate-600">✕</button>
             </div>
