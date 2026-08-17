@@ -6,6 +6,7 @@ export interface EvaluationRequest {
   studentAnswer: string;
   wordBank?: any;
   templates?: string[];
+  useAiCheck?: boolean; // When false, completely bypasses Gemini AI and runs local exact/rubric engine
 }
 
 export interface EvaluationResult {
@@ -21,17 +22,24 @@ export interface EvaluationResult {
 export async function evaluateAnswer(req: EvaluationRequest): Promise<EvaluationResult> {
   const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 
+  // 1. If AI check is disabled for this exercise (useAiCheck === false), bypass AI completely!
+  if (req.useAiCheck === false) {
+    return { ...evaluateLocally(req), isLiveGemini: false, modelUsed: 'deterministic-local-matcher' };
+  }
+
+  // 2. If AI check is enabled and API key is present, call Google Gemini AI
   if (apiKey && apiKey !== 'YOUR_GEMINI_API_KEY' && apiKey.trim() !== '') {
     try {
       const geminiResult = await evaluateWithGemini(apiKey, req);
       return { ...geminiResult, isLiveGemini: true };
     } catch (err) {
       console.warn('Gemini API call failed, falling back to local evaluator:', err);
-      return { ...evaluateLocally(req), isLiveGemini: false };
+      return { ...evaluateLocally(req), isLiveGemini: false, modelUsed: 'local-fallback' };
     }
   }
 
-  return { ...evaluateLocally(req), isLiveGemini: false };
+  // 3. Default local evaluator fallback
+  return { ...evaluateLocally(req), isLiveGemini: false, modelUsed: 'local-engine' };
 }
 
 async function evaluateWithGemini(apiKey: string, req: EvaluationRequest): Promise<EvaluationResult> {
@@ -66,7 +74,7 @@ Do not wrap in markdown code blocks. Return pure raw JSON string only.`;
   let prompt = '';
   if (req.exerciseType === 'translation') {
     prompt = `Exercise Type: Translation (Exercise 1)
-Thai Prompt: "${req.item.thai}"
+Thai Prompt: "${req.item.thai || req.item.thai_prompt || ''}"
 ${modelAnswer}
 ${acceptableAnswers}
 ${teacherGuidance}
@@ -78,7 +86,7 @@ Task for Exercise 1:
 3. If student wrote incorrect words or typos (e.g. "i walking hom"), explain in Thai feedbackPoints why it should be "${req.item.model_answer}" (e.g. Missing "am", "hom" is misspelled, verb should be "commuting").`;
   } else if (req.exerciseType === 'guided_sentence') {
     prompt = `Exercise Type: Guided Sentence (Free Style)
-Prompt Step: "${req.item.prompt}"
+Prompt Step: "${req.item.prompt || ''}"
 Word Bank Reference: ${JSON.stringify(req.wordBank || {})}
 Templates Reference: ${JSON.stringify(req.templates || [])}
 ${modelAnswer}
@@ -89,7 +97,7 @@ Students write free-style sentences following the step structure. Check grammar 
 Provide breakdown object: { "actionValid": boolean, "timeValid": boolean, "purposeValid": boolean, "reasonValid": boolean }.`;
   } else {
     prompt = `Exercise Type: Picture Description
-Picture Description: "${req.item.image_description}"
+Picture Description: "${req.item.image_description || ''}"
 Context Hint: "${req.item.context_hint || ''}"
 ${modelAnswer}
 ${acceptableAnswers}
@@ -201,6 +209,12 @@ function evaluateTranslationLocally(item: any, lower: string, original: string):
   const points: string[] = [];
   let score = 100;
   const targetAnswer = item.model_answer || "I am commuting to get home.";
+  const acceptableList: string[] = item.acceptable_answers || [targetAnswer];
+
+  // 1. Exact match check
+  const isExactMatch = acceptableList.some(
+    acc => acc.trim().toLowerCase().replace(/[.!?,]/g, '') === lower.replace(/[.!?,]/g, '')
+  );
 
   // Check spelling hom -> home
   if (/\bhom\b/i.test(original)) {
@@ -228,14 +242,18 @@ function evaluateTranslationLocally(item: any, lower: string, original: string):
     points.push('✅ การใช้โครงสร้าง Present Continuous ถูกต้องตามหลักภาษา');
   }
 
-  if (!lower.includes("commuting") && !lower.includes("traveling") && !lower.includes("heading")) {
+  if (!isExactMatch) {
     score -= 20;
-    points.push(`💡 สำหรับการเดินทางกลับบ้านในข้อนี้ แนะนำให้ใช้กริยาตามเฉลยหลัก: "${targetAnswer}"`);
+    points.push(`🎯 เฉลยคำตอบหลัก: "${targetAnswer}"`);
+  } else {
+    points.push('🎉 คำตอบตรงกับเฉลยหลักสมบูรณ์แบบ!');
   }
 
+  const finalScore = isExactMatch && hasFullStop && !/\bhom\b/i.test(original) ? 100 : Math.max(score, 30);
+
   return {
-    score: Math.max(score, 30),
-    statusText: score >= 95 ? '🎉 ถูกต้องสมบูรณ์! (100%)' : `⚡ เกือบถูกต้องแล้ว! (${Math.max(score, 30)}%)`,
+    score: finalScore,
+    statusText: finalScore >= 95 ? '🎉 ถูกต้องสมบูรณ์! (100%)' : `⚡ เกือบถูกต้องแล้ว! (${finalScore}%)`,
     correctedSentence: targetAnswer,
     feedbackPoints: points.length > 0 ? points : ['ประโยคถูกต้องและสละสลวย']
   };
