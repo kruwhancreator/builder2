@@ -205,57 +205,18 @@ function evaluateLocally(req: EvaluationRequest): EvaluationResult {
   }
 }
 
+import { checkOfflineGrammarAndSpelling } from './offline-checker';
+
 function evaluateTranslationLocally(item: any, lower: string, original: string): EvaluationResult {
-  const points: string[] = [];
-  let score = 100;
+  const result = checkOfflineGrammarAndSpelling(item, original, 'translation');
   const targetAnswer = item.model_answer || "I am commuting to get home.";
-  const acceptableList: string[] = item.acceptable_answers || [targetAnswer];
-
-  // 1. Exact match check
-  const isExactMatch = acceptableList.some(
-    acc => acc.trim().toLowerCase().replace(/[.!?,]/g, '') === lower.replace(/[.!?,]/g, '')
-  );
-
-  // Check spelling hom -> home
-  if (/\bhom\b/i.test(original)) {
-    score -= 15;
-    points.push('⚠️ สะกดคำผิด: "hom" ควรแก้เป็น "home"');
-  }
-
-  if (/\bmakeing\b/i.test(original)) {
-    score -= 15;
-    points.push('⚠️ สะกดคำผิด: "makeing" ควรแก้เป็น "making" (ตัด e ก่อนเติม -ing)');
-  }
-
-  // Check full stop
-  const hasFullStop = original.endsWith('.');
-  if (!hasFullStop) {
-    score -= 10;
-    points.push('💡 อย่าลืมใส่เครื่องหมายจุด Full Stop (.) ท้ายประโยคด้วยครับ');
-  }
-
-  const hasPresentContinuous = /\b(am|is|are)\s+\w+ing\b/.test(lower);
-  if (!hasPresentContinuous) {
-    score -= 30;
-    points.push('💡 อย่าลืมใช้โครงสร้าง Present Continuous: S + is/am/are + V.ing (เช่น I am commuting)');
-  } else {
-    points.push('✅ การใช้โครงสร้าง Present Continuous ถูกต้องตามหลักภาษา');
-  }
-
-  if (!isExactMatch) {
-    score -= 20;
-    points.push(`🎯 เฉลยคำตอบหลัก: "${targetAnswer}"`);
-  } else {
-    points.push('🎉 คำตอบตรงกับเฉลยหลักสมบูรณ์แบบ!');
-  }
-
-  const finalScore = isExactMatch && hasFullStop && !/\bhom\b/i.test(original) ? 100 : Math.max(score, 30);
+  const finalScore = result.isCorrect ? 100 : Math.max(85 - (result.points.length * 15), 30);
 
   return {
     score: finalScore,
-    statusText: finalScore >= 95 ? '🎉 ถูกต้องสมบูรณ์! (100%)' : `⚡ เกือบถูกต้องแล้ว! (${finalScore}%)`,
+    statusText: result.isCorrect ? '🎉 ถูกต้องสมบูรณ์! (100%)' : `⚡ เกือบถูกต้องแล้ว! (${finalScore}%)`,
     correctedSentence: targetAnswer,
-    feedbackPoints: points.length > 0 ? points : ['ประโยคถูกต้องและสละสลวย']
+    feedbackPoints: result.points
   };
 }
 

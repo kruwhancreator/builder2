@@ -10,6 +10,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { EvaluationResult } from '@/lib/evaluator';
+import { checkOfflineGrammarAndSpelling } from '@/lib/offline-checker';
 
 interface ExerciseWorkspaceProps {
   chapter: string;
@@ -36,89 +37,18 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
     setShowSolutions(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
-  // PURE OFFLINE GRAMMAR CHECKER FOR EX 1 & EX 2 (NO AI CALL)
-  const checkOfflineGrammar = (item: any, studentAns: string, exType: 'ex-1' | 'ex-2') => {
-    const raw = (studentAns || '').trim();
-    if (!raw) {
-      return {
-        isCorrect: false,
-        message: '❌ กรุณาพิมพ์คำตอบภาษาอังกฤษก่อนกดตรวจค่ะ',
-        points: ['ยังไม่ได้พิมพ์คำตอบในช่องข้อความ']
-      };
-    }
-
-    const points: string[] = [];
-    let isValid = true;
-
-    // 1. Capital letter check (first letter must be uppercase)
-    const firstChar = raw.charAt(0);
-    const isCapital = firstChar === firstChar.toUpperCase() && firstChar !== firstChar.toLowerCase();
-    if (!isCapital) {
-      isValid = false;
-      const targetUpper = item.model_answer ? item.model_answer.charAt(0) : 'I';
-      points.push(`• ตัวแรกของประโยคต้องเป็นตัวพิมพ์ใหญ่ (Capital letter) เช่น "${targetUpper}..."`);
-    }
-
-    // 2. Full stop (.) check at the end
-    const hasFullStop = raw.endsWith('.');
-    if (!hasFullStop) {
-      isValid = false;
-      points.push('• อย่าลืมใส่เครื่องหมายจุด Full Stop (.) ด้านหลังสุดของประโยคด้วยนะคะ');
-    }
-
-    // 3. Common spelling checks
-    if (/\bmakeing\b/i.test(raw)) {
-      isValid = false;
-      points.push('• สะกดคำผิด: "makeing" ควรแก้เป็น "making" (ตัด e ออกก่อนเติม -ing)');
-    }
-    if (/\bhom\b/i.test(raw)) {
-      isValid = false;
-      points.push('• สะกดคำผิด: "hom" ควรแก้เป็น "home"');
-    }
-    if (/\bwalikng\b/i.test(raw)) {
-      isValid = false;
-      points.push('• สะกดคำผิด: "walikng" ควรแก้เป็น "walking"');
-    }
-    if (/\bhesitateing\b/i.test(raw)) {
-      isValid = false;
-      points.push('• สะกดคำผิด: "hesitateing" ควรแก้เป็น "hesitating"');
-    }
-
-    // 4. Fixed Answer Key Matching
-    const normalize = (str: string) => str.trim().toLowerCase().replace(/\.$/, '').replace(/\s+/g, ' ');
-    const normalizedStudent = normalize(raw);
-
-    const modelTarget = item.model_answer ? normalize(item.model_answer) : '';
-    const acceptableTargets = (item.acceptable_answers || []).map((a: string) => normalize(a));
-    const allTargets = [modelTarget, ...acceptableTargets].filter(Boolean);
-
-    const matchesFixedAnswer = allTargets.some(target => target === normalizedStudent);
-
-    if (!matchesFixedAnswer) {
-      isValid = false;
-      points.push(`• คำตอบยังไม่ตรงตามเฉลยในหนังสือ (เฉลยเป้าหมายหลัก: "${item.model_answer}")`);
-    }
-
-    if (isValid) {
-      return {
-        isCorrect: true,
-        message: '🎉 ถูกต้องสมบูรณ์แบบค่ะ! ไวยากรณ์ ตัวพิมพ์ใหญ่ จุด Full Stop และคำศัพท์ถูกต้องเป๊ะมาก 👏',
-        points: ['คำตอบตรงตามเฉลยในหนังสือ Sentence Builder 2']
-      };
-    }
-
-    return {
-      isCorrect: false,
-      message: '❌ ยังไม่ถูกต้องค่ะ ลองตรวจสอบคำแนะนำจากครูหวานด้านล่างแล้วลองใหม่อีกครั้งนะคะ:',
-      points
-    };
-  };
-
-  // Handle Offline Check (Ex 1 & Ex 2)
+  // SMART OFFLINE GRAMMAR & SPELL CHECKER (NO AI CALL, 0ms LATENCY)
   const handleOfflineCheck = (item: any, key: string, exType: 'ex-1' | 'ex-2') => {
     const studentAns = answers[key] || '';
-    const result = checkOfflineGrammar(item, studentAns, exType);
-    setFeedbacks(prev => ({ ...prev, [key]: result }));
+    const result = checkOfflineGrammarAndSpelling(item, studentAns, exType === 'ex-1' ? 'translation' : 'guided_sentence');
+    setFeedbacks(prev => ({
+      ...prev,
+      [key]: {
+        isCorrect: result.isCorrect,
+        message: result.message,
+        points: result.points
+      }
+    }));
   };
 
   // Handle AI Check (Ex 3)
