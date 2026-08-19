@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { 
   CheckCircle2, 
   XCircle, 
@@ -23,9 +23,10 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
   const [showSolutions, setShowSolutions] = useState<Record<string, boolean>>({});
   const [aiLoading, setAiLoading] = useState<Record<string, boolean>>({});
 
-  const ex1 = chapterData.exercises['ex-1'];
-  const ex2 = chapterData.exercises['ex-2'];
-  const ex3 = chapterData.exercises['ex-3'];
+  const unitNumber = chapterData.chapter || chapterData.unit_number || 1;
+  const ex1 = chapterData.exercises?.['ex-1'];
+  const ex2 = chapterData.exercises?.['ex-2'];
+  const ex3 = chapterData.exercises?.['ex-3'];
 
   const handleAnswerChange = (key: string, text: string) => {
     setAnswers(prev => ({ ...prev, [key]: text }));
@@ -205,79 +206,94 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-2 sm:px-4 py-6">
-      {/* 1. Header Card (Matching original blue gradient hero) */}
-      <div className="bg-gradient-to-br from-[#1e3a8a] to-[#2563eb] text-white rounded-2xl p-6 sm:p-8 mb-6 shadow-md relative overflow-hidden">
-        <span className="inline-block bg-white/20 backdrop-blur-xs text-white text-xs font-medium px-3.5 py-1 rounded-full mb-3">
-          📘 หนังสือ {chapterData.book === 'sentence-builder-vol-2' ? 'Sentence Builder 2' : (chapterData.book || 'Sentence Builder 2')}
-        </span>
-        <h1 className="text-2xl sm:text-3xl font-bold font-heading mb-1.5">
-          เฉลยแบบฝึกหัด Unit {chapterData.chapter}: {chapterData.subtitle || chapterData.title}
+    <div className="workspace-main-container max-w-4xl mx-auto px-2 sm:px-4 py-6 font-sans">
+      {/* ========================================================= */}
+      {/* 1. UNIT HERO BANNER (UNIT DETAIL SECTION) */}
+      {/* ========================================================= */}
+      <section className="unit-hero-banner bg-gradient-to-br from-[#1e3a8a] to-[#2563eb] text-white rounded-2xl p-6 sm:p-8 mb-6 shadow-md relative overflow-hidden">
+        {/* Unit Heading: เฉลยแบบฝึกหัด Unit X */}
+        <h1 className="unit-hero-heading text-2xl sm:text-3xl font-extrabold font-heading mb-1.5">
+          เฉลยแบบฝึกหัด Unit {unitNumber}
         </h1>
-        <p className="text-sm sm:text-base opacity-90">
-          พัฒนาทักษะการแต่งประโยคภาษาอังกฤษอย่างมั่นใจ ไวยากรณ์เป๊ะ!
-        </p>
-      </div>
 
-      {/* 2. Teacher Persona Greeting Card */}
-      <div className="bg-white border-l-4 border-[#2563eb] rounded-xl p-4 sm:p-5 shadow-xs mb-6 flex items-start sm:items-center gap-4">
-        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-sky-100 to-sky-200 text-[#1e3a8a] flex items-center justify-center text-2xl shrink-0 border-2 border-[#2563eb]">
+        {/* Unit Title: units.title */}
+        {chapterData.title && (
+          <h2 className="unit-hero-title text-xl sm:text-2xl font-bold opacity-95 mb-1 font-heading">
+            {chapterData.title}
+          </h2>
+        )}
+
+        {/* Unit Subtitle: units.subtitle */}
+        {chapterData.subtitle && (
+          <p className="unit-hero-subtitle text-sm sm:text-base opacity-90 leading-relaxed font-medium">
+            {chapterData.subtitle}
+          </p>
+        )}
+      </section>
+
+      {/* ========================================================= */}
+      {/* 2. TEACHER PERSONA GREETING CARD */}
+      {/* ========================================================= */}
+      <section className="teacher-greeting-card bg-white border-l-4 border-[#2563eb] rounded-xl p-4 sm:p-5 shadow-xs mb-6 flex items-start sm:items-center gap-4">
+        <div className="teacher-avatar-box w-12 h-12 rounded-full bg-gradient-to-br from-sky-100 to-sky-200 text-[#1e3a8a] flex items-center justify-center text-2xl shrink-0 border-2 border-[#2563eb]">
           👩‍🏫
         </div>
-        <div className="text-xs sm:text-sm text-[#1e293b] leading-relaxed">
-          <span className="font-bold text-[#1e3a8a] block mb-0.5 font-heading">ครูหวาน อิงลิช ออน แอร์:</span>
-          &ldquo;สวัสดีค่ะนักเรียนคนเก่ง! วันนี้ครูหวานทำระบบเฉลยและตรวจแบบฝึกหัด Unit {chapterData.chapter} มาให้นะคะ พิมพ์คำตอบแล้วกดตรวจได้เลย ครูมีคำแนะนำให้อย่างละเอียดถ้าพิมพ์ผิดจุดไหน พยายามทำให้เต็มที่นะคะ! 💖&rdquo;
+        <div className="teacher-message-box text-xs sm:text-sm text-[#1e293b] leading-relaxed">
+          <span className="teacher-name-label font-bold text-[#1e3a8a] block mb-0.5 font-heading">ครูหวาน อิงลิช ออน แอร์:</span>
+          <p className="teacher-message-text">
+            &ldquo;สวัสดีค่ะนักเรียนคนเก่ง! วันนี้ครูหวานทำระบบเฉลยและตรวจแบบฝึกหัด Unit {unitNumber} มาให้นะคะ พิมพ์คำตอบแล้วกดตรวจได้เลย ครูมีคำแนะนำให้อย่างละเอียดถ้าพิมพ์ผิดจุดไหน พยายามทำให้เต็มที่นะคะ! 💖&rdquo;
+          </p>
         </div>
-      </div>
+      </section>
 
       {/* ========================================================= */}
-      {/* EXERCISE 1 SECTION */}
+      {/* 3. EXERCISE 1 SECTION */}
       {/* ========================================================= */}
       {ex1 && (
-        <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xs mb-8">
-          <div className="border-b-2 border-blue-50 pb-4 mb-6">
-            <h2 className="text-xl sm:text-2xl font-bold text-[#1e3a8a] font-heading flex items-center gap-2">
+        <section className="exercise-section exercise-1-section bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xs mb-8">
+          <div className="exercise-header-box border-b-2 border-blue-50 pb-4 mb-6">
+            <h2 className="exercise-title text-xl sm:text-2xl font-bold text-[#1e3a8a] font-heading flex items-center gap-2">
               ✏️ {ex1.title || 'Exercise 1: แปลประโยคภาษาอังกฤษ'}
             </h2>
-            <div className="bg-[#eff6ff] text-[#1e40af] p-3 rounded-lg text-xs sm:text-sm mt-3 border-l-4 border-[#2563eb] leading-relaxed">
-              📌 <b>คำแนะนำจากครูหวาน:</b> {ex1.instruction || `โปรดใช้คำศัพท์จาก Unit ${chapterData.chapter} ในหนังสือ Sentence Builder 2 ในการตอบนะคะ ระบบจะตรวจคำตอบแบบเป๊ะๆ (รวมถึงการพิมพ์ตัวพิมพ์ใหญ่ ตัวพิมพ์เล็ก และจุด Full Stop . ด้านหลังด้วยน้า)`}
+            <div className="exercise-instruction-box bg-[#eff6ff] text-[#1e40af] p-3 rounded-lg text-xs sm:text-sm mt-3 border-l-4 border-[#2563eb] leading-relaxed">
+              📌 <b>คำแนะนำจากครูหวาน:</b> {ex1.instruction || `โปรดใช้คำศัพท์จาก Unit ${unitNumber} ในหนังสือ Sentence Builder 2 ในการตอบนะคะ ระบบจะตรวจคำตอบแบบเป๊ะๆ (รวมถึงการพิมพ์ตัวพิมพ์ใหญ่ ตัวพิมพ์เล็ก และจุด Full Stop . ด้านหลังด้วยน้า)`}
             </div>
           </div>
 
-          <div className="space-y-6">
+          <div className="quiz-items-list space-y-6">
             {ex1.items?.map((item: any, idx: number) => {
               const key = `ex1_${item.id || idx + 1}`;
               const fb = feedbacks[key];
               const isSolVisible = showSolutions[key];
 
               return (
-                <div key={key} className="bg-[#f8fafc] border border-slate-200 rounded-xl p-5 shadow-2xs">
-                  <div className="text-base sm:text-lg font-bold text-[#1e3a8a] mb-3.5 font-heading">
+                <div key={key} className="quiz-item-card bg-[#f8fafc] border border-slate-200 rounded-xl p-5 shadow-2xs">
+                  <div className="quiz-question-prompt text-base sm:text-lg font-bold text-[#1e3a8a] mb-3.5 font-heading">
                     {idx + 1}. {item.thai || item.thai_prompt}
                   </div>
 
-                  <div className="mb-3">
+                  <div className="quiz-input-wrapper mb-3">
                     <input
                       type="text"
                       value={answers[key] || ''}
                       onChange={(e) => handleAnswerChange(key, e.target.value)}
                       placeholder="พิมพ์ประโยคภาษาอังกฤษที่นี่..."
                       autoComplete="off"
-                      className="w-full px-3.5 py-2.5 text-sm sm:text-base text-slate-900 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/15 transition-all bg-white font-sans"
+                      className="quiz-answer-input w-full px-3.5 py-2.5 text-sm sm:text-base text-slate-900 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/15 transition-all bg-white font-sans"
                     />
                   </div>
 
-                  <div className="flex flex-wrap gap-2.5 mb-3">
+                  <div className="quiz-action-group flex flex-wrap gap-2.5 mb-3">
                     <button
                       onClick={() => handleOfflineCheck(item, key, 'ex-1')}
-                      className="bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-4 py-2 rounded-lg text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+                      className="btn-check-answer bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-4 py-2 rounded-lg text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
                     >
                       🔍 ตรวจคำตอบ
                     </button>
 
                     <button
                       onClick={() => toggleSolution(key)}
-                      className="bg-[#f1f5f9] hover:bg-[#e2e8f0] text-slate-800 border border-slate-300 px-4 py-2 rounded-lg text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+                      className="btn-toggle-solution bg-[#f1f5f9] hover:bg-[#e2e8f0] text-slate-800 border border-slate-300 px-4 py-2 rounded-lg text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
                     >
                       <Lightbulb className="w-4 h-4 text-amber-600" />
                       <span>{isSolVisible ? '🙈 ซ่อนเฉลย' : '💡 ดูเฉลย'}</span>
@@ -286,12 +302,12 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
 
                   {/* Feedback Box */}
                   {fb && (
-                    <div className={`p-3.5 rounded-lg text-xs sm:text-sm transition-all animate-in fade-in duration-200 mb-3 ${
+                    <div className={`feedback-result-box p-3.5 rounded-lg text-xs sm:text-sm transition-all animate-in fade-in duration-200 mb-3 ${
                       fb.isCorrect 
-                        ? 'bg-[#ecfdf5] text-[#065f46] border border-[#a7f3d0]' 
-                        : 'bg-[#fef2f2] text-[#991b1b] border border-[#fecaca]'
+                        ? 'feedback-correct bg-[#ecfdf5] text-[#065f46] border border-[#a7f3d0]' 
+                        : 'feedback-incorrect bg-[#fef2f2] text-[#991b1b] border border-[#fecaca]'
                     }`}>
-                      <div className="font-bold flex items-center gap-1.5 mb-1 text-sm sm:text-base">
+                      <div className="feedback-message-title font-bold flex items-center gap-1.5 mb-1 text-sm sm:text-base">
                         {fb.isCorrect ? (
                           <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                         ) : (
@@ -301,9 +317,9 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                       </div>
 
                       {fb.points && fb.points.length > 0 && (
-                        <ul className="space-y-1 mt-1.5 pl-1">
+                        <ul className="feedback-points-list space-y-1 mt-1.5 pl-1">
                           {fb.points.map((pt, pIdx) => (
-                            <li key={pIdx} className="font-medium text-xs sm:text-sm leading-relaxed">
+                            <li key={pIdx} className="feedback-point-item font-medium text-xs sm:text-sm leading-relaxed">
                               {pt}
                             </li>
                           ))}
@@ -314,16 +330,16 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
 
                   {/* Solution Box */}
                   {isSolVisible && (
-                    <div className="p-3.5 bg-[#eff6ff] border border-[#bfdbfe] rounded-lg text-[#1e40af] text-xs sm:text-sm transition-all animate-in fade-in duration-200">
-                      <span className="font-bold block mb-1">เฉลย:</span>
-                      <div className="font-mono bg-white px-3 py-1.5 rounded border border-[#bfdbfe] text-[#1e3a8a] font-bold">
+                    <div className="solution-display-box p-3.5 bg-[#eff6ff] border border-[#bfdbfe] rounded-lg text-[#1e40af] text-xs sm:text-sm transition-all animate-in fade-in duration-200">
+                      <span className="solution-label font-bold block mb-1">เฉลย:</span>
+                      <div className="solution-model-text font-mono bg-white px-3 py-1.5 rounded border border-[#bfdbfe] text-[#1e3a8a] font-bold">
                         {item.model_answer}
                       </div>
                       {item.acceptable_answers && item.acceptable_answers.length > 1 && (
-                        <div className="mt-2 space-y-1">
-                          <span className="font-semibold text-slate-600 block text-xs">คำตอบอื่นที่เป็นไปได้:</span>
+                        <div className="solution-alternatives-group mt-2 space-y-1">
+                          <span className="solution-alternatives-label font-semibold text-slate-600 block text-xs">คำตอบอื่นที่เป็นไปได้:</span>
                           {item.acceptable_answers.map((acc: string, aIdx: number) => (
-                            <div key={aIdx} className="font-mono bg-white px-2.5 py-1 rounded border border-[#bfdbfe] text-slate-700 text-xs">
+                            <div key={aIdx} className="solution-alternative-item font-mono bg-white px-2.5 py-1 rounded border border-[#bfdbfe] text-slate-700 text-xs">
                               {aIdx + 1}) {acc}
                             </div>
                           ))}
@@ -335,52 +351,52 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
               );
             })}
           </div>
-        </div>
+        </section>
       )}
 
       {/* ========================================================= */}
-      {/* EXERCISE 2 SECTION */}
+      {/* 4. EXERCISE 2 SECTION */}
       {/* ========================================================= */}
       {ex2 && (
-        <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xs mb-8">
-          <div className="border-b-2 border-blue-50 pb-4 mb-6">
-            <h2 className="text-xl sm:text-2xl font-bold text-[#1e3a8a] font-heading flex items-center gap-2">
+        <section className="exercise-section exercise-2-section bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xs mb-8">
+          <div className="exercise-header-box border-b-2 border-blue-50 pb-4 mb-6">
+            <h2 className="exercise-title text-xl sm:text-2xl font-bold text-[#1e3a8a] font-heading flex items-center gap-2">
               🧩 {ex2.title || 'Exercise 2: เลือกคำจากที่มีให้มาแต่งประโยค'}
             </h2>
-            <div className="bg-[#eff6ff] text-[#1e40af] p-3 rounded-lg text-xs sm:text-sm mt-3 border-l-4 border-[#2563eb] leading-relaxed">
+            <div className="exercise-instruction-box bg-[#eff6ff] text-[#1e40af] p-3 rounded-lg text-xs sm:text-sm mt-3 border-l-4 border-[#2563eb] leading-relaxed">
               📌 <b>คำแนะนำจากครูหวาน:</b> {ex2.instruction || `ให้เลือกคำจากตารางด้านล่างนี้ในหนังสือ Sentence Builder 2 มาเติมในช่องว่างให้สมบูรณ์ ตรวจเช็คการสะกดคำและเครื่องหมายให้ถูกต้องนะคะ`}
             </div>
           </div>
 
           {/* Vocab Reference Table */}
-          <div className="overflow-x-auto my-4 rounded-xl border border-[#e0e7ff] bg-[#faf5ff] p-4 shadow-2xs">
-            <table className="w-full text-xs sm:text-sm text-left border-collapse bg-white rounded-lg overflow-hidden border border-[#e0e7ff]">
+          <div className="vocab-reference-wrapper overflow-x-auto my-4 rounded-xl border border-[#e0e7ff] bg-[#faf5ff] p-4 shadow-2xs">
+            <table className="vocab-reference-table w-full text-xs sm:text-sm text-left border-collapse bg-white rounded-lg overflow-hidden border border-[#e0e7ff]">
               <thead>
-                <tr className="bg-[#1e3a8a] text-white font-semibold font-heading">
-                  <th className="p-3 border-b border-indigo-100">กำลังทำอะไร</th>
-                  <th className="p-3 border-b border-indigo-100">เพื่ออะไร (to...)</th>
-                  <th className="p-3 border-b border-indigo-100">เมื่อไหร่</th>
-                  <th className="p-3 border-b border-indigo-100">เพราะอะไร (because...)</th>
+                <tr className="vocab-table-header bg-[#1e3a8a] text-white font-semibold font-heading">
+                  <th className="th-action p-3 border-b border-indigo-100">กำลังทำอะไร</th>
+                  <th className="th-purpose p-3 border-b border-indigo-100">เพื่ออะไร (to...)</th>
+                  <th className="th-time p-3 border-b border-indigo-100">เมื่อไหร่</th>
+                  <th className="th-reason p-3 border-b border-indigo-100">เพราะอะไร (because...)</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 text-slate-700 font-medium">
-                <tr>
-                  <td className="p-3 leading-relaxed">
+              <tbody className="vocab-table-body divide-y divide-slate-100 text-slate-700 font-medium">
+                <tr className="vocab-table-row">
+                  <td className="td-action p-3 leading-relaxed">
                     • making breakfast<br />
                     • cleaning my room<br />
                     • adjusting my schedule
                   </td>
-                  <td className="p-3 leading-relaxed">
+                  <td className="td-purpose p-3 leading-relaxed">
                     • to save money<br />
                     • to find my keys<br />
                     • to fit the meeting / schedule
                   </td>
-                  <td className="p-3 leading-relaxed">
+                  <td className="td-time p-3 leading-relaxed">
                     • now<br />
                     • right now<br />
                     • at the moment
                   </td>
-                  <td className="p-3 leading-relaxed">
+                  <td className="td-reason p-3 leading-relaxed">
                     • because it is cheap<br />
                     • because it is messy<br />
                     • because it is necessary / healthy
@@ -390,43 +406,43 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
             </table>
           </div>
 
-          <div className="space-y-6 mt-6">
+          <div className="quiz-items-list space-y-6 mt-6">
             {ex2.items?.map((item: any, idx: number) => {
               const key = `ex2_${item.id || idx + 1}`;
               const fb = feedbacks[key];
               const isSolVisible = showSolutions[key];
 
               return (
-                <div key={key} className="bg-[#f8fafc] border border-slate-200 rounded-xl p-5 shadow-2xs">
-                  <div className="text-base sm:text-lg font-bold text-[#1e3a8a] mb-2 font-heading">
+                <div key={key} className="quiz-item-card bg-[#f8fafc] border border-slate-200 rounded-xl p-5 shadow-2xs">
+                  <div className="quiz-question-prompt text-base sm:text-lg font-bold text-[#1e3a8a] mb-2 font-heading">
                     {idx + 1}. {item.prompt}
                   </div>
 
-                  <div className="mb-3">
+                  <div className="quiz-input-wrapper mb-3">
                     <input
                       type="text"
                       value={answers[key] || ''}
                       onChange={(e) => handleAnswerChange(key, e.target.value)}
                       placeholder="พิมพ์ประโยคภาษาอังกฤษฉบับเต็มที่นี่..."
                       autoComplete="off"
-                      className="w-full px-3.5 py-2.5 text-sm sm:text-base text-slate-900 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/15 transition-all bg-white font-sans"
+                      className="quiz-answer-input w-full px-3.5 py-2.5 text-sm sm:text-base text-slate-900 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/15 transition-all bg-white font-sans"
                     />
-                    <div className="text-xs text-slate-500 italic mt-1 font-medium">
+                    <div className="quiz-input-hint text-xs text-slate-500 italic mt-1 font-medium">
                       คำแนะนำ: พิมพ์ประโยคฉบับเต็ม + อย่าลืมจุด Full stop (.) หลังจบประโยค
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap gap-2.5 mb-3">
+                  <div className="quiz-action-group flex flex-wrap gap-2.5 mb-3">
                     <button
                       onClick={() => handleOfflineCheck(item, key, 'ex-2')}
-                      className="bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-4 py-2 rounded-lg text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+                      className="btn-check-answer bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-4 py-2 rounded-lg text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
                     >
                       🔍 ตรวจคำตอบ
                     </button>
 
                     <button
                       onClick={() => toggleSolution(key)}
-                      className="bg-[#f1f5f9] hover:bg-[#e2e8f0] text-slate-800 border border-slate-300 px-4 py-2 rounded-lg text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+                      className="btn-toggle-solution bg-[#f1f5f9] hover:bg-[#e2e8f0] text-slate-800 border border-slate-300 px-4 py-2 rounded-lg text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
                     >
                       <Lightbulb className="w-4 h-4 text-amber-600" />
                       <span>{isSolVisible ? '🙈 ซ่อนเฉลย' : '💡 ดูเฉลย'}</span>
@@ -435,12 +451,12 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
 
                   {/* Feedback Box */}
                   {fb && (
-                    <div className={`p-3.5 rounded-lg text-xs sm:text-sm transition-all animate-in fade-in duration-200 mb-3 ${
+                    <div className={`feedback-result-box p-3.5 rounded-lg text-xs sm:text-sm transition-all animate-in fade-in duration-200 mb-3 ${
                       fb.isCorrect 
-                        ? 'bg-[#ecfdf5] text-[#065f46] border border-[#a7f3d0]' 
-                        : 'bg-[#fef2f2] text-[#991b1b] border border-[#fecaca]'
+                        ? 'feedback-correct bg-[#ecfdf5] text-[#065f46] border border-[#a7f3d0]' 
+                        : 'feedback-incorrect bg-[#fef2f2] text-[#991b1b] border border-[#fecaca]'
                     }`}>
-                      <div className="font-bold flex items-center gap-1.5 mb-1 text-sm sm:text-base">
+                      <div className="feedback-message-title font-bold flex items-center gap-1.5 mb-1 text-sm sm:text-base">
                         {fb.isCorrect ? (
                           <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                         ) : (
@@ -450,9 +466,9 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                       </div>
 
                       {fb.points && fb.points.length > 0 && (
-                        <ul className="space-y-1 mt-1.5 pl-1">
+                        <ul className="feedback-points-list space-y-1 mt-1.5 pl-1">
                           {fb.points.map((pt, pIdx) => (
-                            <li key={pIdx} className="font-medium text-xs sm:text-sm leading-relaxed">
+                            <li key={pIdx} className="feedback-point-item font-medium text-xs sm:text-sm leading-relaxed">
                               {pt}
                             </li>
                           ))}
@@ -463,15 +479,15 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
 
                   {/* Solution Box */}
                   {isSolVisible && (
-                    <div className="p-3.5 bg-[#eff6ff] border border-[#bfdbfe] rounded-lg text-[#1e40af] text-xs sm:text-sm transition-all animate-in fade-in duration-200">
-                      <span className="font-bold block mb-1">เฉลยที่เป็นไปได้ทั้งหมด:</span>
+                    <div className="solution-display-box p-3.5 bg-[#eff6ff] border border-[#bfdbfe] rounded-lg text-[#1e40af] text-xs sm:text-sm transition-all animate-in fade-in duration-200">
+                      <span className="solution-label font-bold block mb-1">เฉลยที่เป็นไปได้ทั้งหมด:</span>
                       {item.model_answer && (
-                        <div className="font-mono bg-white px-3 py-1.5 rounded border border-[#bfdbfe] text-[#1e3a8a] font-bold mb-1">
+                        <div className="solution-model-text font-mono bg-white px-3 py-1.5 rounded border border-[#bfdbfe] text-[#1e3a8a] font-bold mb-1">
                           • {item.model_answer}
                         </div>
                       )}
                       {item.acceptable_answers?.map((acc: string, aIdx: number) => (
-                        <div key={aIdx} className="font-mono bg-white px-2.5 py-1 rounded border border-[#bfdbfe] text-slate-700 text-xs">
+                        <div key={aIdx} className="solution-alternative-item font-mono bg-white px-2.5 py-1 rounded border border-[#bfdbfe] text-slate-700 text-xs">
                           • {acc}
                         </div>
                       ))}
@@ -481,90 +497,90 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
               );
             })}
           </div>
-        </div>
+        </section>
       )}
 
       {/* ========================================================= */}
-      {/* EXERCISE 3 SECTION */}
+      {/* 5. EXERCISE 3 SECTION */}
       {/* ========================================================= */}
       {ex3 && (
-        <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xs mb-8">
-          <div className="border-b-2 border-blue-50 pb-4 mb-6">
-            <h2 className="text-xl sm:text-2xl font-bold text-[#1e3a8a] font-heading flex items-center gap-2">
+        <section className="exercise-section exercise-3-section bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xs mb-8">
+          <div className="exercise-header-box border-b-2 border-blue-50 pb-4 mb-6">
+            <h2 className="exercise-title text-xl sm:text-2xl font-bold text-[#1e3a8a] font-heading flex items-center gap-2">
               🖼️ {ex3.title || 'Exercise 3: ดูภาพแล้วแต่งประโยคโดยใช้โครงสร้าง Core + Context + Connect'}
             </h2>
-            <div className="bg-[#eff6ff] text-[#1e40af] p-3 rounded-lg text-xs sm:text-sm mt-3 border-l-4 border-[#2563eb] leading-relaxed">
+            <div className="exercise-instruction-box bg-[#eff6ff] text-[#1e40af] p-3 rounded-lg text-xs sm:text-sm mt-3 border-l-4 border-[#2563eb] leading-relaxed">
               🌟 <b>ข้อแนะนำพิเศษจากครูหวาน:</b> {ex3.instruction || `แบบฝึกหัดนี้ใช้จินตนาการแต่งประโยคจากภาพได้เลยนะคะ ไม่มีถูกไม่มีผิด! ลองแต่งประโยคตามโครงสร้าง 3 กล่องด้านล่างได้เลยค่ะ`}
             </div>
           </div>
 
           {/* 3 Structure Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 my-4">
-            <div className="bg-white border border-[#2563eb] rounded-xl p-3.5 shadow-2xs">
-              <span className="font-bold text-[#1e3a8a] text-xs sm:text-sm block border-b border-blue-100 pb-1 mb-1 font-heading">
+          <div className="structure-cards-grid grid grid-cols-1 sm:grid-cols-3 gap-3 my-4">
+            <div className="structure-card structure-core-card bg-white border border-[#2563eb] rounded-xl p-3.5 shadow-2xs">
+              <span className="structure-card-title font-bold text-[#1e3a8a] text-xs sm:text-sm block border-b border-blue-100 pb-1 mb-1 font-heading">
                 🔵 Core (ส่วนหลัก)
               </span>
-              <p className="text-xs text-slate-700">
+              <p className="structure-card-body text-xs text-slate-700">
                 <b>ฉันกำลังทำอะไร:</b><br />
                 <code className="bg-slate-100 text-[#0369a1] px-1.5 py-0.5 rounded font-mono text-xs">I am + V.ing</code>
               </p>
             </div>
 
-            <div className="bg-white border border-emerald-500 rounded-xl p-3.5 shadow-2xs">
-              <span className="font-bold text-emerald-800 text-xs sm:text-sm block border-b border-emerald-100 pb-1 mb-1 font-heading">
+            <div className="structure-card structure-context-card bg-white border border-emerald-500 rounded-xl p-3.5 shadow-2xs">
+              <span className="structure-card-title font-bold text-emerald-800 text-xs sm:text-sm block border-b border-emerald-100 pb-1 mb-1 font-heading">
                 🟢 Context (บริบท)
               </span>
-              <p className="text-xs text-slate-700">
+              <p className="structure-card-body text-xs text-slate-700">
                 <b>เพื่ออะไร:</b> <code className="bg-slate-100 text-[#0369a1] px-1.5 py-0.5 rounded font-mono text-xs">to + V.inf</code><br />
                 <b>เมื่อไหร่:</b> <code className="bg-slate-100 text-[#0369a1] px-1.5 py-0.5 rounded font-mono text-xs">now / right now</code>
               </p>
             </div>
 
-            <div className="bg-white border border-amber-500 rounded-xl p-3.5 shadow-2xs">
-              <span className="font-bold text-amber-800 text-xs sm:text-sm block border-b border-amber-100 pb-1 mb-1 font-heading">
+            <div className="structure-card structure-connect-card bg-white border border-amber-500 rounded-xl p-3.5 shadow-2xs">
+              <span className="structure-card-title font-bold text-amber-800 text-xs sm:text-sm block border-b border-amber-100 pb-1 mb-1 font-heading">
                 🟠 Connect (ส่วนเชื่อม)
               </span>
-              <p className="text-xs text-slate-700">
+              <p className="structure-card-body text-xs text-slate-700">
                 <b>เพราะอะไร:</b><br />
                 <code className="bg-slate-100 text-[#0369a1] px-1.5 py-0.5 rounded font-mono text-xs">because it is + Adj</code>
               </p>
             </div>
           </div>
 
-          <div className="space-y-6 mt-6">
+          <div className="quiz-items-list space-y-6 mt-6">
             {ex3.items?.map((item: any, idx: number) => {
               const key = `ex3_${item.id || idx + 1}`;
               const fb = feedbacks[key];
               const isLoading = aiLoading[key];
 
               return (
-                <div key={key} className="bg-[#f8fafc] border border-slate-200 rounded-xl p-5 shadow-2xs">
-                  <div className="text-base sm:text-lg font-bold text-[#1e3a8a] mb-2 font-heading">
+                <div key={key} className="quiz-item-card bg-[#f8fafc] border border-slate-200 rounded-xl p-5 shadow-2xs">
+                  <div className="quiz-question-prompt text-base sm:text-lg font-bold text-[#1e3a8a] mb-2 font-heading">
                     ภาพที่ {idx + 1}: {item.image_description}
                   </div>
 
                   {item.context_hint && (
-                    <p className="text-xs text-slate-600 mb-3 bg-amber-50 p-2.5 rounded border border-amber-200 font-medium">
+                    <p className="quiz-context-hint text-xs text-slate-600 mb-3 bg-amber-50 p-2.5 rounded border border-amber-200 font-medium">
                       💡 คำใบ้บริบทภาพ: <span className="font-bold text-slate-800">{item.context_hint}</span>
                     </p>
                   )}
 
-                  <div className="mb-3">
+                  <div className="quiz-input-wrapper mb-3">
                     <input
                       type="text"
                       value={answers[key] || ''}
                       onChange={(e) => handleAnswerChange(key, e.target.value)}
                       placeholder={`แต่งประโยคจากภาพที่ ${idx + 1} ที่นี่...`}
                       autoComplete="off"
-                      className="w-full px-3.5 py-2.5 text-sm sm:text-base text-slate-900 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/15 transition-all bg-white font-sans"
+                      className="quiz-answer-input w-full px-3.5 py-2.5 text-sm sm:text-base text-slate-900 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/15 transition-all bg-white font-sans"
                     />
                   </div>
 
-                  <div className="flex flex-wrap gap-2.5 mb-3">
+                  <div className="quiz-action-group flex flex-wrap gap-2.5 mb-3">
                     <button
                       onClick={() => handleAiCheck(item, key, idx)}
                       disabled={isLoading}
-                      className="bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-4 py-2 rounded-lg text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer disabled:opacity-50"
+                      className="btn-ai-check bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-4 py-2 rounded-lg text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer disabled:opacity-50"
                     >
                       {isLoading ? (
                         <>
@@ -583,7 +599,7 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                       href="https://quillbot.com/grammar-check"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="bg-[#8b5cf6] hover:bg-[#7c3aed] text-white px-4 py-2 rounded-lg text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all shadow-2xs"
+                      className="btn-quillbot-check bg-[#8b5cf6] hover:bg-[#7c3aed] text-white px-4 py-2 rounded-lg text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all shadow-2xs"
                     >
                       <ExternalLink className="w-4 h-4" />
                       <span>🌐 ตรวจ Grammar ด้วย QuillBot</span>
@@ -592,12 +608,12 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
 
                   {/* Feedback Box */}
                   {fb && (
-                    <div className={`p-3.5 rounded-lg text-xs sm:text-sm transition-all animate-in fade-in duration-200 ${
+                    <div className={`feedback-result-box p-3.5 rounded-lg text-xs sm:text-sm transition-all animate-in fade-in duration-200 ${
                       fb.isCorrect 
-                        ? 'bg-[#ecfdf5] text-[#065f46] border border-[#a7f3d0]' 
-                        : 'bg-[#fef2f2] text-[#991b1b] border border-[#fecaca]'
+                        ? 'feedback-correct bg-[#ecfdf5] text-[#065f46] border border-[#a7f3d0]' 
+                        : 'feedback-incorrect bg-[#fef2f2] text-[#991b1b] border border-[#fecaca]'
                     }`}>
-                      <div className="font-bold flex items-center gap-1.5 mb-1 text-sm sm:text-base">
+                      <div className="feedback-message-title font-bold flex items-center gap-1.5 mb-1 text-sm sm:text-base">
                         {fb.isCorrect ? (
                           <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                         ) : (
@@ -607,9 +623,9 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                       </div>
 
                       {fb.points && fb.points.length > 0 && (
-                        <ul className="space-y-1 mt-1.5 pl-1">
+                        <ul className="feedback-points-list space-y-1 mt-1.5 pl-1">
                           {fb.points.map((pt, pIdx) => (
-                            <li key={pIdx} className="font-medium text-xs sm:text-sm leading-relaxed">
+                            <li key={pIdx} className="feedback-point-item font-medium text-xs sm:text-sm leading-relaxed">
                               {pt}
                             </li>
                           ))}
@@ -621,7 +637,7 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
               );
             })}
           </div>
-        </div>
+        </section>
       )}
     </div>
   );
