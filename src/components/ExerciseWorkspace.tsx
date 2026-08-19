@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { 
   CheckCircle2, 
   XCircle, 
-  Lightbulb, 
   Sparkles, 
   ExternalLink,
   RefreshCw
@@ -21,7 +20,6 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
   // State per question item: answers, feedback, solution visibility, loading state
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [feedbacks, setFeedbacks] = useState<Record<string, { isCorrect: boolean; message: string; points: string[] }>>({});
-  const [showSolutions, setShowSolutions] = useState<Record<string, boolean>>({});
   const [aiLoading, setAiLoading] = useState<Record<string, boolean>>({});
 
   const unitNumber = chapterData.chapter || chapterData.unit_number || 1;
@@ -31,10 +29,6 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
 
   const handleAnswerChange = (key: string, text: string) => {
     setAnswers(prev => ({ ...prev, [key]: text }));
-  };
-
-  const toggleSolution = (key: string) => {
-    setShowSolutions(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
   // SMART OFFLINE GRAMMAR & SPELL CHECKER (NO AI CALL, 0ms LATENCY)
@@ -179,7 +173,6 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
             {ex1.items?.map((item: any, idx: number) => {
               const key = `ex1_${item.id || idx + 1}`;
               const fb = feedbacks[key];
-              const isSolVisible = showSolutions[key];
 
               return (
                 <div key={key} className="quiz-item-card bg-[#f8fafc] border border-slate-200 rounded-xl p-5 shadow-2xs">
@@ -204,14 +197,6 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                       className="btn-check-answer bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-4 py-2 rounded-lg text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
                     >
                       🔍 ตรวจคำตอบ
-                    </button>
-
-                    <button
-                      onClick={() => toggleSolution(key)}
-                      className="btn-toggle-solution bg-[#f1f5f9] hover:bg-[#e2e8f0] text-slate-800 border border-slate-300 px-4 py-2 rounded-lg text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
-                    >
-                      <Lightbulb className="w-4 h-4 text-amber-600" />
-                      <span>{isSolVisible ? '🙈 ซ่อนเฉลย' : '💡 ดูเฉลย'}</span>
                     </button>
                   </div>
 
@@ -239,26 +224,6 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                             </li>
                           ))}
                         </ul>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Solution Box */}
-                  {isSolVisible && (
-                    <div className="solution-display-box p-3.5 bg-[#eff6ff] border border-[#bfdbfe] rounded-lg text-[#1e40af] text-xs sm:text-sm transition-all animate-in fade-in duration-200">
-                      <span className="solution-label font-bold block mb-1">เฉลย:</span>
-                      <div className="solution-model-text font-mono bg-white px-3 py-1.5 rounded border border-[#bfdbfe] text-[#1e3a8a] font-bold">
-                        {item.model_answer}
-                      </div>
-                      {item.acceptable_answers && item.acceptable_answers.length > 1 && (
-                        <div className="solution-alternatives-group mt-2 space-y-1">
-                          <span className="solution-alternatives-label font-semibold text-slate-600 block text-xs">คำตอบอื่นที่เป็นไปได้:</span>
-                          {item.acceptable_answers.map((acc: string, aIdx: number) => (
-                            <div key={aIdx} className="solution-alternative-item font-mono bg-white px-2.5 py-1 rounded border border-[#bfdbfe] text-slate-700 text-xs">
-                              {aIdx + 1}) {acc}
-                            </div>
-                          ))}
-                        </div>
                       )}
                     </div>
                   )}
@@ -325,7 +290,6 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
             {ex2.items?.map((item: any, idx: number) => {
               const key = `ex2_${item.id || idx + 1}`;
               const fb = feedbacks[key];
-              const isSolVisible = showSolutions[key];
 
               return (
                 <div key={key} className="quiz-item-card bg-[#f8fafc] border border-slate-200 rounded-xl p-5 shadow-2xs">
@@ -354,14 +318,6 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                     >
                       🔍 ตรวจคำตอบ
                     </button>
-
-                    <button
-                      onClick={() => toggleSolution(key)}
-                      className="btn-toggle-solution bg-[#f1f5f9] hover:bg-[#e2e8f0] text-slate-800 border border-slate-300 px-4 py-2 rounded-lg text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
-                    >
-                      <Lightbulb className="w-4 h-4 text-amber-600" />
-                      <span>{isSolVisible ? '🙈 ซ่อนเฉลย' : '💡 ดูเฉลย'}</span>
-                    </button>
                   </div>
 
                   {/* Feedback Box */}
@@ -389,23 +345,6 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                           ))}
                         </ul>
                       )}
-                    </div>
-                  )}
-
-                  {/* Solution Box */}
-                  {isSolVisible && (
-                    <div className="solution-display-box p-3.5 bg-[#eff6ff] border border-[#bfdbfe] rounded-lg text-[#1e40af] text-xs sm:text-sm transition-all animate-in fade-in duration-200">
-                      <span className="solution-label font-bold block mb-1">เฉลยที่เป็นไปได้ทั้งหมด:</span>
-                      {item.model_answer && (
-                        <div className="solution-model-text font-mono bg-white px-3 py-1.5 rounded border border-[#bfdbfe] text-[#1e3a8a] font-bold mb-1">
-                          • {item.model_answer}
-                        </div>
-                      )}
-                      {item.acceptable_answers?.map((acc: string, aIdx: number) => (
-                        <div key={aIdx} className="solution-alternative-item font-mono bg-white px-2.5 py-1 rounded border border-[#bfdbfe] text-slate-700 text-xs">
-                          • {acc}
-                        </div>
-                      ))}
                     </div>
                   )}
                 </div>
