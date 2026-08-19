@@ -241,7 +241,7 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                             onClick={() => toggleRevealSolution(key)}
                             className="btn-reveal-solution inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-[#2563eb] hover:text-[#1d4ed8] bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3.5 py-1.5 rounded-lg transition-all shadow-2xs cursor-pointer"
                           >
-                            🔎 {revealedSolutions[key] ? 'ซ่อนเฉลย' : 'ดูเฉลย'}
+                            💡 {revealedSolutions[key] ? 'ซ่อนเฉลย' : 'ดูเฉลย'}
                           </button>
 
                           {revealedSolutions[key] && (
@@ -387,7 +387,7 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                         )}
                       </div>
 
-                      {/* 🔎 ดูเฉลย Button (shown below incorrect feedback) */}
+                      {/* 💡 ดูเฉลย Button (shown below incorrect feedback) */}
                       {!fb.isCorrect && item.model_answer && (
                         <div className="reveal-solution-section mb-3">
                           <button
@@ -395,7 +395,7 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                             onClick={() => toggleRevealSolution(key)}
                             className="btn-reveal-solution inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-[#2563eb] hover:text-[#1d4ed8] bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3.5 py-1.5 rounded-lg transition-all shadow-2xs cursor-pointer"
                           >
-                            🔎 {revealedSolutions[key] ? 'ซ่อนเฉลย' : 'ดูเฉลย'}
+                            💡 {revealedSolutions[key] ? 'ซ่อนเฉลย' : 'ดูเฉลย'}
                           </button>
 
                           {revealedSolutions[key] && (
