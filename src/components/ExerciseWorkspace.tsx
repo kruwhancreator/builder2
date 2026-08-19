@@ -20,7 +20,12 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
   // State per question item: answers, feedback, solution visibility, loading state
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [feedbacks, setFeedbacks] = useState<Record<string, { isCorrect: boolean; message: string; points: string[] }>>({});
+  const [revealedSolutions, setRevealedSolutions] = useState<Record<string, boolean>>({});
   const [aiLoading, setAiLoading] = useState<Record<string, boolean>>({});
+
+  const toggleRevealSolution = (key: string) => {
+    setRevealedSolutions(prev => ({ ...prev, [key]: !prev[key] }));
+  };
 
   const unitNumber = chapterData.chapter || chapterData.unit_number || 1;
   const ex1 = chapterData.exercises?.['ex-1'];
@@ -202,30 +207,64 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
 
                   {/* Feedback Box */}
                   {fb && (
-                    <div className={`feedback-result-box p-3.5 rounded-lg text-xs sm:text-sm transition-all animate-in fade-in duration-200 mb-3 ${
-                      fb.isCorrect 
-                        ? 'feedback-correct bg-[#ecfdf5] text-[#065f46] border border-[#a7f3d0]' 
-                        : 'feedback-incorrect bg-[#fef2f2] text-[#991b1b] border border-[#fecaca]'
-                    }`}>
-                      <div className="feedback-message-title font-bold flex items-center gap-1.5 mb-1 text-sm sm:text-base">
-                        {fb.isCorrect ? (
-                          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                        ) : (
-                          <XCircle className="w-4 h-4 text-red-600 shrink-0" />
+                    <>
+                      <div className={`feedback-result-box p-3.5 rounded-lg text-xs sm:text-sm transition-all animate-in fade-in duration-200 mb-3 ${
+                        fb.isCorrect 
+                          ? 'feedback-correct bg-[#ecfdf5] text-[#065f46] border border-[#a7f3d0]' 
+                          : 'feedback-incorrect bg-[#fef2f2] text-[#991b1b] border border-[#fecaca]'
+                      }`}>
+                        <div className="feedback-message-title font-bold flex items-center gap-1.5 mb-1 text-sm sm:text-base">
+                          {fb.isCorrect ? (
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                          ) : (
+                            <XCircle className="w-4 h-4 text-red-600 shrink-0" />
+                          )}
+                          <span>{fb.message}</span>
+                        </div>
+
+                        {fb.points && fb.points.length > 0 && (
+                          <ul className="feedback-points-list space-y-1 mt-1.5 pl-1">
+                            {fb.points.map((pt, pIdx) => (
+                              <li key={pIdx} className="feedback-point-item font-medium text-xs sm:text-sm leading-relaxed">
+                                {pt}
+                              </li>
+                            ))}
+                          </ul>
                         )}
-                        <span>{fb.message}</span>
                       </div>
 
-                      {fb.points && fb.points.length > 0 && (
-                        <ul className="feedback-points-list space-y-1 mt-1.5 pl-1">
-                          {fb.points.map((pt, pIdx) => (
-                            <li key={pIdx} className="feedback-point-item font-medium text-xs sm:text-sm leading-relaxed">
-                              {pt}
-                            </li>
-                          ))}
-                        </ul>
+                      {/* 🔎 ดูเฉลย Button (shown below incorrect feedback) */}
+                      {!fb.isCorrect && item.model_answer && (
+                        <div className="reveal-solution-section mb-3">
+                          <button
+                            type="button"
+                            onClick={() => toggleRevealSolution(key)}
+                            className="btn-reveal-solution inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-[#2563eb] hover:text-[#1d4ed8] bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3.5 py-1.5 rounded-lg transition-all shadow-2xs cursor-pointer"
+                          >
+                            🔎 {revealedSolutions[key] ? 'ซ่อนเฉลย' : 'ดูเฉลย'}
+                          </button>
+
+                          {revealedSolutions[key] && (
+                            <div className="solution-actual-answer-box mt-2.5 p-3.5 bg-[#eff6ff] border border-[#bfdbfe] rounded-xl text-[#1e40af] text-xs sm:text-sm animate-in fade-in duration-200">
+                              <span className="font-bold block mb-1 text-slate-700">เฉลยคำตอบที่ถูกต้อง:</span>
+                              <div className="font-mono font-bold bg-white px-3 py-2 rounded-lg border border-[#bfdbfe] text-[#1e3a8a] text-sm sm:text-base">
+                                {item.model_answer}
+                              </div>
+                              {item.acceptable_answers && item.acceptable_answers.length > 1 && (
+                                <div className="mt-2 space-y-1">
+                                  <span className="text-xs font-semibold text-slate-500 block">คำตอบอื่นที่ใช้ได้:</span>
+                                  {item.acceptable_answers.filter((ans: string) => ans !== item.model_answer).map((ans: string, aIdx: number) => (
+                                    <div key={aIdx} className="font-mono bg-white/80 px-2.5 py-1 rounded border border-[#bfdbfe] text-slate-700 text-xs">
+                                      • {ans}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       )}
-                    </div>
+                    </>
                   )}
                 </div>
               );
@@ -322,30 +361,64 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
 
                   {/* Feedback Box */}
                   {fb && (
-                    <div className={`feedback-result-box p-3.5 rounded-lg text-xs sm:text-sm transition-all animate-in fade-in duration-200 mb-3 ${
-                      fb.isCorrect 
-                        ? 'feedback-correct bg-[#ecfdf5] text-[#065f46] border border-[#a7f3d0]' 
-                        : 'feedback-incorrect bg-[#fef2f2] text-[#991b1b] border border-[#fecaca]'
-                    }`}>
-                      <div className="feedback-message-title font-bold flex items-center gap-1.5 mb-1 text-sm sm:text-base">
-                        {fb.isCorrect ? (
-                          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                        ) : (
-                          <XCircle className="w-4 h-4 text-red-600 shrink-0" />
+                    <>
+                      <div className={`feedback-result-box p-3.5 rounded-lg text-xs sm:text-sm transition-all animate-in fade-in duration-200 mb-3 ${
+                        fb.isCorrect 
+                          ? 'feedback-correct bg-[#ecfdf5] text-[#065f46] border border-[#a7f3d0]' 
+                          : 'feedback-incorrect bg-[#fef2f2] text-[#991b1b] border border-[#fecaca]'
+                      }`}>
+                        <div className="feedback-message-title font-bold flex items-center gap-1.5 mb-1 text-sm sm:text-base">
+                          {fb.isCorrect ? (
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                          ) : (
+                            <XCircle className="w-4 h-4 text-red-600 shrink-0" />
+                          )}
+                          <span>{fb.message}</span>
+                        </div>
+
+                        {fb.points && fb.points.length > 0 && (
+                          <ul className="feedback-points-list space-y-1 mt-1.5 pl-1">
+                            {fb.points.map((pt, pIdx) => (
+                              <li key={pIdx} className="feedback-point-item font-medium text-xs sm:text-sm leading-relaxed">
+                                {pt}
+                              </li>
+                            ))}
+                          </ul>
                         )}
-                        <span>{fb.message}</span>
                       </div>
 
-                      {fb.points && fb.points.length > 0 && (
-                        <ul className="feedback-points-list space-y-1 mt-1.5 pl-1">
-                          {fb.points.map((pt, pIdx) => (
-                            <li key={pIdx} className="feedback-point-item font-medium text-xs sm:text-sm leading-relaxed">
-                              {pt}
-                            </li>
-                          ))}
-                        </ul>
+                      {/* 🔎 ดูเฉลย Button (shown below incorrect feedback) */}
+                      {!fb.isCorrect && item.model_answer && (
+                        <div className="reveal-solution-section mb-3">
+                          <button
+                            type="button"
+                            onClick={() => toggleRevealSolution(key)}
+                            className="btn-reveal-solution inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-[#2563eb] hover:text-[#1d4ed8] bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3.5 py-1.5 rounded-lg transition-all shadow-2xs cursor-pointer"
+                          >
+                            🔎 {revealedSolutions[key] ? 'ซ่อนเฉลย' : 'ดูเฉลย'}
+                          </button>
+
+                          {revealedSolutions[key] && (
+                            <div className="solution-actual-answer-box mt-2.5 p-3.5 bg-[#eff6ff] border border-[#bfdbfe] rounded-xl text-[#1e40af] text-xs sm:text-sm animate-in fade-in duration-200">
+                              <span className="font-bold block mb-1 text-slate-700">เฉลยคำตอบที่ถูกต้อง:</span>
+                              <div className="font-mono font-bold bg-white px-3 py-2 rounded-lg border border-[#bfdbfe] text-[#1e3a8a] text-sm sm:text-base">
+                                {item.model_answer}
+                              </div>
+                              {item.acceptable_answers && item.acceptable_answers.length > 1 && (
+                                <div className="mt-2 space-y-1">
+                                  <span className="text-xs font-semibold text-slate-500 block">คำตอบอื่นที่ใช้ได้:</span>
+                                  {item.acceptable_answers.filter((ans: string) => ans !== item.model_answer).map((ans: string, aIdx: number) => (
+                                    <div key={aIdx} className="font-mono bg-white/80 px-2.5 py-1 rounded border border-[#bfdbfe] text-slate-700 text-xs">
+                                      • {ans}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       )}
-                    </div>
+                    </>
                   )}
                 </div>
               );
