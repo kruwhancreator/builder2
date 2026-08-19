@@ -23,7 +23,13 @@ import {
   Bot,
   Sliders,
   Link2,
-  QrCode
+  QrCode,
+  BarChart2,
+  TrendingUp,
+  Users,
+  Award,
+  Eye,
+  ArrowUpRight
 } from 'lucide-react';
 
 const INITIAL_BOOKS = [
@@ -59,13 +65,17 @@ export default function BackendAdminPage() {
   const [authError, setAuthError] = useState('');
 
   // Navigation State
-  const [activeView, setActiveView] = useState<'books_list' | 'curriculum_view'>('books_list');
+  const [activeView, setActiveView] = useState<'books_list' | 'curriculum_view' | 'analytics_dashboard'>('books_list');
   const [booksList, setBooksList] = useState<any[]>(INITIAL_BOOKS);
   const [selectedBook, setSelectedBook] = useState<string>('sentence-builder-vol-2');
 
   // Curriculum Units State
   const [curriculumUnits, setCurriculumUnits] = useState<any[]>([]);
   const [isLoadingCurriculum, setIsLoadingCurriculum] = useState(false);
+
+  // Analytics State
+  const [analyticsData, setAnalyticsData] = useState<any>(null);
+  const [isLoadingAnalytics, setIsLoadingAnalytics] = useState(false);
 
   // Book Modal State
   const [showBookModal, setShowBookModal] = useState(false);
@@ -129,6 +139,18 @@ export default function BackendAdminPage() {
       .finally(() => setIsLoadingCurriculum(false));
   };
 
+  // Fetch Analytics data for selected book
+  const fetchAnalytics = (bookId: string) => {
+    setIsLoadingAnalytics(true);
+    fetch(`/api/analytics/summary?book=${encodeURIComponent(bookId)}`)
+      .then(res => res.json())
+      .then(data => {
+        setAnalyticsData(data);
+      })
+      .catch(err => console.warn('Error fetching analytics:', err))
+      .finally(() => setIsLoadingAnalytics(false));
+  };
+
   useEffect(() => {
     fetchBooksList();
   }, []);
@@ -136,6 +158,7 @@ export default function BackendAdminPage() {
   useEffect(() => {
     if (selectedBook) {
       fetchCurriculum(selectedBook);
+      fetchAnalytics(selectedBook);
     }
   }, [selectedBook]);
 
@@ -533,6 +556,19 @@ export default function BackendAdminPage() {
               <span className="nav-item-label">Books Management</span>
             </button>
 
+            <button
+              onClick={() => {
+                setActiveView('analytics_dashboard');
+                fetchAnalytics(selectedBook);
+              }}
+              className={`sidebar-nav-item w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-sm font-bold transition-all cursor-pointer ${
+                activeView === 'analytics_dashboard' ? 'active-nav-item bg-[#2563eb] text-white shadow-xs' : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              <BarChart2 className="nav-item-icon w-5 h-5" />
+              <span className="nav-item-label">Tracking & Analytics</span>
+            </button>
+
             {activeView === 'curriculum_view' && (
               <button
                 className="sidebar-nav-item active-nav-item w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-sm font-bold transition-all cursor-pointer bg-[#2563eb] text-white shadow-xs"
@@ -653,7 +689,7 @@ export default function BackendAdminPage() {
                               </span>
                             </td>
 
-                            {/* Actions Toolbar */}
+                             {/* Actions Toolbar */}
                             <td className="td-actions-cell py-5 px-6 text-right">
                               <div className="actions-button-group flex items-center justify-end gap-2.5">
                                 <button
@@ -662,6 +698,19 @@ export default function BackendAdminPage() {
                                   className="btn-edit-book p-2 text-blue-600 hover:bg-blue-50 rounded-xl transition-colors cursor-pointer"
                                 >
                                   <Edit className="w-4.5 h-4.5" />
+                                </button>
+
+                                <button
+                                  onClick={() => {
+                                    setSelectedBook(book.id);
+                                    setActiveView('analytics_dashboard');
+                                    fetchAnalytics(book.id);
+                                  }}
+                                  title="ดูสถิติผู้เข้าเรียน & QR Tracking"
+                                  className="btn-view-analytics px-3 py-2 rounded-xl bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 font-bold text-xs sm:text-sm transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                                >
+                                  <BarChart2 className="w-4 h-4" />
+                                  <span>สถิติ</span>
                                 </button>
 
                                 <button
@@ -695,6 +744,237 @@ export default function BackendAdminPage() {
                       })}
                     </tbody>
                   </table>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* ========================================================= */}
+          {/* LEVEL 3: TRACKING & ANALYTICS DASHBOARD VIEW */}
+          {/* ========================================================= */}
+          {activeView === 'analytics_dashboard' && (
+            <section className="analytics-dashboard-section w-full">
+              {/* Top Navigation / Breadcrumb */}
+              <div className="back-navigation-bar mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <button
+                  onClick={() => setActiveView('books_list')}
+                  className="btn-back-to-books inline-flex items-center gap-1.5 text-sm font-bold text-[#2563eb] hover:underline cursor-pointer"
+                >
+                  <ArrowLeft className="w-4.5 h-4.5" />
+                  <span>← กลับหน้ารายการหนังสือ (Books Management)</span>
+                </button>
+
+                <div className="flex items-center gap-3">
+                  {/* Book Selector Dropdown */}
+                  <div className="flex items-center gap-2 bg-white px-3.5 py-2 rounded-2xl border border-slate-200 shadow-2xs">
+                    <BookOpen className="w-4 h-4 text-slate-400" />
+                    <select
+                      value={selectedBook}
+                      onChange={(e) => {
+                        setSelectedBook(e.target.value);
+                        fetchAnalytics(e.target.value);
+                      }}
+                      className="text-xs sm:text-sm font-bold text-slate-800 bg-transparent outline-none cursor-pointer pr-2"
+                    >
+                      {booksList.map(b => (
+                        <option key={b.id} value={b.id}>{b.title}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Refresh Button */}
+                  <button
+                    onClick={() => fetchAnalytics(selectedBook)}
+                    disabled={isLoadingAnalytics}
+                    className="p-2 bg-white hover:bg-slate-50 text-slate-700 rounded-2xl border border-slate-200 shadow-2xs transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${isLoadingAnalytics ? 'animate-spin text-blue-600' : ''}`} />
+                    <span className="hidden sm:inline">รีเฟรช</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Dashboard Header */}
+              <div className="dashboard-header-card bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs mb-8">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div>
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-50 text-purple-700 border border-purple-100 text-xs font-extrabold mb-2">
+                      <BarChart2 className="w-3.5 h-3.5" />
+                      <span>Tracking & Learning Analytics</span>
+                    </div>
+                    <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-heading">
+                      {activeBookObj.title}
+                    </h1>
+                    <p className="text-slate-500 text-sm mt-1">
+                      {activeBookObj.subtitle} • URL: <span className="font-mono text-blue-600 font-bold">/{activeBookObj.slug || activeBookObj.id}</span>
+                    </p>
+                  </div>
+
+                  <Link
+                    href={`/${activeBookObj.slug || activeBookObj.id}`}
+                    target="_blank"
+                    className="self-start md:self-auto px-4 py-2.5 rounded-2xl bg-[#2563eb] text-white hover:bg-[#1d4ed8] text-xs sm:text-sm font-bold flex items-center gap-2 shadow-sm transition-all"
+                  >
+                    <QrCode className="w-4 h-4" />
+                    <span>เปิดดูหน้าสารบัญจริง</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
+              </div>
+
+              {/* 4 KPI Metrics Grid */}
+              <div className="kpi-metrics-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                {/* Metric 1: Total QR Scans */}
+                <div className="kpi-card bg-white rounded-3xl p-6 border border-slate-200 shadow-xs relative overflow-hidden">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total QR Scans</span>
+                    <div className="w-10 h-10 rounded-2xl bg-blue-50 text-[#2563eb] flex items-center justify-center font-bold">
+                      <QrCode className="w-5 h-5" />
+                    </div>
+                  </div>
+                  <div className="text-3xl font-extrabold text-slate-900 font-heading">
+                    {analyticsData?.totalQrScans?.toLocaleString() || 0}
+                  </div>
+                  <div className="text-xs text-slate-400 mt-1 flex items-center gap-1 font-medium">
+                    <span className="text-blue-600 font-bold">● สแกนหลังปก</span> จาก QR Code ทั้งหมด
+                  </div>
+                </div>
+
+                {/* Metric 2: Unit 1 Readers */}
+                <div className="kpi-card bg-white rounded-3xl p-6 border border-slate-200 shadow-xs relative overflow-hidden">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Unit 1 Readers</span>
+                    <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+                      <Users className="w-5 h-5" />
+                    </div>
+                  </div>
+                  <div className="text-3xl font-extrabold text-slate-900 font-heading">
+                    {analyticsData?.unit1Views?.toLocaleString() || 0}
+                  </div>
+                  <div className="text-xs text-slate-400 mt-1 flex items-center gap-1 font-medium">
+                    <span className="text-emerald-600 font-bold">● เริ่มเรียน</span> เปิดเข้าอ่านบทที่ 1
+                  </div>
+                </div>
+
+                {/* Metric 3: QR to Unit 1 Conversion */}
+                <div className="kpi-card bg-white rounded-3xl p-6 border border-slate-200 shadow-xs relative overflow-hidden">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">QR ➔ Unit 1</span>
+                    <div className="w-10 h-10 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold">
+                      <TrendingUp className="w-5 h-5" />
+                    </div>
+                  </div>
+                  <div className="text-3xl font-extrabold text-slate-900 font-heading">
+                    {analyticsData?.qrToUnit1Conversion || 0}%
+                  </div>
+                  <div className="text-xs text-slate-400 mt-1 flex items-center gap-1 font-medium">
+                    <span className="text-purple-600 font-bold">Conversion Rate</span> สแกนแล้วกดเริ่มทำ
+                  </div>
+                </div>
+
+                {/* Metric 4: Course Completion */}
+                <div className="kpi-card bg-white rounded-3xl p-6 border border-slate-200 shadow-xs relative overflow-hidden">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Completion Rate</span>
+                    <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
+                      <Award className="w-5 h-5" />
+                    </div>
+                  </div>
+                  <div className="text-3xl font-extrabold text-slate-900 font-heading">
+                    {analyticsData?.courseCompletionRate || 0}%
+                  </div>
+                  <div className="text-xs text-slate-400 mt-1 flex items-center gap-1 font-medium">
+                    <span className="text-amber-600 font-bold">● สำเร็จการเรียน</span> ทำครบถึง Unit 30
+                  </div>
+                </div>
+              </div>
+
+              {/* Unit 1 - 30 Visual Learning Funnel */}
+              <div className="funnel-chart-card bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs mb-8">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6 pb-4 border-b border-slate-100">
+                  <div>
+                    <h2 className="text-lg sm:text-xl font-bold text-slate-900 font-heading flex items-center gap-2">
+                      <TrendingUp className="w-5 h-5 text-[#2563eb]" />
+                      <span>Unit 1 - 30 Learning Funnel & Drop-off</span>
+                    </h2>
+                    <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+                      สถิติจำนวนผู้เข้าเรียนในแต่ละบท เพื่อดูว่านักเรียนติดขัดหรือ Drop-off ในบทใด
+                    </p>
+                  </div>
+
+                  <span className="text-xs font-bold px-3 py-1 rounded-full bg-slate-100 text-slate-600 self-start sm:self-auto">
+                    30 Units Total
+                  </span>
+                </div>
+
+                {/* Visual Bar Funnel */}
+                <div className="funnel-bars-container space-y-3">
+                  {analyticsData?.unitViews?.map((u: any) => {
+                    const maxViews = analyticsData?.unit1Views || 1;
+                    const pct = Math.max(2, Math.min(100, Math.round((u.view_count / maxViews) * 100)));
+                    const isUnit1 = u.unit_number === 1;
+                    const isUnit15 = u.unit_number === 15;
+                    const isUnit30 = u.unit_number === 30;
+
+                    return (
+                      <div key={u.unit_number} className="funnel-row flex items-center gap-3 text-xs sm:text-sm group">
+                        {/* Unit Label */}
+                        <div className="unit-label-box w-20 sm:w-24 shrink-0 font-bold text-slate-700 flex items-center gap-1.5">
+                          <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-extrabold ${
+                            isUnit1 
+                              ? 'bg-emerald-100 text-emerald-800' 
+                              : isUnit30 
+                              ? 'bg-amber-100 text-amber-800'
+                              : 'bg-slate-100 text-slate-700'
+                          }`}>
+                            {u.unit_number}
+                          </span>
+                          <span>Unit {u.unit_number}</span>
+                        </div>
+
+                        {/* Progress Bar Container */}
+                        <div className="bar-track flex-1 h-7 bg-slate-100 rounded-xl overflow-hidden relative flex items-center p-1">
+                          <div
+                            style={{ width: `${pct}%` }}
+                            className={`bar-fill h-full rounded-lg transition-all duration-500 flex items-center justify-end pr-2 ${
+                              isUnit1 
+                                ? 'bg-gradient-to-r from-emerald-500 to-teal-500' 
+                                : isUnit30 
+                                ? 'bg-gradient-to-r from-amber-500 to-orange-500'
+                                : 'bg-gradient-to-r from-[#2563eb] to-[#3b82f6]'
+                            }`}
+                          >
+                            {pct > 15 && (
+                              <span className="text-[11px] font-extrabold text-white drop-shadow-xs">
+                                {u.view_count?.toLocaleString()}
+                              </span>
+                            )}
+                          </div>
+
+                          {pct <= 15 && (
+                            <span className="text-[11px] font-bold text-slate-600 pl-2">
+                              {u.view_count?.toLocaleString()}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Retention % */}
+                        <div className="retention-pct-box w-14 sm:w-16 shrink-0 text-right font-mono font-bold text-slate-600 text-xs">
+                          {pct}%
+                        </div>
+
+                        {/* Quick Link to Unit */}
+                        <Link
+                          href={`/${activeBookObj.slug || activeBookObj.id}/chapter-${u.unit_number}`}
+                          target="_blank"
+                          title={`เปิดดู Unit ${u.unit_number}`}
+                          className="text-slate-400 hover:text-[#2563eb] p-1 transition-colors"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </Link>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </section>
