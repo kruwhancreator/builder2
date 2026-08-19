@@ -1,7 +1,7 @@
 /**
- * Offline Grammar & Spell Checker Engine
- * Pure clientside TypeScript engine providing 0ms deterministic spell checking,
- * grammar analysis, morphological rules, and typo detection without external API calls.
+ * Smart Universal Offline Grammar & Spell Checker Engine
+ * Fully automatic dynamic sequence alignment (LCS + Token Diff + Fuzzy Distance).
+ * Works for ANY sentence and ANY unit without needing manual wordbanks or hardcoded typo lists.
  */
 
 // 1. Levenshtein Distance Algorithm
@@ -33,87 +33,13 @@ export function getLevenshteinDistance(a: string, b: string): number {
   return matrix[bn][an];
 }
 
-// Similarity Ratio (0.0 to 1.0)
+// Word Similarity (0.0 to 1.0)
 export function getWordSimilarity(a: string, b: string): number {
   const distance = getLevenshteinDistance(a, b);
   const maxLen = Math.max(a.length, b.length);
   if (maxLen === 0) return 1.0;
   return (maxLen - distance) / maxLen;
 }
-
-// 2. Common English Typo & Spelling Rule Dictionary
-const COMMON_SPELLING_DICTIONARY: Record<string, string> = {
-  // -ing rule exceptions (dropping 'e')
-  'makeing': 'making',
-  'takeing': 'taking',
-  'comeing': 'coming',
-  'giveing': 'giving',
-  'writeing': 'writing',
-  'haveing': 'having',
-  'driveing': 'driving',
-  'leaveing': 'leaving',
-  'hesitateing': 'hesitating',
-  'adjustting': 'adjusting',
-  'cleanning': 'cleaning',
-  'prepareing': 'preparing',
-  'useing': 'using',
-
-  // -ing doubling consonant
-  'runing': 'running',
-  'swiming': 'swimming',
-  'swimimg': 'swimming',
-  'shoping': 'shopping',
-  'geting': 'getting',
-  'stoping': 'stopping',
-  'siting': 'sitting',
-  'cuting': 'cutting',
-  'planing': 'planning',
-  'traking': 'tracking',
-  'trackking': 'tracking',
-
-  // Common sentence builder typos
-  'communting': 'commuting',
-  'comuting': 'commuting',
-  'commting': 'commuting',
-  'comutingg': 'commuting',
-  'hom': 'home',
-  'walikng': 'walking',
-  'walkin': 'walking',
-  'breackfast': 'breakfast',
-  'brakfast': 'breakfast',
-  'brekfast': 'breakfast',
-  'schedual': 'schedule',
-  'schedul': 'schedule',
-  'scheduel': 'schedule',
-  'becuase': 'because',
-  'becuse': 'because',
-  'becouse': 'because',
-  'becasue': 'because',
-  'mesy': 'messy',
-  'necesary': 'necessary',
-  'necessery': 'necessary',
-  'neccesary': 'necessary',
-  'neccessary': 'necessary',
-  'confidance': 'confidence',
-  'momet': 'moment',
-  'momment': 'moment',
-  'momnt': 'moment',
-  'packge': 'package',
-  'pakage': 'package',
-  'pacage': 'package',
-  'delivry': 'delivery',
-  'urgentt': 'urgent',
-  'urgant': 'urgent',
-  'exercis': 'exercise',
-  'excersise': 'exercise',
-  'pratice': 'practice',
-  'practise': 'practice',
-  'restfull': 'restful',
-  'healthy': 'healthy',
-  'healthi': 'healthy',
-  'cheep': 'cheap',
-  'chaep': 'cheap'
-};
 
 export interface OfflineCheckResult {
   isCorrect: boolean;
@@ -125,7 +51,7 @@ export interface OfflineCheckResult {
 }
 
 /**
- * Main offline grammar and spell check evaluator
+ * Universal Sequence Alignment & Morphological Rule Checker
  */
 export function checkOfflineGrammarAndSpelling(
   item: any,
@@ -166,7 +92,7 @@ export function checkOfflineGrammarAndSpelling(
   }
 
   // -------------------------------------------------------------
-  // 3. TOKENIZE WORDS & PREPARE TARGET VOCABULARY
+  // 3. DYNAMIC TOKENIZATION & ALIGNMENT
   // -------------------------------------------------------------
   const cleanWord = (w: string) => w.toLowerCase().replace(/[^a-z0-9'-]/g, '');
   const studentWords = raw.split(/\s+/).map(cleanWord).filter(Boolean);
@@ -175,119 +101,162 @@ export function checkOfflineGrammarAndSpelling(
   const acceptableAnswers: string[] = item.acceptable_answers || [modelAnswer];
   const allTargetSentences = [modelAnswer, ...acceptableAnswers].filter(Boolean);
 
-  // Collect all unique expected words across model and acceptable answers
-  const targetWordsSet = new Set<string>();
-  const modelWords = modelAnswer.split(/\s+/).map(cleanWord).filter(Boolean);
-  allTargetSentences.forEach((s: string) => {
-    s.split(/\s+/).map(cleanWord).filter(Boolean).forEach((w: string) => targetWordsSet.add(w));
-  });
+  // Find the closest target sentence to the student's input
+  let bestTargetSentence = modelAnswer;
+  let bestTargetScore = -1;
 
-  // -------------------------------------------------------------
-  // 4. SPELL CHECKING & FUZZY TYPO DETECTION
-  // -------------------------------------------------------------
-  studentWords.forEach((sWord: string) => {
-    // Exact match in target vocabulary or common English word -> OK
-    if (targetWordsSet.has(sWord)) {
-      return;
-    }
-
-    // Check Rule 1: Dictionary of common typos
-    if (COMMON_SPELLING_DICTIONARY[sWord]) {
-      const correctWord = COMMON_SPELLING_DICTIONARY[sWord];
-      spellingErrors.push({ typed: sWord, correction: correctWord });
-      points.push(`• สะกดคำผิด: คุณพิมพ์ "${sWord}" คำที่ถูกต้องคือ "${correctWord}"`);
-      isValid = false;
-      return;
-    }
-
-    // Check Rule 2: -ing dropping 'e' rule
-    if (sWord.endsWith('eing') && sWord.length > 5) {
-      const suggested = sWord.slice(0, -4) + 'ing';
-      spellingErrors.push({ typed: sWord, correction: suggested });
-      points.push(`• สะกดคำผิด: "${sWord}" ควรตัด e ออกก่อนเติม -ing เป็น "${suggested}"`);
-      isValid = false;
-      return;
-    }
-
-    // Check Rule 3: Levenshtein distance against all expected target words
-    let bestMatchWord = '';
-    let bestDistance = Infinity;
-    let highestSim = 0;
-
-    targetWordsSet.forEach((tWord: string) => {
-      const dist = getLevenshteinDistance(sWord, tWord);
-      const sim = getWordSimilarity(sWord, tWord);
-      if (dist < bestDistance || (dist === bestDistance && sim > highestSim)) {
-        bestDistance = dist;
-        highestSim = sim;
-        bestMatchWord = tWord;
+  allTargetSentences.forEach((targetStr) => {
+    const tWords = targetStr.split(/\s+/).map(cleanWord).filter(Boolean);
+    let matchCount = 0;
+    studentWords.forEach((sW: string) => {
+      if (tWords.some((tW: string) => tW === sW || getWordSimilarity(sW, tW) >= 0.6)) {
+        matchCount++;
       }
     });
-
-    // If word is very close to a target word (distance <= 2 and similarity >= 0.60)
-    if (bestMatchWord && bestDistance <= 2 && highestSim >= 0.60 && sWord.length >= 3) {
-      spellingErrors.push({ typed: sWord, correction: bestMatchWord });
-      points.push(`• สะกดคำผิด: คุณพิมพ์ "${sWord}" คำที่ถูกต้องคือ "${bestMatchWord}"`);
-      isValid = false;
+    if (matchCount > bestTargetScore) {
+      bestTargetScore = matchCount;
+      bestTargetSentence = targetStr;
     }
   });
 
-  // -------------------------------------------------------------
-  // 5. GRAMMATICAL STRUCTURE CHECKS (PRESENT CONTINUOUS)
-  // -------------------------------------------------------------
-  const lowerAnswer = raw.toLowerCase();
+  const targetWords = bestTargetSentence.split(/\s+/).map(cleanWord).filter(Boolean);
 
-  // Check for missing 'am/is/are' before -ing verb
-  if (/\bi\s+\w+ing\b/i.test(lowerAnswer) && !/\bi\s+am\s+\w+ing\b/i.test(lowerAnswer) && !/\bi'm\s+\w+ing\b/i.test(lowerAnswer)) {
-    isValid = false;
-    points.push('• ไวยากรณ์ไม่ครบ: ขาดคำว่า "am" (โครงสร้าง Present Continuous ต้องเป็น I am + กริยาเติม -ing)');
-  }
-
-  // Check for base verb without -ing after 'am' (e.g. 'I am make')
-  if (/\bi\s+am\s+(make|commute|clean|adjust|cook|drink|run|study)\b/i.test(lowerAnswer)) {
-    isValid = false;
-    points.push('• ไวยากรณ์: กริยาหลัง "am" ต้องเติม -ing เช่น "making", "commuting"');
-  }
+  // Collect all valid words from all acceptable answers to avoid false positives
+  const allTargetWordsSet = new Set<string>();
+  allTargetSentences.forEach((s: string) => {
+    s.split(/\s+/).map(cleanWord).filter(Boolean).forEach((w: string) => allTargetWordsSet.add(w));
+  });
 
   // -------------------------------------------------------------
-  // 6. MISSING KEY WORDS DETECTION
+  // 4. DYNAMIC WORD-BY-WORD DIFF & SPELL CHECKING
   // -------------------------------------------------------------
-  if (modelWords.length > 0) {
-    const studentWordSet = new Set(studentWords);
-    const missingWords: string[] = [];
+  const usedTargetIndices = new Set<number>();
+  const unmatchedStudentWords: Array<{ word: string; index: number }> = [];
 
-    modelWords.forEach((mW: string) => {
-      // Don't flag single letter words like 'i' or 'a' unless critical
-      if (mW.length > 1 && !studentWordSet.has(mW)) {
-        // Check if student typed a typo of this word
-        const hasTypoMatch = spellingErrors.some(err => err.correction === mW);
-        if (!hasTypoMatch) {
-          missingWords.push(mW);
+  studentWords.forEach((sWord: string, sIdx: number) => {
+    // 1. Exact match against target sequence
+    let matchedIdx = -1;
+    for (let tIdx = 0; tIdx < targetWords.length; tIdx++) {
+      if (!usedTargetIndices.has(tIdx) && targetWords[tIdx] === sWord) {
+        matchedIdx = tIdx;
+        break;
+      }
+    }
+
+    if (matchedIdx !== -1) {
+      usedTargetIndices.add(matchedIdx);
+      return;
+    }
+
+    // 2. Exact match in any acceptable answers
+    if (allTargetWordsSet.has(sWord)) {
+      return;
+    }
+
+    unmatchedStudentWords.push({ word: sWord, index: sIdx });
+  });
+
+  // Match unmatched student words against remaining target words for typos
+  unmatchedStudentWords.forEach(({ word: sWord }) => {
+    // Morphological check for -ing dropping e (e.g. makeing -> making, hesitateing -> hesitating)
+    if (sWord.endsWith('eing') && sWord.length >= 5) {
+      const correction = sWord.slice(0, -4) + 'ing';
+      spellingErrors.push({ typed: sWord, correction });
+      points.push(`• สะกดคำผิด: "${sWord}" ควรตัด e ออกก่อนเติม -ing เป็น "${correction}"`);
+      isValid = false;
+      return;
+    }
+
+    let bestMatchWord = '';
+    let bestMatchIdx = -1;
+    let bestDist = Infinity;
+    let bestSim = 0;
+
+    targetWords.forEach((tWord: string, tIdx: number) => {
+      if (usedTargetIndices.has(tIdx)) return;
+
+      const dist = getLevenshteinDistance(sWord, tWord);
+      const sim = getWordSimilarity(sWord, tWord);
+
+      // Handle small words like 'd' -> 'do', 'i' -> 'is', 'to', 'up' (distance = 1)
+      const isShortWordFuzzy = (tWord.length <= 3 && dist <= 1);
+      // Handle longer words (distance <= 2 or similarity >= 0.55)
+      const isLongWordFuzzy = (dist <= 2 && sim >= 0.55);
+
+      if (isShortWordFuzzy || isLongWordFuzzy) {
+        if (dist < bestDist || (dist === bestDist && sim > bestSim)) {
+          bestDist = dist;
+          bestSim = sim;
+          bestMatchWord = tWord;
+          bestMatchIdx = tIdx;
         }
       }
     });
 
-    if (missingWords.length > 0 && missingWords.length <= 2 && spellingErrors.length === 0) {
+    // If a fuzzy match is found
+    if (bestMatchWord && bestMatchIdx !== -1) {
+      usedTargetIndices.add(bestMatchIdx);
+      spellingErrors.push({ typed: sWord, correction: bestMatchWord });
+      points.push(`• สะกดคำผิด: คุณพิมพ์ "${sWord}" คำที่ถูกต้องคือ "${bestMatchWord}"`);
+      isValid = false;
+    } else {
+      // General target search
+      let globalBestWord = '';
+      let globalBestDist = Infinity;
+      allTargetWordsSet.forEach((tW: string) => {
+        const dist = getLevenshteinDistance(sWord, tW);
+        const sim = getWordSimilarity(sWord, tW);
+        if ((dist <= 2 && sim >= 0.55) || (tW.length <= 3 && dist <= 1)) {
+          if (dist < globalBestDist) {
+            globalBestDist = dist;
+            globalBestWord = tW;
+          }
+        }
+      });
+
+      if (globalBestWord) {
+        spellingErrors.push({ typed: sWord, correction: globalBestWord });
+        points.push(`• สะกดคำผิด: คุณพิมพ์ "${sWord}" คำที่ถูกต้องคือ "${globalBestWord}"`);
+        isValid = false;
+      }
+    }
+  });
+
+  // -------------------------------------------------------------
+  // 5. MISSING WORDS DETECTION (e.g. missing 'up' in 'wake up')
+  // -------------------------------------------------------------
+  const missingWords: string[] = [];
+  targetWords.forEach((tWord: string, tIdx: number) => {
+    if (!usedTargetIndices.has(tIdx)) {
+      missingWords.push(tWord);
+    }
+  });
+
+  if (missingWords.length > 0) {
+    isValid = false;
+    if (missingWords.length === 1) {
+      points.push(`• คำตกหล่น: ในประโยคยังขาดคำว่า "${missingWords[0]}"`);
+    } else if (missingWords.length <= 3) {
       points.push(`• คำตกหล่น: ในประโยคยังขาดคำว่า "${missingWords.join('", "')}"`);
     }
   }
 
   // -------------------------------------------------------------
-  // 7. FIXED ANSWER KEY NORMALIZATION & MATCHING
+  // 6. FIXED ANSWER KEY NORMALIZATION & MATCHING
   // -------------------------------------------------------------
   const normalize = (str: string) => str.trim().toLowerCase().replace(/[.!?]/g, '').replace(/\s+/g, ' ');
   const normalizedStudent = normalize(raw);
   const normalizedModel = normalize(modelAnswer);
 
-  const matchesFixedAnswer = allTargetSentences.some(target => normalize(target) === normalizedStudent);
+  const matchesFixedAnswer = allTargetSentences.some((target) => normalize(target) === normalizedStudent);
 
-  if (!matchesFixedAnswer && spellingErrors.length === 0 && points.length === 0) {
+  if (!matchesFixedAnswer && points.length === 0) {
     isValid = false;
-    points.push(`• คำตอบยังไม่ตรงตามเฉลยในหนังสือ (เฉลยเป้าหมายหลัก: "${modelAnswer}")`);
+    points.push(`• คำตอบยังไม่ตรงตามโครงสร้างเฉลย (เฉลยหลัก: "${modelAnswer}")`);
   }
 
   // -------------------------------------------------------------
-  // 8. FINAL RESULT ASSEMBLY
+  // 7. FINAL RESULT
   // -------------------------------------------------------------
   if (isValid && matchesFixedAnswer && hasFullStop && isCapital && spellingErrors.length === 0) {
     return {
