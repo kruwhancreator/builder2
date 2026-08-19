@@ -6,7 +6,10 @@ import {
   XCircle, 
   Sparkles, 
   ExternalLink,
-  RefreshCw
+  RefreshCw,
+  GripHorizontal,
+  RotateCcw,
+  Sparkle
 } from 'lucide-react';
 import { EvaluationResult } from '@/lib/evaluator';
 import { checkOfflineGrammarAndSpelling } from '@/lib/offline-checker';
@@ -21,6 +24,7 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [feedbacks, setFeedbacks] = useState<Record<string, { isCorrect: boolean; message: string; points: string[] }>>({});
   const [revealedSolutions, setRevealedSolutions] = useState<Record<string, boolean>>({});
+  const [dragSlots, setDragSlots] = useState<Record<string, string[]>>({});
   const [aiLoading, setAiLoading] = useState<Record<string, boolean>>({});
 
   const toggleRevealSolution = (key: string) => {
@@ -34,6 +38,62 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
 
   const handleAnswerChange = (key: string, text: string) => {
     setAnswers(prev => ({ ...prev, [key]: text }));
+  };
+
+  // Reconstruct sentence from prompt static segments and placed slot words
+  const reconstructSentence = (parts: string[], slots: string[]) => {
+    let res = '';
+    for (let i = 0; i < parts.length; i++) {
+      res += parts[i];
+      if (i < slots.length && slots[i]) {
+        const slotVal = slots[i].trim();
+        if (res.length > 0 && !res.endsWith(' ') && !slotVal.startsWith(' ')) {
+          res += ' ';
+        }
+        res += slotVal;
+      }
+    }
+    let finalStr = res.replace(/\s+/g, ' ').trim();
+    if (finalStr && !finalStr.endsWith('.') && !finalStr.endsWith('?') && !finalStr.endsWith('!')) {
+      finalStr += '.';
+    }
+    return finalStr;
+  };
+
+  const handlePlaceSlotWord = (key: string, parts: string[], slotIdx: number, word: string, totalSlots: number) => {
+    const cur = [...(dragSlots[key] || Array(totalSlots).fill(''))];
+    cur[slotIdx] = word;
+    setDragSlots(prev => ({ ...prev, [key]: cur }));
+    const sentence = reconstructSentence(parts, cur);
+    setAnswers(prev => ({ ...prev, [key]: sentence }));
+  };
+
+  const handleAutoPlaceWord = (key: string, parts: string[], word: string, totalSlots: number) => {
+    const cur = [...(dragSlots[key] || Array(totalSlots).fill(''))];
+    const existingIdx = cur.indexOf(word);
+    if (existingIdx !== -1) {
+      cur[existingIdx] = '';
+    } else {
+      let emptyIdx = cur.findIndex(s => !s);
+      if (emptyIdx === -1) emptyIdx = 0;
+      cur[emptyIdx] = word;
+    }
+    setDragSlots(prev => ({ ...prev, [key]: cur }));
+    const sentence = reconstructSentence(parts, cur);
+    setAnswers(prev => ({ ...prev, [key]: sentence }));
+  };
+
+  const handleRemoveSlotWord = (key: string, parts: string[], slotIdx: number, totalSlots: number) => {
+    const cur = [...(dragSlots[key] || Array(totalSlots).fill(''))];
+    cur[slotIdx] = '';
+    setDragSlots(prev => ({ ...prev, [key]: cur }));
+    const sentence = reconstructSentence(parts, cur);
+    setAnswers(prev => ({ ...prev, [key]: sentence }));
+  };
+
+  const handleResetSlots = (key: string) => {
+    setDragSlots(prev => ({ ...prev, [key]: [] }));
+    setAnswers(prev => ({ ...prev, [key]: '' }));
   };
 
   // SMART OFFLINE GRAMMAR & SPELL CHECKER (NO AI CALL, 0ms LATENCY)
@@ -330,30 +390,117 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
               const key = `ex2_${item.id || idx + 1}`;
               const fb = feedbacks[key];
 
+              // Parse blanks from prompt (e.g. "I am ____________________ at the moment.")
+              const blankRegex = /_{2,}/g;
+              const promptParts = (item.prompt || '').split(blankRegex);
+              const slotCount = Math.max(1, (item.prompt || '').match(blankRegex)?.length || 1);
+              const currentSlots = dragSlots[key] || Array(slotCount).fill('');
+              const currentConstructed = answers[key] || '';
+              const wordBank = ex2.word_bank || {};
+
               return (
                 <div key={key} className="quiz-item-card bg-[#f8fafc] border border-slate-200 rounded-xl p-5 shadow-2xs">
-                  <div className="quiz-question-prompt text-base sm:text-lg font-bold text-[#1e3a8a] mb-2 font-heading">
-                    {idx + 1}. {item.prompt}
+                  <div className="quiz-question-prompt text-base sm:text-lg font-bold text-[#1e3a8a] mb-3 font-heading flex flex-wrap items-center justify-between gap-2">
+                    <span>{idx + 1}. {item.prompt}</span>
+                    {currentSlots.some(Boolean) && (
+                      <button
+                        type="button"
+                        onClick={() => handleResetSlots(key)}
+                        className="text-xs text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2.5 py-1 rounded-lg font-bold flex items-center gap-1 cursor-pointer transition-all shadow-2xs"
+                      >
+                        <RotateCcw className="w-3 h-3" />
+                        <span>ล้างคำตอบ</span>
+                      </button>
+                    )}
                   </div>
 
-                  <div className="quiz-input-wrapper mb-3">
-                    <input
-                      type="text"
-                      value={answers[key] || ''}
-                      onChange={(e) => handleAnswerChange(key, e.target.value)}
-                      placeholder="พิมพ์ประโยคภาษาอังกฤษฉบับเต็มที่นี่..."
-                      autoComplete="off"
-                      className="quiz-answer-input w-full px-3.5 py-2.5 text-sm sm:text-base text-slate-900 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/15 transition-all bg-white font-sans"
-                    />
-                    <div className="quiz-input-hint text-xs text-slate-500 italic mt-1 font-medium">
-                      คำแนะนำ: พิมพ์ประโยคฉบับเต็ม + อย่าลืมจุด Full stop (.) หลังจบประโยค
+                  {/* 1. INTERACTIVE DRAG & DROP SENTENCE SLOTS ZONE */}
+                  <div className="sentence-builder-dropzone bg-white rounded-2xl border-2 border-indigo-100 p-4 sm:p-5 mb-4 shadow-2xs">
+                    <div className="text-[11px] sm:text-xs font-bold text-indigo-700 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                      <GripHorizontal className="w-3.5 h-3.5 text-indigo-500" />
+                      <span>ลากหรือแตะคำศัพท์จาก Word Bank มาวางในช่องว่าง:</span>
+                    </div>
+
+                    <div className="sentence-tokens-row flex flex-wrap items-center gap-2 text-base sm:text-lg font-bold text-slate-800 font-heading leading-loose">
+                      {promptParts.map((part: string, pIdx: number) => (
+                        <span key={pIdx} className="inline-flex items-center gap-2">
+                          {part.trim() && <span>{part.trim()}</span>}
+                          {pIdx < slotCount && (
+                            <DropSlot
+                              slotIdx={pIdx}
+                              value={currentSlots[pIdx]}
+                              onPlace={(word: string) => handlePlaceSlotWord(key, promptParts, pIdx, word, slotCount)}
+                              onRemove={() => handleRemoveSlotWord(key, promptParts, pIdx, slotCount)}
+                            />
+                          )}
+                        </span>
+                      ))}
+                    </div>
+
+                    {/* Live Sentence Preview */}
+                    {currentConstructed && (
+                      <div className="assembled-sentence-preview mt-3.5 pt-3 border-t border-slate-100 flex flex-wrap items-center gap-2 text-xs sm:text-sm">
+                        <span className="text-slate-500 font-semibold">ประโยคที่ต่อได้:</span>
+                        <span className="font-bold text-[#1e3a8a] bg-blue-50 px-3 py-1 rounded-xl border border-blue-200">
+                          {currentConstructed}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 2. CATEGORIZED WORD BANK DRAGGABLE CHIPS */}
+                  <div className="word-bank-chips-panel bg-slate-100/80 rounded-2xl p-4 border border-slate-200 mb-4">
+                    <div className="text-xs font-bold text-slate-700 mb-3 flex items-center gap-1.5">
+                      <span>📚 Word Bank (คลิกหรือลากคำศัพท์เพื่อเลือก):</span>
+                    </div>
+
+                    <div className="categories-stack space-y-3">
+                      {Object.entries(wordBank).map(([catKey, words]: [string, any]) => {
+                        if (!Array.isArray(words)) return null;
+                        const catLabel = 
+                          catKey === 'action' ? '🔹 Action' :
+                          catKey === 'purpose' ? '🟣 Purpose (to...)' :
+                          catKey === 'time' ? '🟢 Time' :
+                          catKey === 'reason' ? '🟠 Reason (because...)' : catKey;
+
+                        return (
+                          <div key={catKey} className="category-group flex flex-wrap items-center gap-2">
+                            <span className="text-[11px] font-extrabold uppercase px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-600 shadow-2xs">
+                              {catLabel}:
+                            </span>
+                            <div className="chips-row flex flex-wrap gap-1.5">
+                              {words.map((word: string, wIdx: number) => {
+                                const isUsed = currentSlots.includes(word);
+                                return (
+                                  <button
+                                    key={wIdx}
+                                    type="button"
+                                    draggable
+                                    onDragStart={(e) => e.dataTransfer.setData('text/plain', word)}
+                                    onClick={() => handleAutoPlaceWord(key, promptParts, word, slotCount)}
+                                    className={`word-chip px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold border transition-all shadow-2xs flex items-center gap-1.5 cursor-grab active:cursor-grabbing select-none ${
+                                      isUsed
+                                        ? 'bg-blue-600 text-white border-blue-700 ring-2 ring-blue-300/40 shadow-xs'
+                                        : 'bg-white hover:bg-blue-50 text-slate-800 border-slate-300 hover:border-blue-400'
+                                    }`}
+                                  >
+                                    <GripHorizontal className={`w-3 h-3 ${isUsed ? 'text-white/70' : 'text-slate-400'}`} />
+                                    <span>{word}</span>
+                                    {isUsed && <CheckCircle2 className="w-3.5 h-3.5 text-white shrink-0 ml-0.5" />}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
 
                   <div className="quiz-action-group flex flex-wrap gap-2.5 mb-3">
                     <button
                       onClick={() => handleOfflineCheck(item, key, 'ex-2')}
-                      className="btn-check-answer bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-4 py-2 rounded-lg text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+                      className="btn-check-answer bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
                     >
                       🔍 ตรวจคำตอบ
                     </button>
@@ -569,3 +716,57 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
     </div>
   );
 }
+
+/**
+ * DropSlot Component for Drag & Drop Sentence Builder
+ */
+function DropSlot({
+  slotIdx,
+  value,
+  onPlace,
+  onRemove
+}: {
+  slotIdx: number;
+  value?: string;
+  onPlace: (word: string) => void;
+  onRemove: () => void;
+}) {
+  const [isOver, setIsOver] = useState(false);
+
+  if (value) {
+    return (
+      <span
+        onClick={onRemove}
+        title="คลิกเพื่อนำคำนี้ออก"
+        className="inline-flex items-center gap-1.5 px-3.5 py-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-sm sm:text-base font-bold shadow-xs cursor-pointer hover:from-rose-500 hover:to-red-600 transition-all select-none group"
+      >
+        <span>{value}</span>
+        <span className="text-white/80 group-hover:text-white text-xs font-mono ml-0.5">✕</span>
+      </span>
+    );
+  }
+
+  return (
+    <span
+      onDragOver={(e) => {
+        e.preventDefault();
+        setIsOver(true);
+      }}
+      onDragLeave={() => setIsOver(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setIsOver(false);
+        const word = e.dataTransfer.getData('text/plain');
+        if (word) onPlace(word);
+      }}
+      className={`inline-flex items-center justify-center min-w-[130px] px-3.5 py-1 border-2 border-dashed rounded-xl text-xs sm:text-sm font-semibold transition-all select-none ${
+        isOver
+          ? 'border-[#2563eb] bg-blue-100 text-[#2563eb] scale-105 shadow-xs'
+          : 'border-indigo-300 bg-indigo-50/70 text-indigo-700 hover:bg-indigo-100 hover:border-indigo-400 cursor-pointer'
+      }`}
+    >
+      + วางคำที่นี่
+    </span>
+  );
+}
+
