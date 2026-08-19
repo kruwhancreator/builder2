@@ -7,6 +7,11 @@
     --secondary: #de3030;
   }
 
+  html {
+    font-size: 17.5px;
+    -webkit-text-size-adjust: 100%;
+  }
+
   body {
     background-color: #fcfdfd;
     background-image: 
@@ -16,6 +21,12 @@
     color: #1e293b;
     min-height: 100vh;
     font-family: var(--font-sans);
+    font-size: 1rem;
+    line-height: 1.6;
+  }
+
+  input, button, select, textarea {
+    font-family: inherit;
   }
 }
 

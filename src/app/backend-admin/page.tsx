@@ -453,14 +453,14 @@ export default function BackendAdminPage() {
   if (!isAuthenticated) {
     return (
       <div className="login-screen-container min-h-screen bg-[#f4f6f8] flex items-center justify-center p-4">
-        <div className="login-card max-w-md w-full bg-white rounded-2xl p-8 border border-slate-200 shadow-xl text-center">
-          <div className="login-icon-box w-14 h-14 rounded-2xl bg-[#2563eb]/10 text-[#2563eb] flex items-center justify-center mx-auto mb-4 border border-[#2563eb]/20">
-            <Lock className="w-7 h-7" />
+        <div className="login-card max-w-md w-full bg-white rounded-3xl p-8 sm:p-10 border border-slate-200 shadow-xl text-center">
+          <div className="login-icon-box w-16 h-16 rounded-2xl bg-[#2563eb]/10 text-[#2563eb] flex items-center justify-center mx-auto mb-4 border border-[#2563eb]/20">
+            <Lock className="w-8 h-8" />
           </div>
-          <h1 className="login-title text-2xl font-extrabold text-slate-900 mb-1 font-heading">
+          <h1 className="login-title text-2xl sm:text-3xl font-extrabold text-slate-900 mb-1.5 font-heading">
             Engonair Admin Login
           </h1>
-          <p className="login-subtitle text-slate-500 text-xs mb-6">
+          <p className="login-subtitle text-slate-500 text-sm mb-6">
             ระบบจัดการ Books, Units, Exercises & Quizzes
           </p>
 
@@ -471,26 +471,26 @@ export default function BackendAdminPage() {
                 value={passcode}
                 onChange={(e) => setPasscode(e.target.value)}
                 placeholder="กรอก Passcode ( admin123 )"
-                className="login-passcode-input w-full rounded-xl bg-slate-50 border border-slate-300 px-4 py-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/20 text-center font-mono"
+                className="login-passcode-input w-full rounded-2xl bg-slate-50 border border-slate-300 px-4 py-3.5 text-base text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/20 text-center font-mono"
               />
             </div>
 
             {authError && (
-              <p className="login-error-message text-xs text-[#dc2626] font-semibold">{authError}</p>
+              <p className="login-error-message text-sm text-[#dc2626] font-semibold">{authError}</p>
             )}
 
             <button
               type="submit"
-              className="login-submit-btn w-full bg-[#2563eb] hover:bg-[#1d4ed8] text-white py-3 rounded-xl font-bold text-sm shadow-md flex items-center justify-center gap-2 transition-colors cursor-pointer"
+              className="login-submit-btn w-full bg-[#2563eb] hover:bg-[#1d4ed8] text-white py-3.5 rounded-2xl font-bold text-base shadow-md flex items-center justify-center gap-2 transition-colors cursor-pointer"
             >
-              <Unlock className="w-4 h-4" />
+              <Unlock className="w-5 h-5" />
               <span>เข้าสู่ระบบ Engonair Admin</span>
             </button>
           </form>
 
-          <div className="login-footer mt-6 pt-4 border-t border-slate-200">
-            <Link href="/sentence-builder-vol-2" className="login-back-link text-xs text-[#2563eb] font-bold hover:underline flex items-center justify-center gap-1">
-              <ArrowLeft className="w-3.5 h-3.5" />
+          <div className="login-footer mt-6 pt-5 border-t border-slate-200">
+            <Link href="/sentence-builder-vol-2" className="login-back-link text-sm text-[#2563eb] font-bold hover:underline flex items-center justify-center gap-1.5">
+              <ArrowLeft className="w-4 h-4" />
               <span>กลับสู่หน้าหลักหนังสือ</span>
             </Link>
           </div>
@@ -508,10 +508,10 @@ export default function BackendAdminPage() {
       {/* ========================================================= */}
       <header className="admin-top-navbar h-16 bg-white border-b border-slate-200 px-6 flex items-center sticky top-0 z-30 shadow-xs">
         <div className="navbar-brand-box flex items-center gap-3">
-          <div className="navbar-logo-icon w-8 h-8 rounded-lg bg-[#2563eb] text-white flex items-center justify-center font-extrabold text-lg font-heading">
+          <div className="navbar-logo-icon w-9 h-9 rounded-xl bg-[#2563eb] text-white flex items-center justify-center font-extrabold text-xl font-heading">
             E
           </div>
-          <span className="navbar-brand-text text-lg font-extrabold text-[#1e3a8a] tracking-tight font-heading">
+          <span className="navbar-brand-text text-xl font-extrabold text-[#1e3a8a] tracking-tight font-heading">
             Engonair <span className="brand-highlight text-[#2563eb] font-bold">Admin</span>
           </span>
         </div>
@@ -521,29 +521,29 @@ export default function BackendAdminPage() {
         {/* ========================================================= */}
         {/* ENGONAIR ADMIN LEFT SIDEBAR */}
         {/* ========================================================= */}
-        <aside className="admin-sidebar w-60 bg-white border-r border-slate-200 py-6 flex flex-col justify-between shrink-0 hidden lg:flex">
-          <nav className="sidebar-nav-menu space-y-1.5 px-3">
+        <aside className="admin-sidebar w-64 bg-white border-r border-slate-200 py-6 flex flex-col justify-between shrink-0 hidden lg:flex">
+          <nav className="sidebar-nav-menu space-y-2 px-3.5">
             <button
               onClick={() => setActiveView('books_list')}
-              className={`sidebar-nav-item w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`sidebar-nav-item w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-sm font-bold transition-all cursor-pointer ${
                 activeView === 'books_list' ? 'active-nav-item bg-[#2563eb] text-white shadow-xs' : 'text-slate-600 hover:bg-slate-100'
               }`}
             >
-              <BookOpen className="nav-item-icon w-4 h-4" />
+              <BookOpen className="nav-item-icon w-5 h-5" />
               <span className="nav-item-label">Books Management</span>
             </button>
 
             {activeView === 'curriculum_view' && (
               <button
-                className="sidebar-nav-item active-nav-item w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-bold transition-all cursor-pointer bg-[#2563eb] text-white shadow-xs"
+                className="sidebar-nav-item active-nav-item w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-sm font-bold transition-all cursor-pointer bg-[#2563eb] text-white shadow-xs"
               >
-                <Layers className="nav-item-icon w-4 h-4" />
+                <Layers className="nav-item-icon w-5 h-5" />
                 <span className="nav-item-label">Units & Exercises</span>
               </button>
             )}
           </nav>
 
-          <div className="sidebar-footer-box px-4 py-3 border-t border-slate-100 text-[11px] text-slate-400">
+          <div className="sidebar-footer-box px-4 py-3 border-t border-slate-100 text-xs text-slate-400">
             <span className="system-version-tag">Sentence Builder Advisor v2.0</span>
           </div>
         </aside>
@@ -554,13 +554,13 @@ export default function BackendAdminPage() {
         <main className="admin-main-content flex-1 w-full p-6 lg:p-8">
           {/* Toast Notification */}
           {saveMessage && (
-            <div className={`admin-toast-alert mb-6 p-4 rounded-xl text-xs font-bold border flex items-center justify-between shadow-xs ${
+            <div className={`admin-toast-alert mb-6 p-4 rounded-2xl text-sm font-bold border flex items-center justify-between shadow-xs ${
               saveMessage.type === 'success' 
                 ? 'toast-success bg-emerald-50 text-emerald-800 border-emerald-200' 
                 : 'toast-error bg-red-50 text-red-800 border-red-200'
             }`}>
-              <div className="toast-content flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4" />
+              <div className="toast-content flex items-center gap-2.5">
+                <CheckCircle2 className="w-5 h-5" />
                 <span className="toast-text">{saveMessage.text}</span>
               </div>
               <button onClick={() => setSaveMessage(null)} className="toast-close-btn text-slate-400 hover:text-slate-600">✕</button>
@@ -574,51 +574,51 @@ export default function BackendAdminPage() {
             <section className="books-management-section w-full">
               <div className="section-header-row flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 w-full">
                 <div className="section-title-box">
-                  <h1 className="section-main-heading text-2xl font-extrabold text-slate-900 font-heading">
+                  <h1 className="section-main-heading text-3xl font-extrabold text-slate-900 font-heading">
                     Books Management
                   </h1>
-                  <p className="section-description text-slate-500 text-xs mt-1">
+                  <p className="section-description text-slate-500 text-sm mt-1">
                     จัดการรายการหนังสือ, Custom URL Slug สำหรับสร้าง QR Code และจัดการ Units
                   </p>
                 </div>
 
                 <button
                   onClick={openCreateBookModal}
-                  className="btn-create-new-book bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-md flex items-center gap-2 transition-colors cursor-pointer shrink-0"
+                  className="btn-create-new-book bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-5 py-3 rounded-2xl font-bold text-sm shadow-md flex items-center gap-2 transition-colors cursor-pointer shrink-0"
                 >
-                  <Plus className="w-4 h-4" />
+                  <Plus className="w-5 h-5" />
                   <span>+ Create New Book</span>
                 </button>
               </div>
 
-              <div className="books-table-card w-full bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+              <div className="books-table-card w-full bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
                 <div className="table-responsive-wrapper w-full overflow-x-auto">
                   <table className="crud-books-table w-full text-left border-collapse">
                     <thead>
-                      <tr className="table-header-row bg-slate-50 border-b border-slate-200 text-[11px] font-extrabold uppercase tracking-wider text-slate-500">
-                        <th className="th-title py-4 px-6 w-5/12">Title</th>
-                        <th className="th-slug py-4 px-4 w-3/12">URL Slug & QR Code</th>
-                        <th className="th-units py-4 px-4 w-2/12">Units</th>
-                        <th className="th-actions py-4 px-6 text-right w-2/12">Actions</th>
+                      <tr className="table-header-row bg-slate-50 border-b border-slate-200 text-xs font-extrabold uppercase tracking-wider text-slate-500">
+                        <th className="th-title py-4.5 px-6 w-5/12">Title</th>
+                        <th className="th-slug py-4.5 px-4 w-3/12">URL Slug & QR Code</th>
+                        <th className="th-units py-4.5 px-4 w-2/12">Units</th>
+                        <th className="th-actions py-4.5 px-6 text-right w-2/12">Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="table-body-rows divide-y divide-slate-100 text-xs font-medium text-slate-700">
+                    <tbody className="table-body-rows divide-y divide-slate-100 text-sm font-medium text-slate-700">
                       {booksList.map((book) => {
                         const unitsCount = book.total_units || 0;
                         const bookSlug = book.slug || book.id;
                         return (
                           <tr key={book.id} className="book-item-row hover:bg-slate-50/80 transition-colors">
                             {/* Title & Subtitle */}
-                            <td className="td-title-cell py-4 px-6">
-                              <div className="book-title-container flex items-center gap-3">
-                                <div className="book-thumbnail-box w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 text-[#2563eb] flex items-center justify-center font-bold shrink-0">
-                                  <BookMarked className="w-5 h-5" />
+                            <td className="td-title-cell py-5 px-6">
+                              <div className="book-title-container flex items-center gap-3.5">
+                                <div className="book-thumbnail-box w-11 h-11 rounded-2xl bg-blue-50 border border-blue-100 text-[#2563eb] flex items-center justify-center font-bold shrink-0">
+                                  <BookMarked className="w-6 h-6" />
                                 </div>
                                 <div className="book-info-box">
-                                  <div className="book-name-text font-extrabold text-slate-900 text-sm line-clamp-1">
+                                  <div className="book-name-text font-extrabold text-slate-900 text-base line-clamp-1">
                                     {book.title}
                                   </div>
-                                  <div className="book-subtitle-text text-[11px] text-slate-500 line-clamp-1 mt-0.5">
+                                  <div className="book-subtitle-text text-xs sm:text-sm text-slate-500 line-clamp-1 mt-0.5">
                                     {book.subtitle}
                                   </div>
                                 </div>
@@ -626,42 +626,42 @@ export default function BackendAdminPage() {
                             </td>
 
                             {/* Slug Column with QR Link */}
-                            <td className="td-slug-cell py-4 px-4">
+                            <td className="td-slug-cell py-5 px-4">
                               <div className="flex flex-col gap-1">
-                                <div className="flex items-center gap-1.5 font-mono text-[11px] text-[#2563eb] font-bold">
-                                  <Link2 className="w-3.5 h-3.5 shrink-0" />
-                                  <span className="bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
+                                <div className="flex items-center gap-1.5 font-mono text-xs sm:text-sm text-[#2563eb] font-bold">
+                                  <Link2 className="w-4 h-4 shrink-0" />
+                                  <span className="bg-blue-50 px-2.5 py-0.5 rounded-lg border border-blue-100">
                                     /{bookSlug}
                                   </span>
                                 </div>
                                 <Link 
                                   href={`/${bookSlug}`} 
                                   target="_blank"
-                                  className="text-[10px] text-slate-400 hover:text-[#2563eb] flex items-center gap-1 font-medium transition-colors"
+                                  className="text-xs text-slate-400 hover:text-[#2563eb] flex items-center gap-1 font-medium transition-colors"
                                 >
-                                  <QrCode className="w-3 h-3 text-slate-500" />
+                                  <QrCode className="w-3.5 h-3.5 text-slate-500" />
                                   <span>Preview / QR Link</span>
-                                  <ExternalLink className="w-2.5 h-2.5" />
+                                  <ExternalLink className="w-3 h-3" />
                                 </Link>
                               </div>
                             </td>
 
                             {/* Units count */}
-                            <td className="td-units-cell py-4 px-4">
-                              <span className="units-count-pill inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-blue-50 text-[#2563eb] border border-blue-100">
+                            <td className="td-units-cell py-5 px-4">
+                              <span className="units-count-pill inline-flex items-center px-3 py-1 rounded-full text-xs sm:text-sm font-extrabold bg-blue-50 text-[#2563eb] border border-blue-100">
                                 {unitsCount} {unitsCount === 1 ? 'Unit' : 'Units'}
                               </span>
                             </td>
 
                             {/* Actions Toolbar */}
-                            <td className="td-actions-cell py-4 px-6 text-right">
-                              <div className="actions-button-group flex items-center justify-end gap-2">
+                            <td className="td-actions-cell py-5 px-6 text-right">
+                              <div className="actions-button-group flex items-center justify-end gap-2.5">
                                 <button
                                   onClick={() => openEditBookModal(book)}
                                   title="แก้ไขข้อมูลหนังสือ / URL Slug"
-                                  className="btn-edit-book p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                                  className="btn-edit-book p-2 text-blue-600 hover:bg-blue-50 rounded-xl transition-colors cursor-pointer"
                                 >
-                                  <Edit className="w-4 h-4" />
+                                  <Edit className="w-4.5 h-4.5" />
                                 </button>
 
                                 <button
@@ -670,9 +670,9 @@ export default function BackendAdminPage() {
                                     setActiveView('curriculum_view');
                                   }}
                                   title="เข้าสู่หน้าจัดการ Units & เฉลย"
-                                  className="btn-manage-units px-3 py-1.5 rounded-lg bg-[#2563eb] text-white hover:bg-[#1d4ed8] font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                                  className="btn-manage-units px-3.5 py-2 rounded-xl bg-[#2563eb] text-white hover:bg-[#1d4ed8] font-bold text-xs sm:text-sm transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
                                 >
-                                  <Layers className="w-3.5 h-3.5" />
+                                  <Layers className="w-4 h-4" />
                                   <span>Units & เฉลย</span>
                                 </button>
 
@@ -680,12 +680,12 @@ export default function BackendAdminPage() {
                                   onClick={() => handleDeleteBook(book.id, book.title)}
                                   disabled={deletingBookId === book.id}
                                   title="ลบหนังสือ"
-                                  className="btn-delete-book p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                                  className="btn-delete-book p-2 text-red-500 hover:bg-red-50 rounded-xl transition-colors cursor-pointer"
                                 >
                                   {deletingBookId === book.id ? (
-                                    <RefreshCw className="w-4 h-4 animate-spin text-red-600" />
+                                    <RefreshCw className="w-4.5 h-4.5 animate-spin text-red-600" />
                                   ) : (
-                                    <Trash2 className="w-4 h-4" />
+                                    <Trash2 className="w-4.5 h-4.5" />
                                   )}
                                 </button>
                               </div>
@@ -709,31 +709,31 @@ export default function BackendAdminPage() {
               <div className="back-navigation-bar mb-4 flex items-center justify-between">
                 <button
                   onClick={() => setActiveView('books_list')}
-                  className="btn-back-to-books inline-flex items-center gap-1.5 text-xs font-bold text-[#2563eb] hover:underline cursor-pointer"
+                  className="btn-back-to-books inline-flex items-center gap-1.5 text-sm font-bold text-[#2563eb] hover:underline cursor-pointer"
                 >
-                  <ArrowLeft className="w-4 h-4" />
+                  <ArrowLeft className="w-4.5 h-4.5" />
                   <span>← Back to Books Management</span>
                 </button>
 
                 <Link
                   href={`/${activeBookObj.slug || activeBookObj.id}`}
                   target="_blank"
-                  className="btn-preview-book text-xs px-3.5 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 font-bold border border-slate-200 shadow-2xs transition-colors flex items-center gap-1.5"
+                  className="btn-preview-book text-sm px-4 py-2 rounded-2xl bg-white hover:bg-slate-50 text-slate-700 font-bold border border-slate-200 shadow-2xs transition-colors flex items-center gap-2"
                 >
-                  <ExternalLink className="w-3.5 h-3.5" />
+                  <ExternalLink className="w-4 h-4" />
                   <span>ดูหน้าหนังสือจริง (/{activeBookObj.slug || activeBookObj.id})</span>
                 </Link>
               </div>
 
               {/* CURRICULUM TOP HEADER */}
               <div className="curriculum-top-header flex items-center justify-between mb-6 pb-2">
-                <div className="curriculum-title-container flex items-center gap-3">
-                  <Layers className="w-6 h-6 text-[#2563eb]" />
+                <div className="curriculum-title-container flex items-center gap-3.5">
+                  <Layers className="w-7 h-7 text-[#2563eb]" />
                   <div>
-                    <h1 className="curriculum-main-title text-2xl font-extrabold text-slate-900 font-heading">
+                    <h1 className="curriculum-main-title text-2xl sm:text-3xl font-extrabold text-slate-900 font-heading">
                       Units & Exercises Management
                     </h1>
-                    <p className="curriculum-subtitle text-xs text-slate-500 mt-0.5">
+                    <p className="curriculum-subtitle text-sm text-slate-500 mt-0.5">
                       {activeBookObj.title} ({curriculumUnits.length} Units) • Slug: <span className="font-mono text-[#2563eb]">/{activeBookObj.slug || activeBookObj.id}</span>
                     </p>
                   </div>
@@ -741,48 +741,48 @@ export default function BackendAdminPage() {
 
                 <button
                   onClick={openAddUnitModal}
-                  className="btn-add-unit bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 px-4 py-2 rounded-xl text-xs font-bold shadow-2xs flex items-center gap-1.5 cursor-pointer transition-all hover:border-slate-400"
+                  className="btn-add-unit bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 px-4.5 py-2.5 rounded-2xl text-sm font-bold shadow-2xs flex items-center gap-2 cursor-pointer transition-all hover:border-slate-400"
                 >
-                  <Plus className="w-4 h-4 text-[#2563eb]" />
+                  <Plus className="w-4.5 h-4.5 text-[#2563eb]" />
                   <span>+ Add Unit</span>
                 </button>
               </div>
 
               {/* UNITS & EXERCISES LIST CONTAINER */}
               {isLoadingCurriculum ? (
-                <div className="loading-state py-12 text-center text-slate-400 text-xs font-bold flex flex-col items-center gap-3">
-                  <RefreshCw className="w-6 h-6 animate-spin text-[#2563eb]" />
+                <div className="loading-state py-12 text-center text-slate-400 text-sm font-bold flex flex-col items-center gap-3">
+                  <RefreshCw className="w-7 h-7 animate-spin text-[#2563eb]" />
                   <span>กำลังโหลดข้อมูล Units จากฐานข้อมูล...</span>
                 </div>
               ) : curriculumUnits.length === 0 ? (
-                <div className="text-center py-16 bg-white rounded-2xl border border-dashed border-slate-200">
-                  <BookOpen className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-                  <h3 className="font-bold text-slate-700 text-sm">ยังไม่มี Unit ในหนังสือเล่มนี้</h3>
-                  <p className="text-slate-400 text-xs mt-1 mb-4">คลิกปุ่มด้านล่างเพื่อเริ่มสร้าง Unit แรก</p>
+                <div className="text-center py-16 bg-white rounded-3xl border border-dashed border-slate-200">
+                  <BookOpen className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                  <h3 className="font-bold text-slate-700 text-base">ยังไม่มี Unit ในหนังสือเล่มนี้</h3>
+                  <p className="text-slate-400 text-sm mt-1 mb-4">คลิกปุ่มด้านล่างเพื่อเริ่มสร้าง Unit แรก</p>
                   <button
                     onClick={openAddUnitModal}
-                    className="bg-[#2563eb] text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md cursor-pointer hover:bg-[#1d4ed8]"
+                    className="bg-[#2563eb] text-white px-5 py-2.5 rounded-2xl text-sm font-bold shadow-md cursor-pointer hover:bg-[#1d4ed8]"
                   >
                     + Add First Unit
                   </button>
                 </div>
               ) : (
-                <div className="curriculum-units-list space-y-4">
+                <div className="curriculum-units-list space-y-5">
                   {curriculumUnits.map((unit) => (
                     <div 
                       key={unit.unit_number} 
-                      className="unit-card bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden"
+                      className="unit-card bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden"
                     >
                       {/* UNIT HEADER ROW */}
-                      <div className="unit-header-row p-4 sm:px-6 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between gap-4">
-                        <div className="unit-info-box flex items-center gap-3">
-                          <GripVertical className="unit-drag-handle w-4 h-4 text-slate-400 cursor-grab" />
+                      <div className="unit-header-row p-5 sm:px-7 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between gap-4">
+                        <div className="unit-info-box flex items-center gap-3.5">
+                          <GripVertical className="unit-drag-handle w-5 h-5 text-slate-400 cursor-grab" />
                           <div className="unit-title-group">
-                            <h2 className="unit-title-text font-extrabold text-slate-900 text-sm">
+                            <h2 className="unit-title-text font-extrabold text-slate-900 text-base sm:text-lg">
                               Unit {unit.unit_number}: {unit.title}
                             </h2>
                             {unit.subtitle && (
-                              <p className="unit-subtitle-text text-[11px] text-slate-500 mt-0.5">
+                              <p className="unit-subtitle-text text-xs sm:text-sm text-slate-500 mt-0.5">
                                 {unit.subtitle}
                               </p>
                             )}
@@ -790,57 +790,57 @@ export default function BackendAdminPage() {
                         </div>
 
                         {/* UNIT ACTION TOOLBAR */}
-                        <div className="unit-action-toolbar flex items-center gap-1.5 text-slate-500">
+                        <div className="unit-action-toolbar flex items-center gap-2 text-slate-500">
                           <button
                             onClick={() => openAddExerciseModal(unit)}
                             title="Add Exercise to this Unit"
-                            className="btn-add-exercise-to-unit px-2.5 py-1 bg-white hover:bg-blue-50 text-[#2563eb] border border-blue-200 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer shadow-2xs"
+                            className="btn-add-exercise-to-unit px-3 py-1.5 bg-white hover:bg-blue-50 text-[#2563eb] border border-blue-200 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
                           >
-                            <Plus className="w-3.5 h-3.5" />
+                            <Plus className="w-4 h-4" />
                             <span>Add Exercise</span>
                           </button>
 
                           <button
                             onClick={() => openEditUnitModal(unit)}
                             title="Edit Unit Info"
-                            className="btn-edit-unit p-1.5 hover:bg-slate-200/60 rounded-lg text-slate-600 transition-colors cursor-pointer"
+                            className="btn-edit-unit p-2 hover:bg-slate-200/60 rounded-xl text-slate-600 transition-colors cursor-pointer"
                           >
-                            <Edit className="w-4 h-4" />
+                            <Edit className="w-4.5 h-4.5" />
                           </button>
 
                           <button
                             onClick={() => handleDeleteUnit(unit.unit_number, unit.title)}
                             title="Delete Unit"
-                            className="btn-delete-unit p-1.5 hover:bg-red-50 rounded-lg text-red-500 transition-colors cursor-pointer"
+                            className="btn-delete-unit p-2 hover:bg-red-50 rounded-xl text-red-500 transition-colors cursor-pointer"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-4.5 h-4.5" />
                           </button>
                         </div>
                       </div>
 
                       {/* NESTED EXERCISES LIST */}
-                      <div className="unit-exercises-container p-3 sm:px-6 space-y-2">
+                      <div className="unit-exercises-container p-4 sm:px-7 space-y-3">
                         {unit.exercises && unit.exercises.length > 0 ? (
                           unit.exercises.map((exercise: any) => (
                             <div
                               key={exercise.code}
-                              className="exercise-item-row bg-white border border-slate-200/80 rounded-xl p-3.5 flex items-center justify-between gap-4 hover:border-blue-300 hover:shadow-2xs transition-all"
+                              className="exercise-item-row bg-white border border-slate-200/80 rounded-2xl p-4 flex items-center justify-between gap-4 hover:border-blue-300 hover:shadow-2xs transition-all"
                             >
-                              <div className="exercise-main-content flex items-center gap-3 min-w-0">
-                                <GripVertical className="exercise-drag-handle w-3.5 h-3.5 text-slate-300 cursor-grab" />
+                              <div className="exercise-main-content flex items-center gap-3.5 min-w-0">
+                                <GripVertical className="exercise-drag-handle w-4 h-4 text-slate-300 cursor-grab" />
                                 
-                                <div className="exercise-icon-badge w-8 h-8 rounded-lg bg-blue-50 text-[#2563eb] flex items-center justify-center font-bold shrink-0">
-                                  {exercise.type === 'translation' && <FileText className="w-4 h-4" />}
-                                  {exercise.type === 'guided_sentence' && <Sparkles className="w-4 h-4" />}
-                                  {exercise.type === 'picture_description' && <ImageIcon className="w-4 h-4" />}
+                                <div className="exercise-icon-badge w-10 h-10 rounded-xl bg-blue-50 text-[#2563eb] flex items-center justify-center font-bold shrink-0">
+                                  {exercise.type === 'translation' && <FileText className="w-5 h-5" />}
+                                  {exercise.type === 'guided_sentence' && <Sparkles className="w-5 h-5" />}
+                                  {exercise.type === 'picture_description' && <ImageIcon className="w-5 h-5" />}
                                 </div>
 
                                 <div className="exercise-title-box truncate">
-                                  <span className="exercise-title-text font-bold text-slate-800 text-xs truncate block">
+                                  <span className="exercise-title-text font-bold text-slate-800 text-sm sm:text-base truncate block">
                                     {exercise.title}
                                   </span>
                                   {exercise.instruction && (
-                                    <span className="exercise-instruction-preview text-[10px] text-slate-400 truncate block mt-0.5">
+                                    <span className="exercise-instruction-preview text-xs text-slate-400 truncate block mt-0.5">
                                       {exercise.instruction}
                                     </span>
                                   )}
@@ -848,49 +848,49 @@ export default function BackendAdminPage() {
                               </div>
 
                               {/* EXERCISE BADGES & ACTION BUTTONS */}
-                              <div className="exercise-right-actions flex items-center gap-2.5 shrink-0">
+                              <div className="exercise-right-actions flex items-center gap-3 shrink-0">
                                 {exercise.use_ai_check && (
-                                  <span className="ai-badge text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-purple-50 text-purple-600 border border-purple-200 flex items-center gap-1">
-                                    <Bot className="w-3 h-3" />
+                                  <span className="ai-badge text-xs font-extrabold px-3 py-1 rounded-full bg-purple-50 text-purple-600 border border-purple-200 flex items-center gap-1.5">
+                                    <Bot className="w-3.5 h-3.5" />
                                     <span>AI Check</span>
                                   </span>
                                 )}
 
-                                <span className="exercise-item-count-badge text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+                                <span className="exercise-item-count-badge text-xs sm:text-sm font-semibold px-3 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
                                   {exercise.itemCount || (exercise.items ? exercise.items.length : 0)} Questions
                                 </span>
 
-                                <div className="exercise-actions-toolbar flex items-center gap-1 pl-2 border-l border-slate-100">
+                                <div className="exercise-actions-toolbar flex items-center gap-1.5 pl-2 border-l border-slate-100">
                                   <button
                                     onClick={() => openEditExerciseModal(unit, exercise)}
                                     title="Edit Exercise Config (Title, AI Check, Type, Guidance)"
-                                    className="btn-edit-exercise-config p-1.5 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                                    className="btn-edit-exercise-config p-2 text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
                                   >
-                                    <Sliders className="w-3.5 h-3.5" />
+                                    <Sliders className="w-4 h-4" />
                                   </button>
 
                                   <button
                                     onClick={() => openQuizEditor(unit, exercise)}
                                     title="Manage Quiz & Questions"
-                                    className="btn-edit-quiz px-2.5 py-1 bg-blue-50 hover:bg-[#2563eb] text-[#2563eb] hover:text-white rounded-lg transition-colors cursor-pointer flex items-center gap-1 font-bold text-xs"
+                                    className="btn-edit-quiz px-3 py-1.5 bg-blue-50 hover:bg-[#2563eb] text-[#2563eb] hover:text-white rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 font-bold text-xs sm:text-sm"
                                   >
-                                    <Edit className="w-3.5 h-3.5" />
+                                    <Edit className="w-4 h-4" />
                                     <span>จัดการเฉลย/ข้อ</span>
                                   </button>
 
                                   <button
                                     onClick={() => handleDeleteExercise(unit, exercise)}
                                     title="Delete Exercise"
-                                    className="btn-delete-exercise p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                                    className="btn-delete-exercise p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors cursor-pointer"
                                   >
-                                    <Trash2 className="w-3.5 h-3.5" />
+                                    <Trash2 className="w-4 h-4" />
                                   </button>
                                 </div>
                               </div>
                             </div>
                           ))
                         ) : (
-                          <div className="text-center py-6 text-slate-400 text-xs border border-dashed border-slate-200 rounded-xl">
+                          <div className="text-center py-6 text-slate-400 text-sm border border-dashed border-slate-200 rounded-2xl">
                             ยังไม่มีแบบฝึกหัดใน Unit นี้ คลิก &quot;Add Exercise&quot; เพื่อสร้าง
                           </div>
                         )}
@@ -909,23 +909,23 @@ export default function BackendAdminPage() {
       {/* ========================================================= */}
       {showExerciseModal && exerciseModalContext && (
         <div className="modal-backdrop fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="modal-content-card bg-white rounded-2xl p-6 max-w-lg w-full shadow-2xl border border-slate-200">
-            <div className="modal-header flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+          <div className="modal-content-card bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl border border-slate-200">
+            <div className="modal-header flex items-center justify-between border-b border-slate-100 pb-3.5 mb-5">
               <div>
-                <span className="text-[11px] font-bold text-[#2563eb] uppercase">
+                <span className="text-xs font-bold text-[#2563eb] uppercase tracking-wider">
                   Unit {exerciseModalContext.unit.unit_number}: {exerciseModalContext.unit.title}
                 </span>
-                <h3 className="modal-title text-lg font-bold text-slate-900 font-heading mt-0.5">
+                <h3 className="modal-title text-xl font-bold text-slate-900 font-heading mt-1">
                   {exerciseModalContext.isEditing ? '📝 แก้ไขการตั้งค่าแบบฝึกหัด' : '➕ สร้างแบบฝึกหัดใหม่ (Add Exercise)'}
                 </h3>
               </div>
-              <button onClick={() => setShowExerciseModal(false)} className="modal-close-btn text-slate-400 hover:text-slate-600">✕</button>
+              <button onClick={() => setShowExerciseModal(false)} className="modal-close-btn text-slate-400 hover:text-slate-600 text-lg">✕</button>
             </div>
 
-            <div className="modal-form-body space-y-4 text-xs">
+            <div className="modal-form-body space-y-4.5 text-sm">
               {/* Exercise Title */}
               <div>
-                <label className="block font-bold text-slate-700 uppercase mb-1">
+                <label className="block font-bold text-slate-700 uppercase mb-1.5 text-xs sm:text-sm">
                   ชื่อแบบฝึกหัด (Exercise Title):
                 </label>
                 <input
@@ -933,19 +933,19 @@ export default function BackendAdminPage() {
                   value={exerciseFormData.title}
                   onChange={(e) => setExerciseFormData(prev => ({ ...prev, title: e.target.value }))}
                   placeholder="เช่น Exercise 1: แปลประโยคภาษาอังกฤษ"
-                  className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:border-[#2563eb]"
+                  className="w-full rounded-2xl bg-white border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-900 focus:outline-none focus:border-[#2563eb]"
                 />
               </div>
 
               {/* Exercise Type */}
               <div>
-                <label className="block font-bold text-slate-700 uppercase mb-1">
+                <label className="block font-bold text-slate-700 uppercase mb-1.5 text-xs sm:text-sm">
                   ประเภทแบบฝึกหัด (Exercise Type):
                 </label>
                 <select
                   value={exerciseFormData.exercise_type}
                   onChange={(e) => setExerciseFormData(prev => ({ ...prev, exercise_type: e.target.value }))}
-                  className="w-full rounded-xl bg-slate-50 border border-slate-300 px-3.5 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:border-[#2563eb]"
+                  className="w-full rounded-2xl bg-slate-50 border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-900 focus:outline-none focus:border-[#2563eb]"
                 >
                   <option value="translation">📌 Fix Answer / Translation (แปลประโยคภาษาอังกฤษ)</option>
                   <option value="guided_sentence">🧩 Choose Provided Word (เลือกคำที่กำหนดให้มาแต่งประโยค)</option>
@@ -954,14 +954,14 @@ export default function BackendAdminPage() {
               </div>
 
               {/* AI Check Toggle */}
-              <div className="p-3.5 rounded-xl bg-purple-50/60 border border-purple-200/80 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center font-bold">
-                    <Bot className="w-4 h-4" />
+              <div className="p-4 rounded-2xl bg-purple-50/60 border border-purple-200/80 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold">
+                    <Bot className="w-5 h-5" />
                   </div>
                   <div>
-                    <div className="font-extrabold text-purple-900 text-xs">ตรวจคำตอบด้วย AI (Use AI to check answer)</div>
-                    <div className="text-[11px] text-purple-700">เปิดให้ AI ช่วยวิเคราะห์ไวยากรณ์และให้คำแนะนำแบบละเอียด</div>
+                    <div className="font-extrabold text-purple-900 text-sm">ตรวจคำตอบด้วย AI (Use AI to check answer)</div>
+                    <div className="text-xs text-purple-700">เปิดให้ AI ช่วยวิเคราะห์ไวยากรณ์และให้คำแนะนำแบบละเอียด</div>
                   </div>
                 </div>
 
@@ -972,13 +972,13 @@ export default function BackendAdminPage() {
                     onChange={(e) => setExerciseFormData(prev => ({ ...prev, use_ai_check: e.target.checked }))}
                     className="sr-only peer"
                   />
-                  <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#2563eb]"></div>
+                  <div className="w-12 h-6.5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5.5 after:w-5.5 after:transition-all peer-checked:bg-[#2563eb]"></div>
                 </label>
               </div>
 
               {/* Description / Instructions */}
               <div>
-                <label className="block font-bold text-slate-700 uppercase mb-1">
+                <label className="block font-bold text-slate-700 uppercase mb-1.5 text-xs sm:text-sm">
                   คำอธิบายแบบฝึกหัด (Description / Instruction for students):
                 </label>
                 <textarea
@@ -986,13 +986,13 @@ export default function BackendAdminPage() {
                   value={exerciseFormData.instruction}
                   onChange={(e) => setExerciseFormData(prev => ({ ...prev, instruction: e.target.value }))}
                   placeholder="เช่น แปลประโยคภาษาไทยเป็นภาษาอังกฤษโดยใช้ Present Continuous"
-                  className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs text-slate-900 focus:outline-none focus:border-[#2563eb]"
+                  className="w-full rounded-2xl bg-white border border-slate-300 px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-[#2563eb]"
                 />
               </div>
 
               {/* Teacher / AI Guidance */}
               <div>
-                <label className="block font-bold text-slate-700 uppercase mb-1">
+                <label className="block font-bold text-slate-700 uppercase mb-1.5 text-xs sm:text-sm">
                   เกณฑ์การตรวจและคำแนะนำ (Teacher / AI Guidance):
                 </label>
                 <textarea
@@ -1000,15 +1000,15 @@ export default function BackendAdminPage() {
                   value={exerciseFormData.guidance}
                   onChange={(e) => setExerciseFormData(prev => ({ ...prev, guidance: e.target.value }))}
                   placeholder="เช่น ตรวจสอบ Subject-Verb Agreement, การเติม -ing และคำเชื่อมประโยค"
-                  className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs text-slate-900 focus:outline-none focus:border-[#2563eb]"
+                  className="w-full rounded-2xl bg-white border border-slate-300 px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-[#2563eb]"
                 />
               </div>
             </div>
 
-            <div className="modal-footer flex justify-end gap-2 mt-6 border-t border-slate-100 pt-4">
+            <div className="modal-footer flex justify-end gap-3 mt-6 border-t border-slate-100 pt-5">
               <button
                 onClick={() => setShowExerciseModal(false)}
-                className="btn-modal-cancel px-4 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold cursor-pointer"
+                className="btn-modal-cancel px-5 py-2.5 rounded-2xl bg-slate-100 text-slate-700 text-sm font-bold cursor-pointer hover:bg-slate-200"
               >
                 ยกเลิก
               </button>
@@ -1016,11 +1016,11 @@ export default function BackendAdminPage() {
               <button
                 onClick={handleSaveExercise}
                 disabled={isSubmittingExercise}
-                className="btn-modal-submit px-5 py-2 rounded-xl bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-xs font-bold flex items-center gap-1.5 disabled:opacity-50 transition-colors cursor-pointer shadow-md"
+                className="btn-modal-submit px-6 py-2.5 rounded-2xl bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-sm font-bold flex items-center gap-2 disabled:opacity-50 transition-colors cursor-pointer shadow-md"
               >
                 {isSubmittingExercise ? (
                   <>
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <RefreshCw className="w-4 h-4 animate-spin" />
                     <span>กำลังบันทึก...</span>
                   </>
                 ) : (
@@ -1037,64 +1037,64 @@ export default function BackendAdminPage() {
       {/* ========================================================= */}
       {showQuizModal && currentQuizExercise && (
         <div className="quiz-modal-backdrop fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="quiz-modal-card bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200">
+          <div className="quiz-modal-card bg-white rounded-3xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200">
             {/* Modal Header */}
-            <div className="quiz-modal-header p-5 border-b border-slate-100 flex items-center justify-between">
+            <div className="quiz-modal-header p-6 border-b border-slate-100 flex items-center justify-between">
               <div>
-                <div className="text-[11px] font-extrabold text-[#2563eb] uppercase tracking-wider">
+                <div className="text-xs font-extrabold text-[#2563eb] uppercase tracking-wider">
                   Unit {currentQuizExercise.unit.unit_number}: {currentQuizExercise.unit.title}
                 </div>
-                <h3 className="quiz-modal-heading text-lg font-bold text-slate-900 font-heading mt-0.5">
+                <h3 className="quiz-modal-heading text-xl font-bold text-slate-900 font-heading mt-1">
                   📝 {currentQuizExercise.exercise.title} (Quiz Questions Manager)
                 </h3>
               </div>
-              <button onClick={() => setShowQuizModal(false)} className="modal-close-btn text-slate-400 hover:text-slate-600 text-lg">✕</button>
+              <button onClick={() => setShowQuizModal(false)} className="modal-close-btn text-slate-400 hover:text-slate-600 text-xl">✕</button>
             </div>
 
             {/* Modal Questions Body */}
-            <div className="quiz-modal-body flex-1 overflow-y-auto p-6 space-y-6 text-xs">
+            <div className="quiz-modal-body flex-1 overflow-y-auto p-6 sm:p-8 space-y-6 text-sm">
               <div className="flex items-center justify-between">
-                <span className="font-bold text-slate-700 uppercase">
+                <span className="font-bold text-slate-700 uppercase text-xs sm:text-sm">
                   รายการข้อสอบ/คำถาม ({quizItems.length} ข้อ):
                 </span>
 
                 <button
                   type="button"
                   onClick={handleAddQuestion}
-                  className="btn-add-question-item bg-blue-50 text-[#2563eb] hover:bg-[#2563eb] hover:text-white px-3 py-1.5 rounded-xl font-bold text-xs transition-colors flex items-center gap-1 cursor-pointer"
+                  className="btn-add-question-item bg-blue-50 text-[#2563eb] hover:bg-[#2563eb] hover:text-white px-4 py-2 rounded-2xl font-bold text-xs sm:text-sm transition-colors flex items-center gap-1.5 cursor-pointer"
                 >
-                  <Plus className="w-3.5 h-3.5" />
+                  <Plus className="w-4 h-4" />
                   <span>+ เพิ่มข้อใหม่</span>
                 </button>
               </div>
 
               {quizItems.length === 0 ? (
-                <div className="text-center py-8 text-slate-400 font-semibold border-2 border-dashed border-slate-200 rounded-xl">
+                <div className="text-center py-10 text-slate-400 font-semibold border-2 border-dashed border-slate-200 rounded-2xl text-sm">
                   ยังไม่มีคำถามในแบบฝึกหัดนี้ คลิก &quot;+ เพิ่มข้อใหม่&quot; เพื่อสร้างข้อสอบ
                 </div>
               ) : (
                 quizItems.map((q, idx) => (
-                  <div key={idx} className="quiz-item-box bg-slate-50 border border-slate-200 rounded-xl p-5 shadow-2xs relative">
-                    <div className="flex items-center justify-between mb-3 border-b border-slate-200/60 pb-2">
-                      <div className="font-extrabold text-[#1e3a8a] text-sm">
+                  <div key={idx} className="quiz-item-box bg-slate-50 border border-slate-200 rounded-2xl p-6 shadow-2xs relative">
+                    <div className="flex items-center justify-between mb-4 border-b border-slate-200/60 pb-3">
+                      <div className="font-extrabold text-[#1e3a8a] text-base sm:text-lg">
                         ข้อที่ {idx + 1}
                       </div>
 
                       <button
                         type="button"
                         onClick={() => handleDeleteQuestion(idx)}
-                        className="text-red-400 hover:text-red-600 p-1 hover:bg-red-50 rounded-lg transition-colors"
+                        className="text-red-400 hover:text-red-600 p-2 hover:bg-red-50 rounded-xl transition-colors"
                         title="ลบข้อนี้"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-5 h-5" />
                       </button>
                     </div>
 
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                       {/* Translation Prompt */}
                       {currentQuizExercise.exercise.type === 'translation' && (
                         <div>
-                          <label className="block font-bold text-slate-700 uppercase mb-1">
+                          <label className="block font-bold text-slate-700 uppercase mb-1.5 text-xs sm:text-sm">
                             📍 โจทย์ภาษาไทย:
                           </label>
                           <input
@@ -1102,7 +1102,7 @@ export default function BackendAdminPage() {
                             value={q.thai || q.thai_prompt || ''}
                             onChange={(e) => handleUpdateQuestion(idx, 'thai', e.target.value)}
                             placeholder="เช่น ฉันกำลังเดินทางเพื่อกลับบ้าน"
-                            className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs font-medium text-slate-900 focus:outline-none focus:border-[#2563eb]"
+                            className="w-full rounded-2xl bg-white border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-900 focus:outline-none focus:border-[#2563eb]"
                           />
                         </div>
                       )}
@@ -1110,7 +1110,7 @@ export default function BackendAdminPage() {
                       {/* Guided Sentence Prompt */}
                       {currentQuizExercise.exercise.type === 'guided_sentence' && (
                         <div>
-                          <label className="block font-bold text-slate-700 uppercase mb-1">
+                          <label className="block font-bold text-slate-700 uppercase mb-1.5 text-xs sm:text-sm">
                             📍 โจทย์ข้อความ (Fill in the blanks):
                           </label>
                           <input
@@ -1118,16 +1118,16 @@ export default function BackendAdminPage() {
                             value={q.prompt || ''}
                             onChange={(e) => handleUpdateQuestion(idx, 'prompt', e.target.value)}
                             placeholder="เช่น I am ____________________."
-                            className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs font-medium text-slate-900 focus:outline-none focus:border-[#2563eb]"
+                            className="w-full rounded-2xl bg-white border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-900 focus:outline-none focus:border-[#2563eb]"
                           />
                         </div>
                       )}
 
                       {/* Picture Description */}
                       {currentQuizExercise.exercise.type === 'picture_description' && (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <div>
-                            <label className="block font-bold text-slate-700 uppercase mb-1">
+                            <label className="block font-bold text-slate-700 uppercase mb-1.5 text-xs sm:text-sm">
                               🖼️ คำบรรยายภาพ:
                             </label>
                             <input
@@ -1135,11 +1135,11 @@ export default function BackendAdminPage() {
                               value={q.image_description || ''}
                               onChange={(e) => handleUpdateQuestion(idx, 'image_description', e.target.value)}
                               placeholder="เช่น ผู้ชายกำลังดื่มกาแฟในคาเฟ่"
-                              className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs font-medium text-slate-900 focus:outline-none focus:border-[#2563eb]"
+                              className="w-full rounded-2xl bg-white border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-900 focus:outline-none focus:border-[#2563eb]"
                             />
                           </div>
                           <div>
-                            <label className="block font-bold text-slate-700 uppercase mb-1">
+                            <label className="block font-bold text-slate-700 uppercase mb-1.5 text-xs sm:text-sm">
                               💡 คำใบ้บริบทภาพ:
                             </label>
                             <input
@@ -1147,7 +1147,7 @@ export default function BackendAdminPage() {
                               value={q.context_hint || ''}
                               onChange={(e) => handleUpdateQuestion(idx, 'context_hint', e.target.value)}
                               placeholder="เช่น ดื่มกาแฟ / ในคาเฟ่ / เพื่อความสดชื่น"
-                              className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs font-medium text-slate-900 focus:outline-none focus:border-[#2563eb]"
+                              className="w-full rounded-2xl bg-white border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-900 focus:outline-none focus:border-[#2563eb]"
                             />
                           </div>
                         </div>
@@ -1155,7 +1155,7 @@ export default function BackendAdminPage() {
 
                       {/* Target Model Answer */}
                       <div>
-                        <label className="block font-extrabold text-[#1e3a8a] uppercase mb-1">
+                        <label className="block font-extrabold text-[#1e3a8a] uppercase mb-1.5 text-xs sm:text-sm">
                           🎯 เฉลยคำตอบภาษาอังกฤษ (Model Answer):
                         </label>
                         <input
@@ -1163,7 +1163,7 @@ export default function BackendAdminPage() {
                           value={q.model_answer || ''}
                           onChange={(e) => handleUpdateQuestion(idx, 'model_answer', e.target.value)}
                           placeholder="เช่น I am commuting to get home."
-                          className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2.5 text-xs text-slate-900 font-bold font-mono focus:outline-none focus:border-[#2563eb]"
+                          className="w-full rounded-2xl bg-white border border-slate-300 px-4 py-3 text-sm sm:text-base text-slate-900 font-bold font-mono focus:outline-none focus:border-[#2563eb]"
                         />
                       </div>
                     </div>
@@ -1173,16 +1173,16 @@ export default function BackendAdminPage() {
             </div>
 
             {/* Modal Footer */}
-            <div className="quiz-modal-footer p-4 border-t border-slate-100 flex items-center justify-between bg-slate-50/50 rounded-b-2xl">
-              <span className="text-[11px] text-slate-500 font-medium">
+            <div className="quiz-modal-footer p-5 border-t border-slate-100 flex items-center justify-between bg-slate-50/50 rounded-b-3xl">
+              <span className="text-xs text-slate-500 font-medium">
                 ระบบจะบันทึกข้อสอบและอัปเดตลงตาราง exercise_items ใน Supabase ทันที
               </span>
 
-              <div className="flex gap-2">
+              <div className="flex gap-3">
                 <button
                   type="button"
                   onClick={() => setShowQuizModal(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-200/80 text-slate-700 text-xs font-bold cursor-pointer hover:bg-slate-300"
+                  className="px-5 py-2.5 rounded-2xl bg-slate-200/80 text-slate-700 text-sm font-bold cursor-pointer hover:bg-slate-300"
                 >
                   ยกเลิก
                 </button>
@@ -1191,16 +1191,16 @@ export default function BackendAdminPage() {
                   type="button"
                   onClick={handleSaveQuiz}
                   disabled={isSavingQuiz}
-                  className="px-5 py-2 rounded-xl bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-xs font-bold flex items-center gap-1.5 disabled:opacity-50 transition-colors cursor-pointer shadow-md"
+                  className="px-6 py-2.5 rounded-2xl bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-sm font-bold flex items-center gap-2 disabled:opacity-50 transition-colors cursor-pointer shadow-md"
                 >
                   {isSavingQuiz ? (
                     <>
-                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <RefreshCw className="w-4 h-4 animate-spin" />
                       <span>กำลังบันทึก...</span>
                     </>
                   ) : (
                     <>
-                      <Save className="w-3.5 h-3.5" />
+                      <Save className="w-4 h-4" />
                       <span>บันทึก Quiz ({quizItems.length} ข้อ)</span>
                     </>
                   )}
@@ -1216,29 +1216,29 @@ export default function BackendAdminPage() {
       {/* ========================================================= */}
       {showUnitModal && (
         <div className="modal-backdrop fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="modal-content-card bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-slate-200">
-            <div className="modal-header flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
-              <h3 className="modal-title text-lg font-bold text-slate-900 font-heading">
+          <div className="modal-content-card bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-slate-200">
+            <div className="modal-header flex items-center justify-between border-b border-slate-100 pb-3.5 mb-5">
+              <h3 className="modal-title text-xl font-bold text-slate-900 font-heading">
                 {editingUnitNum ? `📝 แก้ไข Unit ${editingUnitNum}` : '➕ Add New Unit'}
               </h3>
-              <button onClick={() => setShowUnitModal(false)} className="modal-close-btn text-slate-400 hover:text-slate-600">✕</button>
+              <button onClick={() => setShowUnitModal(false)} className="modal-close-btn text-slate-400 hover:text-slate-600 text-lg">✕</button>
             </div>
 
-            <div className="modal-form-body space-y-4 text-xs">
+            <div className="modal-form-body space-y-4.5 text-sm">
               <div className="form-group-unit-num">
-                <label className="form-label block font-bold text-slate-700 uppercase mb-1">
+                <label className="form-label block font-bold text-slate-700 uppercase mb-1.5 text-xs sm:text-sm">
                   Unit Number:
                 </label>
                 <input
                   type="number"
                   value={unitFormData.unit_number}
                   onChange={(e) => setUnitFormData(prev => ({ ...prev, unit_number: Number(e.target.value) }))}
-                  className="input-unit-num w-full rounded-xl bg-slate-50 border border-slate-300 px-3.5 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:border-[#2563eb]"
+                  className="input-unit-num w-full rounded-2xl bg-slate-50 border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-900 focus:outline-none focus:border-[#2563eb]"
                 />
               </div>
 
               <div className="form-group-title">
-                <label className="form-label block font-bold text-slate-700 uppercase mb-1">
+                <label className="form-label block font-bold text-slate-700 uppercase mb-1.5 text-xs sm:text-sm">
                   Unit Title:
                 </label>
                 <input
@@ -1246,12 +1246,12 @@ export default function BackendAdminPage() {
                   value={unitFormData.title}
                   onChange={(e) => setUnitFormData(prev => ({ ...prev, title: e.target.value }))}
                   placeholder="เช่น Present Continuous & Sentence Expansion"
-                  className="input-unit-title w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:border-[#2563eb]"
+                  className="input-unit-title w-full rounded-2xl bg-white border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-900 focus:outline-none focus:border-[#2563eb]"
                 />
               </div>
 
               <div className="form-group-subtitle">
-                <label className="form-label block font-bold text-slate-700 uppercase mb-1">
+                <label className="form-label block font-bold text-slate-700 uppercase mb-1.5 text-xs sm:text-sm">
                   Unit Subtitle:
                 </label>
                 <textarea
@@ -1259,22 +1259,22 @@ export default function BackendAdminPage() {
                   value={unitFormData.subtitle}
                   onChange={(e) => setUnitFormData(prev => ({ ...prev, subtitle: e.target.value }))}
                   placeholder="เช่น บทที่ 1 : ฉันกำลัง… [ I + am + กริยาเติม -ing ]"
-                  className="input-unit-subtitle w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs text-slate-900 focus:outline-none focus:border-[#2563eb]"
+                  className="input-unit-subtitle w-full rounded-2xl bg-white border border-slate-300 px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-[#2563eb]"
                 />
               </div>
             </div>
 
-            <div className="modal-footer flex justify-end gap-2 mt-6 border-t border-slate-100 pt-4">
+            <div className="modal-footer flex justify-end gap-3 mt-6 border-t border-slate-100 pt-5">
               <button
                 onClick={() => setShowUnitModal(false)}
-                className="btn-modal-cancel px-4 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold cursor-pointer"
+                className="btn-modal-cancel px-5 py-2.5 rounded-2xl bg-slate-100 text-slate-700 text-sm font-bold cursor-pointer hover:bg-slate-200"
               >
                 ยกเลิก
               </button>
 
               <button
                 onClick={handleSaveUnit}
-                className="btn-modal-submit px-5 py-2 rounded-xl bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-md"
+                className="btn-modal-submit px-6 py-2.5 rounded-2xl bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-sm font-bold flex items-center gap-2 transition-colors cursor-pointer shadow-md"
               >
                 <span>บันทึก Unit</span>
               </button>
@@ -1288,18 +1288,18 @@ export default function BackendAdminPage() {
       {/* ========================================================= */}
       {showBookModal && (
         <div className="modal-backdrop fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="modal-content-card bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-slate-200">
-            <div className="modal-header flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
-              <h3 className="modal-title text-lg font-bold text-slate-900 font-heading">
+          <div className="modal-content-card bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-slate-200">
+            <div className="modal-header flex items-center justify-between border-b border-slate-100 pb-3.5 mb-5">
+              <h3 className="modal-title text-xl font-bold text-slate-900 font-heading">
                 {editingBookId ? '📝 แก้ไขข้อมูลหนังสือ & URL Slug' : '➕ สร้างหนังสือใหม่ (Create New Book)'}
               </h3>
-              <button onClick={() => setShowBookModal(false)} className="modal-close-btn text-slate-400 hover:text-slate-600">✕</button>
+              <button onClick={() => setShowBookModal(false)} className="modal-close-btn text-slate-400 hover:text-slate-600 text-lg">✕</button>
             </div>
 
-            <div className="modal-form-body space-y-4 text-xs">
+            <div className="modal-form-body space-y-4.5 text-sm">
               {/* Book Title */}
               <div className="form-group-title">
-                <label className="form-label block font-bold text-slate-700 uppercase mb-1">
+                <label className="form-label block font-bold text-slate-700 uppercase mb-1.5 text-xs sm:text-sm">
                   ชื่อหนังสือ (Title):
                 </label>
                 <input
@@ -1314,34 +1314,34 @@ export default function BackendAdminPage() {
                     }));
                   }}
                   placeholder="เช่น Sentence Builder Vol. 1"
-                  className="input-book-title w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:border-[#2563eb]"
+                  className="input-book-title w-full rounded-2xl bg-white border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-900 focus:outline-none focus:border-[#2563eb]"
                 />
               </div>
 
               {/* Book Custom Slug */}
               <div className="form-group-slug">
-                <label className="form-label block font-bold text-slate-700 uppercase mb-1 flex items-center justify-between">
+                <label className="form-label block font-bold text-slate-700 uppercase mb-1.5 text-xs sm:text-sm flex items-center justify-between">
                   <span>URL Slug (สำหรับเว็บ & QR Code):</span>
-                  <span className="text-[10px] text-slate-400 lowercase font-mono">domain.com/slug</span>
+                  <span className="text-xs text-slate-400 lowercase font-mono">domain.com/slug</span>
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3.5 top-2.5 text-slate-400 font-mono font-bold">/</span>
+                  <span className="absolute left-4 top-3 text-slate-400 font-mono font-bold">/</span>
                   <input
                     type="text"
                     value={bookFormData.slug}
                     onChange={(e) => setBookFormData(prev => ({ ...prev, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-_]+/g, '-') }))}
                     placeholder="sentence-builder-vol-2"
-                    className="input-book-slug w-full rounded-xl bg-slate-50 border border-slate-300 pl-7 pr-3.5 py-2 text-xs font-mono font-bold text-[#2563eb] focus:outline-none focus:border-[#2563eb] focus:bg-white"
+                    className="input-book-slug w-full rounded-2xl bg-slate-50 border border-slate-300 pl-8 pr-4 py-2.5 text-sm font-mono font-bold text-[#2563eb] focus:outline-none focus:border-[#2563eb] focus:bg-white"
                   />
                 </div>
-                <p className="text-[10px] text-slate-400 mt-1">
+                <p className="text-xs text-slate-400 mt-1">
                   💡 Slug จะถูกนำไปใช้เป็น URL ของหน้าหนังสือ และใช้สร้าง QR Code ประจำเล่ม
                 </p>
               </div>
 
               {/* Book Subtitle */}
               <div className="form-group-subtitle">
-                <label className="form-label block font-bold text-slate-700 uppercase mb-1">
+                <label className="form-label block font-bold text-slate-700 uppercase mb-1.5 text-xs sm:text-sm">
                   คำอธิบายแบบย่อ (Subtitle):
                 </label>
                 <textarea
@@ -1349,15 +1349,15 @@ export default function BackendAdminPage() {
                   value={bookFormData.subtitle}
                   onChange={(e) => setBookFormData(prev => ({ ...prev, subtitle: e.target.value }))}
                   placeholder="เช่น แบบฝึกหัดแต่งประโยคและขยายประโยคภาษาอังกฤษ"
-                  className="input-book-subtitle w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2 text-xs text-slate-900 focus:outline-none focus:border-[#2563eb]"
+                  className="input-book-subtitle w-full rounded-2xl bg-white border border-slate-300 px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-[#2563eb]"
                 />
               </div>
             </div>
 
-            <div className="modal-footer flex justify-end gap-2 mt-6 border-t border-slate-100 pt-4">
+            <div className="modal-footer flex justify-end gap-3 mt-6 border-t border-slate-100 pt-5">
               <button
                 onClick={() => setShowBookModal(false)}
-                className="btn-modal-cancel px-4 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold cursor-pointer"
+                className="btn-modal-cancel px-5 py-2.5 rounded-2xl bg-slate-100 text-slate-700 text-sm font-bold cursor-pointer hover:bg-slate-200"
               >
                 ยกเลิก
               </button>
@@ -1365,11 +1365,11 @@ export default function BackendAdminPage() {
               <button
                 onClick={handleSaveBook}
                 disabled={isSubmittingBook}
-                className="btn-modal-submit px-5 py-2 rounded-xl bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-xs font-bold flex items-center gap-1.5 disabled:opacity-50 transition-colors cursor-pointer shadow-md"
+                className="btn-modal-submit px-6 py-2.5 rounded-2xl bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-sm font-bold flex items-center gap-2 disabled:opacity-50 transition-colors cursor-pointer shadow-md"
               >
                 {isSubmittingBook ? (
                   <>
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <RefreshCw className="w-4 h-4 animate-spin" />
                     <span>กำลังบันทึก...</span>
                   </>
                 ) : (
