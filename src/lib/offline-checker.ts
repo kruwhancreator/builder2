@@ -3,7 +3,7 @@ import nlp from 'compromise';
 /**
  * Smart Universal NLP & Sequence Alignment Grammar Engine
  * Powered by 'compromise' NLP library (100% Free, Pure Offline, 0ms latency)
- * Combines POS tagging, phrasal verb recognition, contraction expansion, and Levenshtein token diffing.
+ * Features Phrasal Verb Chunks (e.g. "wake up"), Contraction Expansion, and Multi-token Alignment.
  */
 
 // 1. Levenshtein Distance Algorithm
@@ -43,6 +43,9 @@ export function getWordSimilarity(a: string, b: string): number {
   return (maxLen - distance) / maxLen;
 }
 
+// Common Phrasal Verbs and Collocations
+const PHRASAL_PARTICLES = new Set(['up', 'out', 'in', 'on', 'off', 'down', 'for', 'to', 'with', 'at', 'into', 'about', 'after', 'away']);
+
 export interface OfflineCheckResult {
   isCorrect: boolean;
   message: string;
@@ -50,10 +53,6 @@ export interface OfflineCheckResult {
   spellingErrors?: Array<{ typed: string; correction: string }>;
   normalizedStudent?: string;
   normalizedModel?: string;
-  nlpAnalysis?: {
-    studentTags?: any[];
-    targetTags?: any[];
-  };
 }
 
 /**
@@ -98,7 +97,7 @@ export function checkOfflineGrammarAndSpelling(
   }
 
   // -------------------------------------------------------------
-  // 3. NLP TOKENIZATION & PARSING (COMPROMISE LIBRARY)
+  // 3. DYNAMIC TOKENIZATION & ALIGNMENT
   // -------------------------------------------------------------
   const cleanWord = (w: string) => w.toLowerCase().replace(/[^a-z0-9'-]/g, '');
   const studentWords = raw.split(/\s+/).map(cleanWord).filter(Boolean);
@@ -127,16 +126,6 @@ export function checkOfflineGrammarAndSpelling(
 
   const targetWords = bestTargetSentence.split(/\s+/).map(cleanWord).filter(Boolean);
 
-  // NLP Analysis using Compromise
-  let targetDoc: any = null;
-  let targetTerms: any[] = [];
-  try {
-    targetDoc = nlp(bestTargetSentence);
-    targetTerms = targetDoc.terms().json();
-  } catch {
-    targetTerms = [];
-  }
-
   // Collect all valid words from all acceptable answers to prevent false positives
   const allTargetWordsSet = new Set<string>();
   allTargetSentences.forEach((s: string) => {
@@ -144,7 +133,7 @@ export function checkOfflineGrammarAndSpelling(
   });
 
   // -------------------------------------------------------------
-  // 4. DYNAMIC WORD-BY-WORD DIFF & SPELL CHECKING
+  // 4. DYNAMIC WORD-BY-WORD DIFF & PHRASAL VERB GROUPING
   // -------------------------------------------------------------
   const usedTargetIndices = new Set<number>();
   const unmatchedStudentWords: Array<{ word: string; index: number }> = [];
@@ -212,8 +201,23 @@ export function checkOfflineGrammarAndSpelling(
     // If a fuzzy match is found
     if (bestMatchWord && bestMatchIdx !== -1) {
       usedTargetIndices.add(bestMatchIdx);
-      spellingErrors.push({ typed: sWord, correction: bestMatchWord });
-      points.push(`• สะกดคำผิด: คุณพิมพ์ "${sWord}" คำที่ถูกต้องคือ "${bestMatchWord}"`);
+
+      // Check if next target word is a phrasal verb particle (e.g. wake + up, clean + up, look + for)
+      let finalCorrection = bestMatchWord;
+      const nextTargetWord = targetWords[bestMatchIdx + 1];
+      if (
+        nextTargetWord && 
+        PHRASAL_PARTICLES.has(nextTargetWord) && 
+        !usedTargetIndices.has(bestMatchIdx + 1) &&
+        !studentWords.includes(nextTargetWord)
+      ) {
+        // Merge into complete phrasal verb: "wake up"
+        finalCorrection = `${bestMatchWord} ${nextTargetWord}`;
+        usedTargetIndices.add(bestMatchIdx + 1);
+      }
+
+      spellingErrors.push({ typed: sWord, correction: finalCorrection });
+      points.push(`• สะกดคำผิด: คุณพิมพ์ "${sWord}" คำที่ถูกต้องคือ "${finalCorrection}"`);
       isValid = false;
     } else {
       // Global search across acceptable answers
@@ -239,31 +243,26 @@ export function checkOfflineGrammarAndSpelling(
   });
 
   // -------------------------------------------------------------
-  // 5. NLP-ENHANCED MISSING WORDS DETECTION
+  // 5. MISSING WORDS DETECTION (WITH PHRASAL CHUNK MERGING)
   // -------------------------------------------------------------
   const missingWords: string[] = [];
-  targetWords.forEach((tWord: string, tIdx: number) => {
+  for (let tIdx = 0; tIdx < targetWords.length; tIdx++) {
     if (!usedTargetIndices.has(tIdx)) {
-      missingWords.push(tWord);
+      const current = targetWords[tIdx];
+      const next = targetWords[tIdx + 1];
+      if (next && PHRASAL_PARTICLES.has(next) && !usedTargetIndices.has(tIdx + 1)) {
+        missingWords.push(`${current} ${next}`);
+        tIdx++; // skip next since it's grouped
+      } else {
+        missingWords.push(current);
+      }
     }
-  });
+  }
 
   if (missingWords.length > 0) {
     isValid = false;
     if (missingWords.length === 1) {
-      const mWord = missingWords[0];
-      // Use NLP tags for richer Thai feedback
-      const termInfo = targetTerms.find((t: any) => cleanWord(t.text) === mWord);
-      const isParticle = termInfo && termInfo.tags && termInfo.tags.includes('Particle');
-      const isVerb = termInfo && termInfo.tags && termInfo.tags.includes('Verb');
-      
-      if (isParticle) {
-        points.push(`• คำตกหล่น: ในประโยคยังขาดคำว่า "${mWord}" (เช่น ในวลีกริยา)`);
-      } else if (isVerb) {
-        points.push(`• ขาดคำกริยา: ตกหล่นคำว่า "${mWord}"`);
-      } else {
-        points.push(`• คำตกหล่น: ในประโยคยังขาดคำว่า "${mWord}"`);
-      }
+      points.push(`• คำตกหล่น: ในประโยคยังขาดคำว่า "${missingWords[0]}"`);
     } else if (missingWords.length <= 3) {
       points.push(`• คำตกหล่น: ในประโยคยังขาดคำว่า "${missingWords.join('", "')}"`);
     }
