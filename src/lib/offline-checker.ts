@@ -302,7 +302,7 @@ export function checkOfflineGrammarAndSpelling(
 
   return {
     isCorrect: false,
-    message: '❌ ยังไม่ถูกต้องค่ะ ลองตรวจสอบคำแนะนำจากครูหวานด้านล่างแล้วลองใหม่อีกครั้งนะคะ:',
+    message: '❌ ยังไม่ถูกต้องตามโครงสร้างหนังสือนะคะ ลองใหม่อีกครั้งค่ะ',
     points: points.length > 0 ? points : [`• คำตอบยังไม่ตรงตามเฉลย (เฉลยหลัก: "${modelAnswer}")`],
     spellingErrors,
     normalizedStudent,
