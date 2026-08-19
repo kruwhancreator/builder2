@@ -135,23 +135,23 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
       {/* 1. UNIT HERO BANNER (UNIT DETAIL SECTION) */}
       {/* ========================================================= */}
       <section className="unit-hero-banner bg-gradient-to-br from-[#1e3a8a] to-[#2563eb] text-white rounded-2xl p-6 sm:p-8 mb-6 shadow-md relative overflow-hidden">
-        {/* Unit Heading: เฉลยแบบฝึกหัด Unit X */}
-        <h1 className="unit-hero-heading text-2xl sm:text-3xl font-extrabold font-heading mb-1.5">
+        {/* Unit Heading: เฉลยแบบฝึกหัด Unit X (using subtitle style: smaller than title and subtitle) */}
+        <p className="unit-hero-heading text-sm sm:text-base opacity-90 leading-relaxed font-medium mb-1.5">
           เฉลยแบบฝึกหัด Unit {unitNumber}
-        </h1>
+        </p>
 
-        {/* Unit Title: units.title */}
+        {/* Unit Title: units.title (using current heading style: text-2xl sm:text-3xl font-extrabold) */}
         {chapterData.title && (
-          <h2 className="unit-hero-title text-xl sm:text-2xl font-bold opacity-95 mb-1 font-heading">
+          <h1 className="unit-hero-title text-2xl sm:text-3xl font-extrabold font-heading mb-1.5">
             {chapterData.title}
-          </h2>
+          </h1>
         )}
 
-        {/* Unit Subtitle: units.subtitle */}
+        {/* Unit Subtitle: units.subtitle (using current title style: text-xl sm:text-2xl font-bold) */}
         {chapterData.subtitle && (
-          <p className="unit-hero-subtitle text-sm sm:text-base opacity-90 leading-relaxed font-medium">
+          <h2 className="unit-hero-subtitle text-xl sm:text-2xl font-bold opacity-95 leading-relaxed font-heading">
             {chapterData.subtitle}
-          </p>
+          </h2>
         )}
       </section>
 
