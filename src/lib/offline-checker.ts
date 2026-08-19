@@ -292,8 +292,8 @@ export function checkOfflineGrammarAndSpelling(
   if (isValid && matchesFixedAnswer && hasFullStop && isCapital && spellingErrors.length === 0) {
     return {
       isCorrect: true,
-      message: '🎉 ถูกต้องสมบูรณ์แบบค่ะ! ไวยากรณ์ ตัวสะกด ตัวพิมพ์ใหญ่ และจุด Full Stop ถูกต้องเป๊ะมาก 👏',
-      points: ['คำตอบตรงตามเฉลยในหนังสือ Sentence Builder 2'],
+      message: '🎉 ถูกต้องเลยค่ะ เก่งมากเลย 👏',
+      points: [],
       spellingErrors: [],
       normalizedStudent,
       normalizedModel
