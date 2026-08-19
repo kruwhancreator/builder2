@@ -232,22 +232,7 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
       </section>
 
       {/* ========================================================= */}
-      {/* 2. TEACHER PERSONA GREETING CARD */}
-      {/* ========================================================= */}
-      <section className="teacher-greeting-card bg-white border-l-4 border-[#2563eb] rounded-xl p-4 sm:p-5 shadow-xs mb-6 flex items-start sm:items-center gap-4">
-        <div className="teacher-avatar-box w-12 h-12 rounded-full bg-gradient-to-br from-sky-100 to-sky-200 text-[#1e3a8a] flex items-center justify-center text-2xl shrink-0 border-2 border-[#2563eb]">
-          👩‍🏫
-        </div>
-        <div className="teacher-message-box text-xs sm:text-sm text-[#1e293b] leading-relaxed">
-          <span className="teacher-name-label font-bold text-[#1e3a8a] block mb-0.5 font-heading">ครูหวาน อิงลิช ออน แอร์:</span>
-          <p className="teacher-message-text">
-            &ldquo;สวัสดีค่ะนักเรียนคนเก่ง! วันนี้ครูหวานทำระบบเฉลยและตรวจแบบฝึกหัด Unit {unitNumber} มาให้นะคะ พิมพ์คำตอบแล้วกดตรวจได้เลย ครูมีคำแนะนำให้อย่างละเอียดถ้าพิมพ์ผิดจุดไหน พยายามทำให้เต็มที่นะคะ! 💖&rdquo;
-          </p>
-        </div>
-      </section>
-
-      {/* ========================================================= */}
-      {/* 3. EXERCISE 1 SECTION */}
+      {/* 2. EXERCISE 1 SECTION */}
       {/* ========================================================= */}
       {ex1 && (
         <section className="exercise-section exercise-1-section bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xs mb-8">
