@@ -96,16 +96,14 @@ export default function BookLandingPage() {
           <Link
             key={u.unitNumber}
             href={`/sentence-builder-vol-2/chapter-${u.unitNumber}`}
+            prefetch={true}
             onClick={() => {
-              fetch('/api/analytics/track', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                  type: 'unit', 
-                  bookName: 'sentence-builder-vol-2', 
-                  unitNumber: u.unitNumber 
-                })
-              }).catch(() => {});
+              if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
+                navigator.sendBeacon(
+                  '/api/analytics/track',
+                  JSON.stringify({ type: 'unit', bookName: 'sentence-builder-vol-2', unitNumber: u.unitNumber })
+                );
+              }
             }}
             className="group bg-white rounded-2xl p-6 border border-slate-200 hover:border-[#2563eb] hover:shadow-md transition-all flex flex-col justify-between"
           >

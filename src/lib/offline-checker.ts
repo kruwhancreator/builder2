@@ -57,7 +57,7 @@ const COMMON_SPELLING_DICTIONARY: Record<string, string> = {
   'cleanning': 'cleaning',
   'prepareing': 'preparing',
   'useing': 'using',
-  
+
   // -ing doubling consonant
   'runing': 'running',
   'swiming': 'swimming',
@@ -70,7 +70,7 @@ const COMMON_SPELLING_DICTIONARY: Record<string, string> = {
   'planing': 'planning',
   'traking': 'tracking',
   'trackking': 'tracking',
-  
+
   // Common sentence builder typos
   'communting': 'commuting',
   'comuting': 'commuting',
@@ -136,7 +136,7 @@ export function checkOfflineGrammarAndSpelling(
   if (!raw) {
     return {
       isCorrect: false,
-      message: '❌ กรุณาพิมพ์คำตอบภาษาอังกฤษก่อนกดตรวจค่ะ',
+      message: 'กรุณาพิมพ์คำตอบภาษาอังกฤษก่อนกดตรวจค่ะ',
       points: ['ยังไม่ได้พิมพ์คำตอบในช่องข้อความ']
     };
   }
@@ -236,7 +236,7 @@ export function checkOfflineGrammarAndSpelling(
   // 5. GRAMMATICAL STRUCTURE CHECKS (PRESENT CONTINUOUS)
   // -------------------------------------------------------------
   const lowerAnswer = raw.toLowerCase();
-  
+
   // Check for missing 'am/is/are' before -ing verb
   if (/\bi\s+\w+ing\b/i.test(lowerAnswer) && !/\bi\s+am\s+\w+ing\b/i.test(lowerAnswer) && !/\bi'm\s+\w+ing\b/i.test(lowerAnswer)) {
     isValid = false;
@@ -292,7 +292,7 @@ export function checkOfflineGrammarAndSpelling(
   if (isValid && matchesFixedAnswer && hasFullStop && isCapital && spellingErrors.length === 0) {
     return {
       isCorrect: true,
-      message: '🎉 ถูกต้องเลยค่ะ เก่งมากเลย 👏',
+      message: 'ถูกต้องเลยค่ะ เก่งมากเลย 👏',
       points: [],
       spellingErrors: [],
       normalizedStudent,
@@ -302,7 +302,7 @@ export function checkOfflineGrammarAndSpelling(
 
   return {
     isCorrect: false,
-    message: '❌ ยังไม่ถูกต้องตามโครงสร้างหนังสือนะคะ ลองใหม่อีกครั้งค่ะ',
+    message: 'ยังไม่ถูกต้องตามโครงสร้างหนังสือนะคะ ลองใหม่อีกครั้งค่ะ',
     points: points.length > 0 ? points : [`• คำตอบยังไม่ตรงตามเฉลย (เฉลยหลัก: "${modelAnswer}")`],
     spellingErrors,
     normalizedStudent,

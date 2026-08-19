@@ -100,6 +100,7 @@ export default async function DynamicBookLandingPage({ params }: PageProps) {
           <Link
             key={u.unit_number}
             href={`/${bookSlug}/chapter-${u.unit_number}`}
+            prefetch={true}
             className="group bg-white rounded-2xl p-6 border border-slate-200 hover:border-[#2563eb] hover:shadow-md transition-all flex flex-col justify-between"
           >
             <div>
