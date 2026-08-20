@@ -12,7 +12,7 @@ import {
   Sparkle
 } from 'lucide-react';
 import { EvaluationResult } from '@/lib/evaluator';
-import { checkOfflineGrammarAndSpelling } from '@/lib/offline-checker';
+import { checkOfflineGrammarAndSpelling, checkGuidedSentenceExercise } from '@/lib/offline-checker';
 
 interface ExerciseWorkspaceProps {
   chapter: string;
@@ -22,7 +22,7 @@ interface ExerciseWorkspaceProps {
 export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWorkspaceProps) {
   // State per question item: answers, feedback, solution visibility, loading state
   const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [feedbacks, setFeedbacks] = useState<Record<string, { isCorrect: boolean; message: string; points: string[] }>>({});
+  const [feedbacks, setFeedbacks] = useState<Record<string, { isCorrect: boolean; message: string; points: string[]; translation?: string }>>({});
   const [revealedSolutions, setRevealedSolutions] = useState<Record<string, boolean>>({});
   const [dragSlots, setDragSlots] = useState<Record<string, string[]>>({});
   const [aiLoading, setAiLoading] = useState<Record<string, boolean>>({});
@@ -35,6 +35,23 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
   const ex1 = chapterData.exercises?.['ex-1'];
   const ex2 = chapterData.exercises?.['ex-2'];
   const ex3 = chapterData.exercises?.['ex-3'];
+
+  // Normalize categories for Exercise 2
+  const ex2Categories: Array<{ order: number; name: string; words: string[] }> = ex2
+    ? Array.isArray(ex2.categories)
+      ? ex2.categories.map((c: any, idx: number) => ({
+          order: c.order || idx + 1,
+          name: c.name || c.category_name || `หมวดที่ ${idx + 1}`,
+          words: c.words || c.word_bank || []
+        }))
+      : ex2.word_bank
+        ? Object.entries(ex2.word_bank).map(([catKey, words]: [string, any], idx: number) => ({
+            order: idx + 1,
+            name: catKey === 'action' ? 'กำลังทำอะไร' : catKey === 'purpose' ? 'เพื่ออะไร (to...)' : catKey === 'time' ? 'เมื่อไหร่' : catKey === 'reason' ? 'เพราะอะไร (because...)' : catKey,
+            words: Array.isArray(words) ? words : []
+          }))
+        : []
+    : [];
 
   const handleAnswerChange = (key: string, text: string) => {
     setAnswers(prev => ({ ...prev, [key]: text }));
@@ -68,15 +85,18 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
     setAnswers(prev => ({ ...prev, [key]: sentence }));
   };
 
-  const handleAutoPlaceWord = (key: string, parts: string[], word: string, totalSlots: number) => {
+  const handleAutoPlaceWord = (key: string, parts: string[], word: string, totalSlots: number, targetSlotIdx?: number) => {
     const cur = [...(dragSlots[key] || Array(totalSlots).fill(''))];
     const existingIdx = cur.indexOf(word);
     if (existingIdx !== -1) {
       cur[existingIdx] = '';
     } else {
-      let emptyIdx = cur.findIndex(s => !s);
-      if (emptyIdx === -1) emptyIdx = 0;
-      cur[emptyIdx] = word;
+      let putIdx = targetSlotIdx !== undefined && targetSlotIdx < totalSlots ? targetSlotIdx : -1;
+      if (putIdx === -1 || cur[putIdx]) {
+        putIdx = cur.findIndex(s => !s);
+      }
+      if (putIdx === -1) putIdx = 0;
+      cur[putIdx] = word;
     }
     setDragSlots(prev => ({ ...prev, [key]: cur }));
     const sentence = reconstructSentence(parts, cur);
@@ -99,13 +119,17 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
   // SMART OFFLINE GRAMMAR & SPELL CHECKER (NO AI CALL, 0ms LATENCY)
   const handleOfflineCheck = (item: any, key: string, exType: 'ex-1' | 'ex-2') => {
     const studentAns = answers[key] || '';
-    const result = checkOfflineGrammarAndSpelling(item, studentAns, exType === 'ex-1' ? 'translation' : 'guided_sentence');
+    const result = exType === 'ex-2'
+      ? checkGuidedSentenceExercise(item, studentAns, ex2Categories)
+      : checkOfflineGrammarAndSpelling(item, studentAns, 'translation');
+
     setFeedbacks(prev => ({
       ...prev,
       [key]: {
         isCorrect: result.isCorrect,
         message: result.message,
-        points: result.points
+        points: result.points,
+        translation: result.translation
       }
     }));
   };
@@ -340,63 +364,56 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
         <section className="exercise-section exercise-2-section bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xs mb-8">
           <div className="exercise-header-box border-b-2 border-blue-50 pb-4 mb-6">
             <h2 className="exercise-title text-xl sm:text-2xl font-bold text-[#1e3a8a] font-heading flex items-center gap-2">
-              🧩 {ex2.title || 'Exercise 2: เลือกคำจากที่มีให้มาแต่งประโยค'}
+              🧩 {ex2.title || 'Exercise 2: เลือกคำจากตารางมาแต่งประโยค'}
             </h2>
             <div className="exercise-instruction-box bg-[#eff6ff] text-[#1e40af] p-3 rounded-lg text-xs sm:text-sm mt-3 border-l-4 border-[#2563eb] leading-relaxed">
               📌 <b>คำแนะนำจากครูหวาน:</b> {ex2.instruction || `ให้เลือกคำจากตารางด้านล่างนี้ในหนังสือ Sentence Builder 2 มาเติมในช่องว่างให้สมบูรณ์ ตรวจเช็คการสะกดคำและเครื่องหมายให้ถูกต้องนะคะ`}
             </div>
           </div>
 
-          {/* Vocab Reference Table */}
-          <div className="vocab-reference-wrapper overflow-x-auto my-4 rounded-xl border border-[#e0e7ff] bg-[#faf5ff] p-4 shadow-2xs">
-            <table className="vocab-reference-table w-full text-xs sm:text-sm text-left border-collapse bg-white rounded-lg overflow-hidden border border-[#e0e7ff]">
-              <thead>
-                <tr className="vocab-table-header bg-[#1e3a8a] text-white font-semibold font-heading">
-                  <th className="th-action p-3 border-b border-indigo-100">กำลังทำอะไร</th>
-                  <th className="th-purpose p-3 border-b border-indigo-100">เพื่ออะไร (to...)</th>
-                  <th className="th-time p-3 border-b border-indigo-100">เมื่อไหร่</th>
-                  <th className="th-reason p-3 border-b border-indigo-100">เพราะอะไร (because...)</th>
-                </tr>
-              </thead>
-              <tbody className="vocab-table-body divide-y divide-slate-100 text-slate-700 font-medium">
-                <tr className="vocab-table-row">
-                  <td className="td-action p-3 leading-relaxed">
-                    • making breakfast<br />
-                    • cleaning my room<br />
-                    • adjusting my schedule
-                  </td>
-                  <td className="td-purpose p-3 leading-relaxed">
-                    • to save money<br />
-                    • to find my keys<br />
-                    • to fit the meeting / schedule
-                  </td>
-                  <td className="td-time p-3 leading-relaxed">
-                    • now<br />
-                    • right now<br />
-                    • at the moment
-                  </td>
-                  <td className="td-reason p-3 leading-relaxed">
-                    • because it is cheap<br />
-                    • because it is messy<br />
-                    • because it is necessary / healthy
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          {/* Dynamic Vocab Reference Table */}
+          {ex2Categories.length > 0 && (
+            <div className="vocab-reference-wrapper overflow-x-auto my-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs">
+              <table className="vocab-reference-table w-full text-xs sm:text-sm text-left border-collapse bg-white rounded-xl overflow-hidden border border-slate-200">
+                <thead>
+                  <tr className="vocab-table-header bg-[#1e3a8a] text-white font-semibold font-heading">
+                    {ex2Categories.map((cat, cIdx) => (
+                      <th key={cIdx} className="p-3.5 border-b border-indigo-100 font-bold">
+                        {cat.order}. {cat.name}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="vocab-table-body divide-y divide-slate-100 text-slate-700 font-medium">
+                  <tr className="vocab-table-row">
+                    {ex2Categories.map((cat, cIdx) => (
+                      <td key={cIdx} className="p-3.5 leading-relaxed align-top">
+                        {cat.words.map((w, wIdx) => (
+                          <div key={wIdx} className="py-0.5">• {w}</div>
+                        ))}
+                      </td>
+                    ))}
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          )}
 
           <div className="quiz-items-list space-y-6 mt-6">
             {ex2.items?.map((item: any, idx: number) => {
               const key = `ex2_${item.id || idx + 1}`;
               const fb = feedbacks[key];
 
-              // Parse blanks from prompt (e.g. "I am ____________________ at the moment.")
+              // Parse blanks from prompt (e.g. "I do ____________________.")
               const blankRegex = /_{2,}/g;
               const promptParts = (item.prompt || '').split(blankRegex);
               const slotCount = Math.max(1, (item.prompt || '').match(blankRegex)?.length || 1);
               const currentSlots = dragSlots[key] || Array(slotCount).fill('');
               const currentConstructed = answers[key] || '';
-              const wordBank = ex2.word_bank || {};
+
+              // Progressive Word Bank: Only show categories required for this item
+              const requiredOrders: number[] = item.required_orders || ex2Categories.slice(0, slotCount).map(c => c.order);
+              const displayedCategories = ex2Categories.filter(c => requiredOrders.includes(c.order));
 
               return (
                 <div key={key} className="quiz-item-card bg-[#f8fafc] border border-slate-200 rounded-xl p-5 shadow-2xs">
@@ -422,19 +439,23 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                     </div>
 
                     <div className="sentence-tokens-row flex flex-wrap items-center gap-2 text-base sm:text-lg font-bold text-slate-800 font-heading leading-loose">
-                      {promptParts.map((part: string, pIdx: number) => (
-                        <span key={pIdx} className="inline-flex items-center gap-2">
-                          {part.trim() && <span>{part.trim()}</span>}
-                          {pIdx < slotCount && (
-                            <DropSlot
-                              slotIdx={pIdx}
-                              value={currentSlots[pIdx]}
-                              onPlace={(word: string) => handlePlaceSlotWord(key, promptParts, pIdx, word, slotCount)}
-                              onRemove={() => handleRemoveSlotWord(key, promptParts, pIdx, slotCount)}
-                            />
-                          )}
-                        </span>
-                      ))}
+                      {promptParts.map((part: string, pIdx: number) => {
+                        const expectedCat = displayedCategories[pIdx] || ex2Categories[pIdx];
+                        return (
+                          <span key={pIdx} className="inline-flex items-center gap-2">
+                            {part.trim() && <span>{part.trim()}</span>}
+                            {pIdx < slotCount && (
+                              <DropSlot
+                                slotIdx={pIdx}
+                                value={currentSlots[pIdx]}
+                                categoryHint={expectedCat ? expectedCat.name : undefined}
+                                onPlace={(word: string) => handlePlaceSlotWord(key, promptParts, pIdx, word, slotCount)}
+                                onRemove={() => handleRemoveSlotWord(key, promptParts, pIdx, slotCount)}
+                              />
+                            )}
+                          </span>
+                        );
+                      })}
                     </div>
 
                     {/* Live Sentence Preview */}
@@ -448,28 +469,24 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                     )}
                   </div>
 
-                  {/* 2. CATEGORIZED WORD BANK DRAGGABLE CHIPS */}
-                  <div className="word-bank-chips-panel bg-slate-100/80 rounded-2xl p-4 border border-slate-200 mb-4">
-                    <div className="text-xs font-bold text-slate-700 mb-3 flex items-center gap-1.5">
-                      <span>📚 Word Bank (คลิกหรือลากคำศัพท์เพื่อเลือก):</span>
-                    </div>
+                  {/* 2. PROGRESSIVE WORD BANK CHIPS (ONLY SHOWS REQUIRED ORDERS FOR THIS QUIZ) */}
+                  {displayedCategories.length > 0 && (
+                    <div className="word-bank-chips-panel bg-slate-100/80 rounded-2xl p-4 border border-slate-200 mb-4">
+                      <div className="text-xs font-bold text-slate-700 mb-3 flex items-center justify-between">
+                        <span>📚 Word Bank (แตะหรือลากคำศัพท์เพื่อวาง):</span>
+                        <span className="text-[11px] font-medium text-slate-500">
+                          แสดง {displayedCategories.length} หมวดหมู่สำหรับข้อนี้
+                        </span>
+                      </div>
 
-                    <div className="categories-stack space-y-3">
-                      {Object.entries(wordBank).map(([catKey, words]: [string, any]) => {
-                        if (!Array.isArray(words)) return null;
-                        const catLabel = 
-                          catKey === 'action' ? '🔹 Action' :
-                          catKey === 'purpose' ? '🟣 Purpose (to...)' :
-                          catKey === 'time' ? '🟢 Time' :
-                          catKey === 'reason' ? '🟠 Reason (because...)' : catKey;
-
-                        return (
-                          <div key={catKey} className="category-group flex flex-wrap items-center gap-2">
-                            <span className="text-[11px] font-extrabold uppercase px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-600 shadow-2xs">
-                              {catLabel}:
+                      <div className="categories-stack space-y-3">
+                        {displayedCategories.map((cat, cIdx) => (
+                          <div key={cat.order || cIdx} className="category-group flex flex-wrap items-center gap-2">
+                            <span className="text-xs font-extrabold px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-700 shadow-2xs">
+                              {cat.order}. {cat.name}:
                             </span>
                             <div className="chips-row flex flex-wrap gap-1.5">
-                              {words.map((word: string, wIdx: number) => {
+                              {cat.words.map((word: string, wIdx: number) => {
                                 const isUsed = currentSlots.includes(word);
                                 return (
                                   <button
@@ -477,7 +494,7 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                                     type="button"
                                     draggable
                                     onDragStart={(e) => e.dataTransfer.setData('text/plain', word)}
-                                    onClick={() => handleAutoPlaceWord(key, promptParts, word, slotCount)}
+                                    onClick={() => handleAutoPlaceWord(key, promptParts, word, slotCount, cIdx)}
                                     className={`word-chip px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold border transition-all shadow-2xs flex items-center gap-1.5 cursor-grab active:cursor-grabbing select-none ${
                                       isUsed
                                         ? 'bg-blue-600 text-white border-blue-700 ring-2 ring-blue-300/40 shadow-xs'
@@ -492,10 +509,10 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                               })}
                             </div>
                           </div>
-                        );
-                      })}
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   <div className="quiz-action-group flex flex-wrap gap-2.5 mb-3">
                     <button
@@ -509,7 +526,7 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                   {/* Feedback Box */}
                   {fb && (
                     <>
-                      <div className={`feedback-result-box p-3.5 rounded-lg text-xs sm:text-sm transition-all animate-in fade-in duration-200 mb-3 ${
+                      <div className={`feedback-result-box p-4 rounded-xl text-xs sm:text-sm transition-all animate-in fade-in duration-200 mb-3 ${
                         fb.isCorrect 
                           ? 'feedback-correct bg-[#ecfdf5] text-[#065f46] border border-[#a7f3d0]' 
                           : 'feedback-incorrect bg-[#fef2f2] text-[#991b1b] border border-[#fecaca]'
@@ -531,6 +548,16 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                               </li>
                             ))}
                           </ul>
+                        )}
+
+                        {/* Translation Box (when correct answer is checked) */}
+                        {fb.isCorrect && fb.translation && (
+                          <div className="feedback-translation-box mt-3 pt-3 border-t border-emerald-200/80 flex flex-wrap items-center gap-2 text-xs sm:text-sm">
+                            <span className="font-extrabold text-emerald-950">📖 คำแปล:</span>
+                            <span className="font-semibold text-emerald-900 bg-white/90 px-3 py-1.5 rounded-lg border border-emerald-300 shadow-2xs">
+                              "{fb.translation}"
+                            </span>
+                          </div>
                         )}
                       </div>
 
@@ -723,11 +750,13 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
 function DropSlot({
   slotIdx,
   value,
+  categoryHint,
   onPlace,
   onRemove
 }: {
   slotIdx: number;
   value?: string;
+  categoryHint?: string;
   onPlace: (word: string) => void;
   onRemove: () => void;
 }) {
@@ -762,11 +791,12 @@ function DropSlot({
       className={`inline-flex items-center justify-center min-w-[130px] px-3.5 py-1 border-2 border-dashed rounded-xl text-xs sm:text-sm font-semibold transition-all select-none ${
         isOver
           ? 'border-[#2563eb] bg-blue-100 text-[#2563eb] scale-105 shadow-xs'
-          : 'border-indigo-300 bg-indigo-50/70 text-indigo-700 hover:bg-indigo-100 hover:border-indigo-400 cursor-pointer'
+          : 'border-slate-300 bg-slate-50 text-slate-600 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 cursor-pointer'
       }`}
     >
-      + วางคำที่นี่
+      {categoryHint ? `+ วางคำ (${categoryHint})` : '+ วางคำที่นี่'}
     </span>
   );
 }
+
 

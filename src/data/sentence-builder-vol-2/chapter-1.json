@@ -50,78 +50,102 @@
     },
     "ex-2": {
       "id": "ex-2",
-      "title": "Exercise 2: เลือกคำจากที่มีให้มาแต่งประโยค",
+      "title": "Exercise 2: เลือกคำจากตารางมาแต่งประโยค",
       "type": "guided_sentence",
-      "instruction": "เลือกคำจากตารางมาเติมในช่องว่างให้สมบูรณ์",
-      "word_bank": {
-        "action": [
-          "making breakfast",
-          "cleaning my room",
-          "adjusting my schedule"
-        ],
-        "purpose": [
-          "to save money",
-          "to find my keys",
-          "to fit my schedule"
-        ],
-        "time": [
-          "now",
-          "right now",
-          "at the moment"
-        ],
-        "reason": [
-          "because it is cheap",
-          "because it is messy",
-          "because it is necessary"
-        ]
-      },
+      "instruction": "เลือกคำจากตารางมาเติมในช่องว่างให้สมบูรณ์ โดยเชื่อมโยงความหมายให้ถูกต้อง",
+      "categories": [
+        {
+          "order": 1,
+          "name": "ทำอะไรจริง ๆ",
+          "words": [
+            "drink water",
+            "practise speaking",
+            "travel abroad"
+          ]
+        },
+        {
+          "order": 2,
+          "name": "เพื่ออะไร",
+          "words": [
+            "stay hydrated",
+            "build confidence",
+            "meet new people"
+          ]
+        },
+        {
+          "order": 3,
+          "name": "แม้ว่า...",
+          "words": [
+            "not thirsty",
+            "shy",
+            "alone"
+          ]
+        }
+      ],
       "items": [
         {
           "id": 1,
-          "prompt": "I am ____________________.",
-          "model_answer": "I am making breakfast.",
+          "prompt": "I do ____________________.",
+          "required_orders": [1],
+          "model_answer": "I do drink water.",
           "acceptable_answers": [
-            "I am making breakfast.",
-            "I am cleaning my room.",
-            "I am adjusting my schedule."
-          ]
+            "I do drink water.",
+            "I do practise speaking.",
+            "I do travel abroad."
+          ],
+          "translations": {
+            "drink water": "ฉันดื่มน้ำจริง ๆ",
+            "practise speaking": "ฉันฝึกพูดจริง ๆ",
+            "travel abroad": "ฉันไปเที่ยวต่างประเทศจริง ๆ"
+          }
         },
         {
           "id": 2,
-          "prompt": "I am ____________________ at the moment.",
-          "model_answer": "I am cleaning my room at the moment.",
+          "prompt": "I do ____________________ to ____________________.",
+          "required_orders": [1, 2],
+          "model_answer": "I do drink water to stay hydrated.",
           "acceptable_answers": [
-            "I am making breakfast at the moment.",
-            "I am cleaning my room at the moment.",
-            "I am adjusting my schedule at the moment."
-          ]
+            "I do drink water to stay hydrated.",
+            "I do practise speaking to build confidence.",
+            "I do travel abroad to meet new people."
+          ],
+          "translations": {
+            "drink water|stay hydrated": "ฉันดื่มน้ำจริง ๆ เพื่อรักษาระดับน้ำในร่างกาย",
+            "practise speaking|build confidence": "ฉันฝึกพูดจริง ๆ เพื่อสร้างความมั่นใจ",
+            "travel abroad|meet new people": "ฉันไปเที่ยวต่างประเทศจริง ๆ เพื่อพบปะผู้คนใหม่ ๆ"
+          }
         },
         {
           "id": 3,
-          "prompt": "I am _______________ to ____________ __________",
-          "model_answer": "I am making breakfast to save money now.",
+          "prompt": "I do ____________________ to ____________________ even when I'm ____________________.",
+          "required_orders": [1, 2, 3],
+          "model_answer": "I do drink water to stay hydrated even when I'm not thirsty.",
           "acceptable_answers": [
-            "I am making breakfast to save money now.",
-            "I am making breakfast to save money right now.",
-            "I am making breakfast to save money at the moment.",
-            "I am cleaning my room to find my keys now.",
-            "I am cleaning my room to find my keys right now.",
-            "I am cleaning my room to find my keys at the moment.",
-            "I am adjusting my schedule to fit the meeting now.",
-            "I am adjusting my schedule to fit the meeting right now.",
-            "I am adjusting my schedule to fit the meeting at the moment."
-          ]
+            "I do drink water to stay hydrated even when I'm not thirsty.",
+            "I do practise speaking to build confidence even when I'm shy.",
+            "I do travel abroad to meet new people even when I'm alone."
+          ],
+          "translations": {
+            "drink water|stay hydrated|not thirsty": "ฉันดื่มน้ำจริง ๆ เพื่อรักษาระดับน้ำในร่างกาย แม้ว่าฉันจะไม่กระหายน้ำก็ตาม",
+            "practise speaking|build confidence|shy": "ฉันฝึกพูดจริง ๆ เพื่อสร้างความมั่นใจ แม้ว่าฉันจะเป็นคนขี้อายก็ตาม",
+            "travel abroad|meet new people|alone": "ฉันไปเที่ยวต่างประเทศจริง ๆ เพื่อพบปะผู้คนใหม่ ๆ แม้ว่าฉันจะไปคนเดียวก็ตาม"
+          }
         },
         {
           "id": 4,
-          "prompt": "I am __________ to ________ now because it is ___",
-          "model_answer": "I am making breakfast to save money now because it is cheap.",
+          "prompt": "I do ____________________ to ____________________ even when I'm ____________________.",
+          "required_orders": [1, 2, 3],
+          "model_answer": "I do practise speaking to build confidence even when I'm shy.",
           "acceptable_answers": [
-            "I am making breakfast to save money now because it is cheap.",
-            "I am making breakfast to save money now because it is necessary.",
-            "I am cleaning my room to find my keys now because it is messy.",
-            "I am adjusting my schedule to fit the meeting now because it is necessary."
-          ]
+            "I do drink water to stay hydrated even when I'm not thirsty.",
+            "I do practise speaking to build confidence even when I'm shy.",
+            "I do travel abroad to meet new people even when I'm alone."
+          ],
+          "translations": {
+            "drink water|stay hydrated|not thirsty": "ฉันดื่มน้ำจริง ๆ เพื่อรักษาระดับน้ำในร่างกาย แม้ว่าฉันจะไม่กระหายน้ำก็ตาม",
+            "practise speaking|build confidence|shy": "ฉันฝึกพูดจริง ๆ เพื่อสร้างความมั่นใจ แม้ว่าฉันจะเป็นคนขี้อายก็ตาม",
+            "travel abroad|meet new people|alone": "ฉันไปเที่ยวต่างประเทศจริง ๆ เพื่อพบปะผู้คนใหม่ ๆ แม้ว่าฉันจะไปคนเดียวก็ตาม"
+          }
         }
       ]
     },

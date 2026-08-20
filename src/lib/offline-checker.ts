@@ -50,6 +50,7 @@ export interface OfflineCheckResult {
   isCorrect: boolean;
   message: string;
   points: string[];
+  translation?: string;
   spellingErrors?: Array<{ typed: string; correction: string }>;
   normalizedStudent?: string;
   normalizedModel?: string;
@@ -305,3 +306,136 @@ export function checkOfflineGrammarAndSpelling(
     normalizedModel
   };
 }
+
+/**
+ * Smart 3-Tier Grammar & Coherence Checker for Exercise 2 (Choose Provided Word)
+ * Tier 1: Completeness check
+ * Tier 2: Category Placement / Order check
+ * Tier 3: Semantic Coherence / Meaning Pairing check
+ * + Instant Thai Translation retrieval from database
+ */
+export function checkGuidedSentenceExercise(
+  item: any,
+  studentAnswer: string,
+  categories: Array<{ order: number; name?: string; category_name?: string; words?: string[]; word_bank?: string[] }> = []
+): OfflineCheckResult {
+  const raw = (studentAnswer || '').trim();
+  if (!raw) {
+    return {
+      isCorrect: false,
+      message: 'กรุณาเลือกเติมคำในช่องว่างให้ครบก่อนกดตรวจนะคะ',
+      points: ['ยังไม่ได้เลือกคำศัพท์ลงในช่องว่าง']
+    };
+  }
+
+  const normalize = (s: string) => s.trim().replace(/\s+/g, ' ').toLowerCase().replace(/[.!?,]$/, '');
+  const normalizedRaw = normalize(raw);
+
+  // 1. Acceptable answers list
+  const acceptableList: string[] = item.acceptable_answers || (item.model_answer ? [item.model_answer] : []);
+  const matchedAnswer = acceptableList.find(ans => normalize(ans) === normalizedRaw);
+
+  // Helper to extract translation
+  const getTranslationForAnswer = (): string | undefined => {
+    if (item.translations && typeof item.translations === 'object') {
+      for (const [key, trans] of Object.entries(item.translations)) {
+        const subWords = key.split('|').map(w => w.trim().toLowerCase());
+        const allPresent = subWords.every(w => normalizedRaw.includes(w));
+        if (allPresent) {
+          return trans as string;
+        }
+      }
+      return Object.values(item.translations)[0] as string;
+    }
+    return item.translation || undefined;
+  };
+
+  if (matchedAnswer) {
+    return {
+      isCorrect: true,
+      message: 'ถูกต้องเลยค่ะ เก่งมากเลย 👏',
+      points: [],
+      translation: getTranslationForAnswer()
+    };
+  }
+
+  // 2. TIER 2: ORDER & CATEGORY PLACEMENT CHECK
+  if (categories && categories.length > 0) {
+    const requiredOrders: number[] = item.required_orders || [1];
+
+    for (const reqOrder of requiredOrders) {
+      const targetCat = categories.find(c => c.order === reqOrder);
+      const catName = targetCat?.name || targetCat?.category_name || `หมวดที่ ${reqOrder}`;
+      const catWords = targetCat?.words || targetCat?.word_bank || [];
+
+      // Check if student answer has a word from this required order
+      const hasCatWord = catWords.some(w => normalizedRaw.includes(normalize(w)));
+      if (!hasCatWord) {
+        // Look if they used a word from another order instead
+        for (const otherCat of categories) {
+          if (otherCat.order !== reqOrder) {
+            const otherWords = otherCat.words || otherCat.word_bank || [];
+            const otherCatName = otherCat.name || otherCat.category_name || `หมวดที่ ${otherCat.order}`;
+            const usedOtherWord = otherWords.find(w => normalizedRaw.includes(normalize(w)));
+            if (usedOtherWord && !requiredOrders.includes(otherCat.order)) {
+              return {
+                isCorrect: false,
+                message: 'ยังไม่ถูกต้องตามตำแหน่งโครงสร้างนะคะ',
+                points: [
+                  `• คำว่า "${usedOtherWord}" มาจากหมวด "${otherCatName}" ซึ่งข้อนี้ยังไม่ได้ใช้หมวดนี้ค่ะ`,
+                  `• กรุณาเลือกคำจากหมวด "${catName}" เช่น "${catWords[0]}" มาเติมแทนนะคะ`
+                ]
+              };
+            }
+          }
+        }
+      }
+    }
+
+    // 3. TIER 3: SEMANTIC COHERENCE / MEANING MISMATCH CHECK
+    const usedWords: Array<{ order: number; word: string; catName: string }> = [];
+    for (const cat of categories) {
+      const words = cat.words || cat.word_bank || [];
+      const catName = cat.name || cat.category_name || `หมวดที่ ${cat.order}`;
+      for (const w of words) {
+        if (normalizedRaw.includes(normalize(w))) {
+          usedWords.push({ order: cat.order, word: w, catName });
+        }
+      }
+    }
+
+    if (usedWords.length >= 2) {
+      const firstWord = usedWords[0].word;
+      const validCombo = acceptableList.find(ans => normalize(ans).includes(normalize(firstWord)));
+
+      let suggestedPartner = '';
+      if (validCombo) {
+        for (const cat of categories) {
+          if (cat.order !== usedWords[0].order) {
+            const otherWords = cat.words || cat.word_bank || [];
+            const partner = otherWords.find(w => normalize(validCombo).includes(normalize(w)));
+            if (partner) {
+              suggestedPartner = partner;
+              break;
+            }
+          }
+        }
+      }
+
+      return {
+        isCorrect: false,
+        message: 'โครงสร้างประโยคถูกต้องแล้วค่ะ แต่ความหมายยังไม่สอดคล้องกันนะคะ',
+        points: [
+          `• การเลือก "${usedWords[0].word}" และ "${usedWords[1].word}" ความหมายยังไม่เชื่อมโยงกันอย่างสมบูรณ์ค่ะ`,
+          suggestedPartner
+            ? `• แนะนำให้จับคู่คำว่า "${usedWords[0].word}" กับ "${suggestedPartner}" เพื่อให้ความหมายสมเหตุสมผลนะคะ`
+            : `• ลองทบทวนการจับคู่ความหมายระหว่างหมวดคำศัพท์ดูอีกครั้งนะคะ`
+        ]
+      };
+    }
+  }
+
+  // Fallback to standard check
+  return checkOfflineGrammarAndSpelling(item, studentAnswer, 'guided_sentence');
+}
+
