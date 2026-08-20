@@ -1,25 +1,17 @@
 -- ====================================================================
--- SENTENCE BUILDER 2 - SUPABASE DATABASE SCHEMA
+-- SENTENCE BUILDER 2 - NON-DESTRUCTIVE SUPABASE DATABASE SCHEMA
 -- ====================================================================
--- Copy and run this ENTIRE script in your Supabase SQL Editor.
+-- This script is SAFE to run repeatedly in the Supabase SQL Editor.
+-- It will NEVER drop your tables and NEVER overwrite your entered data.
 -- ====================================================================
 
 -- 0. Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- 1. DROP EXISTING TABLES IN ORDER
-DROP TABLE IF EXISTS quiz_submissions CASCADE;
-DROP TABLE IF EXISTS exercise_items CASCADE;
-DROP TABLE IF EXISTS exercises CASCADE;
-DROP TABLE IF EXISTS unit_analytics CASCADE;
-DROP TABLE IF EXISTS book_analytics CASCADE;
-DROP TABLE IF EXISTS units CASCADE;
-DROP TABLE IF EXISTS books CASCADE;
-
 -- --------------------------------------------------------------------
--- 2. CREATE BOOKS TABLE (With Custom Slug for URLs & QR Codes)
+-- 1. BOOKS TABLE (With Custom Slug for URLs & QR Codes)
 -- --------------------------------------------------------------------
-CREATE TABLE books (
+CREATE TABLE IF NOT EXISTS books (
   id TEXT PRIMARY KEY,                 -- e.g. 'sentence-builder-vol-1', 'sentence-builder-vol-2'
   slug TEXT UNIQUE NOT NULL,           -- Custom URL slug for frontend & QR Code (e.g. 'sentence-builder-vol-2' or 'sb2')
   title TEXT NOT NULL,                 -- e.g. 'Sentence Builder Vol. 2'
@@ -27,10 +19,16 @@ CREATE TABLE books (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- Ensure columns exist if table was created earlier
+ALTER TABLE books ADD COLUMN IF NOT EXISTS slug TEXT;
+ALTER TABLE books ADD COLUMN IF NOT EXISTS title TEXT;
+ALTER TABLE books ADD COLUMN IF NOT EXISTS subtitle TEXT;
+ALTER TABLE books ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT now();
+
 -- --------------------------------------------------------------------
--- 3. CREATE UNITS TABLE (Dynamic Units per Book)
+-- 2. UNITS TABLE (Dynamic Units per Book)
 -- --------------------------------------------------------------------
-CREATE TABLE units (
+CREATE TABLE IF NOT EXISTS units (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   book_name TEXT NOT NULL REFERENCES books(id) ON DELETE CASCADE,
   unit_number INT NOT NULL,        -- 1, 2, 3 ...
@@ -41,10 +39,17 @@ CREATE TABLE units (
   CONSTRAINT unique_book_unit UNIQUE (book_name, unit_number)
 );
 
+ALTER TABLE units ADD COLUMN IF NOT EXISTS book_name TEXT;
+ALTER TABLE units ADD COLUMN IF NOT EXISTS unit_number INT;
+ALTER TABLE units ADD COLUMN IF NOT EXISTS title TEXT;
+ALTER TABLE units ADD COLUMN IF NOT EXISTS subtitle TEXT;
+ALTER TABLE units ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT now();
+ALTER TABLE units ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now();
+
 -- --------------------------------------------------------------------
--- 4. CREATE EXERCISES TABLE (CRUD Exercises per Unit)
+-- 3. EXERCISES TABLE (CRUD Exercises per Unit)
 -- --------------------------------------------------------------------
-CREATE TABLE exercises (
+CREATE TABLE IF NOT EXISTS exercises (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   unit_id UUID NOT NULL REFERENCES units(id) ON DELETE CASCADE,
   exercise_code TEXT NOT NULL,         -- 'ex-1', 'ex-2', 'ex-3', 'ex-4'...
@@ -61,10 +66,23 @@ CREATE TABLE exercises (
   CONSTRAINT unique_unit_exercise UNIQUE (unit_id, exercise_code)
 );
 
+ALTER TABLE exercises ADD COLUMN IF NOT EXISTS unit_id UUID;
+ALTER TABLE exercises ADD COLUMN IF NOT EXISTS exercise_code TEXT;
+ALTER TABLE exercises ADD COLUMN IF NOT EXISTS title TEXT;
+ALTER TABLE exercises ADD COLUMN IF NOT EXISTS exercise_type TEXT;
+ALTER TABLE exercises ADD COLUMN IF NOT EXISTS use_ai_check BOOLEAN DEFAULT true;
+ALTER TABLE exercises ADD COLUMN IF NOT EXISTS instruction TEXT;
+ALTER TABLE exercises ADD COLUMN IF NOT EXISTS guidance TEXT;
+ALTER TABLE exercises ADD COLUMN IF NOT EXISTS grammar_focus TEXT;
+ALTER TABLE exercises ADD COLUMN IF NOT EXISTS categories JSONB;
+ALTER TABLE exercises ADD COLUMN IF NOT EXISTS word_bank JSONB;
+ALTER TABLE exercises ADD COLUMN IF NOT EXISTS structure_required JSONB;
+ALTER TABLE exercises ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT now();
+
 -- --------------------------------------------------------------------
--- 5. CREATE EXERCISE ITEMS TABLE (Quiz Questions & Target Model Answers)
+-- 4. EXERCISE ITEMS TABLE (Quiz Questions & Target Model Answers)
 -- --------------------------------------------------------------------
-CREATE TABLE exercise_items (
+CREATE TABLE IF NOT EXISTS exercise_items (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   unit_id UUID NOT NULL REFERENCES units(id) ON DELETE CASCADE,
   exercise_code TEXT NOT NULL,     -- 'ex-1', 'ex-2', 'ex-3'
@@ -85,16 +103,33 @@ CREATE TABLE exercise_items (
   CONSTRAINT unique_item_per_exercise UNIQUE (unit_id, exercise_code, item_number)
 );
 
+ALTER TABLE exercise_items ADD COLUMN IF NOT EXISTS unit_id UUID;
+ALTER TABLE exercise_items ADD COLUMN IF NOT EXISTS exercise_code TEXT;
+ALTER TABLE exercise_items ADD COLUMN IF NOT EXISTS item_number INT;
+ALTER TABLE exercise_items ADD COLUMN IF NOT EXISTS thai_prompt TEXT;
+ALTER TABLE exercise_items ADD COLUMN IF NOT EXISTS prompt TEXT;
+ALTER TABLE exercise_items ADD COLUMN IF NOT EXISTS thai_template TEXT;
+ALTER TABLE exercise_items ADD COLUMN IF NOT EXISTS model_answer TEXT;
+ALTER TABLE exercise_items ADD COLUMN IF NOT EXISTS acceptable_answers TEXT[];
+ALTER TABLE exercise_items ADD COLUMN IF NOT EXISTS required_orders INT[];
+ALTER TABLE exercise_items ADD COLUMN IF NOT EXISTS translations JSONB;
+ALTER TABLE exercise_items ADD COLUMN IF NOT EXISTS image_url TEXT;
+ALTER TABLE exercise_items ADD COLUMN IF NOT EXISTS image_description TEXT;
+ALTER TABLE exercise_items ADD COLUMN IF NOT EXISTS context_hint TEXT;
+ALTER TABLE exercise_items ADD COLUMN IF NOT EXISTS teacher_guidance TEXT;
+ALTER TABLE exercise_items ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT now();
+ALTER TABLE exercise_items ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now();
+
 -- --------------------------------------------------------------------
--- 6. CREATE ANALYTICS TABLES (QR Scan & Unit Completion Tracking)
+-- 5. ANALYTICS TABLES (QR Scan & Unit Completion Tracking)
 -- --------------------------------------------------------------------
-CREATE TABLE book_analytics (
+CREATE TABLE IF NOT EXISTS book_analytics (
   book_name TEXT PRIMARY KEY REFERENCES books(id) ON DELETE CASCADE,
   qr_scan_count BIGINT DEFAULT 0,
   last_scanned_at TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE TABLE unit_analytics (
+CREATE TABLE IF NOT EXISTS unit_analytics (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   book_name TEXT NOT NULL REFERENCES books(id) ON DELETE CASCADE,
   unit_number INT NOT NULL,
@@ -104,7 +139,7 @@ CREATE TABLE unit_analytics (
 );
 
 -- --------------------------------------------------------------------
--- 7. DISABLE RLS FOR UNRESTRICTED PUBLIC READ/WRITE API ACCESS
+-- 6. DISABLE RLS FOR UNRESTRICTED PUBLIC READ/WRITE API ACCESS
 -- --------------------------------------------------------------------
 ALTER TABLE books DISABLE ROW LEVEL SECURITY;
 ALTER TABLE units DISABLE ROW LEVEL SECURITY;
@@ -114,7 +149,7 @@ ALTER TABLE book_analytics DISABLE ROW LEVEL SECURITY;
 ALTER TABLE unit_analytics DISABLE ROW LEVEL SECURITY;
 
 -- --------------------------------------------------------------------
--- 8. CREATE ATOMIC INCREMENT HELPER FUNCTIONS FOR SUPABASE RPC
+-- 7. ATOMIC INCREMENT HELPER FUNCTIONS FOR SUPABASE RPC
 -- --------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION increment_book_scan(target_book TEXT)
 RETURNS VOID AS $$
@@ -140,81 +175,11 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- ====================================================================
--- 9. SEED INITIAL BOOKS & UNIT 1 DATA
--- ====================================================================
+-- --------------------------------------------------------------------
+-- 8. ENSURE DEFAULT BOOKS EXIST (SAFE INSERT WITHOUT OVERWRITING DATA)
+-- --------------------------------------------------------------------
 INSERT INTO books (id, slug, title, subtitle, created_at) VALUES
-  ('sentence-builder-vol-1', 'sentence-builder-vol-1', 'Sentence Builder Vol. 1', 'แบบฝึกหัดแต่งประโยคภาษาอังกฤษ Vol. 1 (เทคนิคปูพื้นฐาน)', '2026-07-22 00:00:00+00'),
-  ('sentence-builder-vol-2', 'sentence-builder-vol-2', 'Sentence Builder Vol. 2', 'แบบฝึกหัดแต่งประโยคและขยายประโยค Vol. 2 (Core + Context + Connect)', '2026-07-20 00:00:00+00'),
-  ('sentence-builder-vol-3', 'sentence-builder-vol-3', 'Sentence Builder Vol. 3', 'แบบฝึกหัดแต่งประโยคขั้นสูง Vol. 3 (Advanced Business & Writing)', '2026-07-01 00:00:00+00');
-
--- Seed Unit 1 for Vol. 2
-INSERT INTO units (book_name, unit_number, title, subtitle)
-VALUES ('sentence-builder-vol-2', 1, 'Present Continuous & Sentence Expansion', 'บทที่ 1 : ฉันกำลัง… [ I + am + กริยาเติม -ing ]');
-
-DO $$
-DECLARE
-  u1_id UUID;
-BEGIN
-  SELECT id INTO u1_id FROM units WHERE book_name = 'sentence-builder-vol-2' AND unit_number = 1;
-
-  -- Insert Exercise configurations for Unit 1
-  INSERT INTO exercises (unit_id, exercise_code, title, exercise_type, use_ai_check, instruction, guidance, categories)
-  VALUES
-    (u1_id, 'ex-1', 'Exercise 1: แปลประโยคภาษาอังกฤษ', 'translation', true, 'แปลประโยคภาษาไทยเป็นภาษาอังกฤษโดยใช้โครงสร้าง Present Continuous', 'เน้นตรวจสอบ Subject-Verb Agreement และการเติม -ing', NULL),
-    (u1_id, 'ex-2', 'Exercise 2: เลือกคำจากตารางมาแต่งประโยค', 'guided_sentence', true, 'เลือกคำจากตารางมาเติมในช่องว่างให้สมบูรณ์ โดยเชื่อมโยงความหมายให้ถูกต้อง', 'ตรวจคำศัพท์ที่เลือกและการวางตำแหน่งในประโยค', 
-     '[
-        {
-          "order": 1,
-          "name": "ทำอะไรจริง ๆ",
-          "words": [
-            {"en": "drink water", "th": "ดื่มน้ำ"},
-            {"en": "practise speaking", "th": "ฝึกพูด"},
-            {"en": "travel abroad", "th": "ไปเที่ยวต่างประเทศ"}
-          ]
-        },
-        {
-          "order": 2,
-          "name": "เพื่ออะไร",
-          "words": [
-            {"en": "stay hydrated", "th": "รักษาระดับน้ำในร่างกาย"},
-            {"en": "build confidence", "th": "สร้างความมั่นใจ"},
-            {"en": "meet new people", "th": "พบปะผู้คนใหม่ ๆ"}
-          ]
-        },
-        {
-          "order": 3,
-          "name": "แม้ว่า...",
-          "words": [
-            {"en": "not thirsty", "th": "ไม่กระหายน้ำ"},
-            {"en": "shy", "th": "ขี้อาย"},
-            {"en": "alone", "th": "อยู่คนเดียว"}
-          ]
-        }
-      ]'::jsonb),
-    (u1_id, 'ex-3', 'Exercise 3: ดูภาพแล้วแต่งประโยค (Core + Context + Connect)', 'picture_description', true, 'แต่งประโยคบรรยายภาพโดยใช้เทคนิค Core + Context + Connect', 'ตรวจ 3 องค์ประกอบหลัก: ประโยคแกนกลาง + บริบท + ตัวเชื่อม', NULL);
-
-  -- Insert Question Items for Unit 1 Exercises
-  -- Exercise 1 Items
-  INSERT INTO exercise_items (unit_id, exercise_code, item_number, thai_prompt, model_answer, acceptable_answers)
-  VALUES 
-    (u1_id, 'ex-1', 1, 'ฉันกำลังเดินทางเพื่อกลับบ้าน', 'I am commuting to get home.', ARRAY['I am commuting to get home.']),
-    (u1_id, 'ex-1', 2, 'ฉันกำลังจัดผมเพื่อเสริมความมั่นใจตอนนี้', 'I am fixing my hair to boost confidence now.', ARRAY['I am fixing my hair to boost confidence now.']),
-    (u1_id, 'ex-1', 3, 'ฉันกำลังติดตามพัสดุเพราะว่ามันเร่งด่วน', 'I am tracking a parcel because it is urgent.', ARRAY['I am tracking a parcel because it is urgent.']),
-    (u1_id, 'ex-1', 4, 'ฉันกำลังลังเลที่จะออกไปข้างนอก ณ ตอนนี้เพราะมันดึกแล้ว', 'I am hesitating to go outside now because it is late.', ARRAY['I am hesitating to go outside now because it is late.']);
-
-  -- Exercise 2 Items with Modular Thai Templates (Zero-Maintenance Translation Assembly)
-  INSERT INTO exercise_items (unit_id, exercise_code, item_number, prompt, thai_template, model_answer, required_orders)
-  VALUES
-    (u1_id, 'ex-2', 1, 'I do ____________________.', 'ฉัน{1}จริง ๆ', 'I do drink water.', ARRAY[1]),
-    (u1_id, 'ex-2', 2, 'I do ____________________ to ____________________.', 'ฉัน{1}จริง ๆ เพื่อ{2}', 'I do drink water to stay hydrated.', ARRAY[1, 2]),
-    (u1_id, 'ex-2', 3, 'I do ____________________ to ____________________ even when I''m ____________________.', 'ฉัน{1}จริง ๆ เพื่อ{2} แม้ว่าฉันจะ{3}ก็ตาม', 'I do drink water to stay hydrated even when I''m not thirsty.', ARRAY[1, 2, 3]),
-    (u1_id, 'ex-2', 4, 'I do ____________________ to ____________________ even when I''m ____________________.', 'ฉัน{1}จริง ๆ เพื่อ{2} แม้ว่าฉันจะ{3}ก็ตาม', 'I do practise speaking to build confidence even when I''m shy.', ARRAY[1, 2, 3]);
-
-  -- Exercise 3 Items
-  INSERT INTO exercise_items (unit_id, exercise_code, item_number, image_description, context_hint, model_answer)
-  VALUES
-    (u1_id, 'ex-3', 1, 'ผู้ชายกำลังดื่มกาแฟในคาเฟ่', 'ดื่มกาแฟ / ในคาเฟ่ / เพื่อความสดชื่น', 'I am drinking coffee at the cafe right now to feel refreshed.'),
-    (u1_id, 'ex-3', 2, 'ผู้หญิงกำลังวิ่งออกกำลังกายในสวนสาธารณะ', 'วิ่งออกกำลังกาย / ในสวนสาธารณะ / เพื่อสุขภาพดี', 'I am running in the park right now because it is healthy.'),
-    (u1_id, 'ex-3', 3, 'ผู้หญิงกำลังเลือกซื้อของสุขภาพในซูเปอร์มาร์เก็ต', 'ซื้อของสุขภาพ / ในซูเปอร์มาร์เก็ต / เพราะห่วงสุขภาพ', 'I am buying healthy food at the supermarket now because I care about my health.');
-END $$;
+  ('sentence-builder-vol-1', 'sentence-builder-vol-1', 'Sentence Builder Vol. 1', 'แบบฝึกหัดแต่งประโยคภาษาอังกฤษ Vol. 1 (เทคนิคปูพื้นฐาน)', now()),
+  ('sentence-builder-vol-2', 'sentence-builder-vol-2', 'Sentence Builder Vol. 2', 'แบบฝึกหัดแต่งประโยคและขยายประโยค Vol. 2 (Core + Context + Connect)', now()),
+  ('sentence-builder-vol-3', 'sentence-builder-vol-3', 'Sentence Builder Vol. 3', 'แบบฝึกหัดแต่งประโยคขั้นสูง Vol. 3 (Advanced Business & Writing)', now())
+ON CONFLICT (id) DO NOTHING;
