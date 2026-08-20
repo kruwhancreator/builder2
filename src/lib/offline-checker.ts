@@ -402,13 +402,15 @@ export function checkGuidedSentenceExercise(
   const missingOrders = requiredOrders.filter(ord => !foundOrders.has(ord));
 
   if (missingOrders.length > 0) {
-    const missingCat = parsedCategories.find(c => c.order === missingOrders[0]);
-    const missingName = missingCat ? missingCat.name : `หมวดที่ ${missingOrders[0]}`;
+    const missingNames = missingOrders.map(ord => {
+      const cat = parsedCategories.find(c => c.order === ord);
+      return cat ? `"${cat.name}"` : `"หมวดที่ ${ord}"`;
+    });
     return {
       isCorrect: false,
-      message: 'ยังเติมคำในช่องว่างไม่ครบนะคะ',
+      message: 'โครงสร้างประโยคไม่ถูกต้องค่ะ ให้นักเรียนใช้โครงสร้างตามหนังสือนะคะ',
       points: [
-        `• ยังขาดคำศัพท์จากหมวด "${missingName}" ค่ะ`,
+        `• ยังขาดคำศัพท์จากหมวด ${missingNames.join(', ')} ค่ะ`,
         `• กรุณาแตะหรือลากคำศัพท์มาวางในช่องว่างให้ครบถ้วนนะคะ`
       ]
     };
