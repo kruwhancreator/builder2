@@ -161,6 +161,7 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
             ...item,
             image_description: item.image_description,
             context_hint: item.context_hint,
+            teacher_guidance: item.teacher_guidance || ex3?.guidance || '',
             model_answer: item.model_answer
           },
           studentAnswer: studentAns
@@ -180,14 +181,16 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
         points.push(`✨ ประโยคตัวอย่างที่แนะนำ: "${data.correctedSentence}"`);
       }
 
+      // Clean any percentage format if present from status text
+      const cleanStatus = (data.statusText || (isScoreGood ? 'ยอดเยี่ยมมากค่ะ! ประโยคถูกต้องตามโครงสร้าง 👏' : 'เกือบสมบูรณ์แล้วค่ะ ลองปรับตามคำแนะนำดูนะคะ'))
+        .replace(/\s*\(\d+%\)/g, '');
+
       setFeedbacks(prev => ({
         ...prev,
         [key]: {
           isCorrect: isScoreGood,
-          message: isScoreGood 
-            ? `🎉 ${data.statusText || 'ยอดเยี่ยมมากค่ะ! ประโยคถูกต้องตามหลักภาษาอังกฤษและบริบทภาพ 👏'}`
-            : `⚡ ${data.statusText || 'เกือบสมบูรณ์แล้วค่ะ ลองปรับตามคำแนะนำดูนะคะ:'}`,
-          points: points.length > 0 ? points : ['ประโยคถูกต้องตามโครงสร้าง Present Continuous']
+          message: cleanStatus,
+          points: points.length > 0 ? points : ['ประโยคถูกต้องตามโครงสร้างที่กำหนด']
         }
       }));
     } catch (err) {
@@ -634,39 +637,6 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
             </div>
           </div>
 
-          {/* 3 Structure Cards */}
-          <div className="structure-cards-grid grid grid-cols-1 sm:grid-cols-3 gap-3 my-4">
-            <div className="structure-card structure-core-card bg-white border border-[#2563eb] rounded-xl p-3.5 shadow-2xs">
-              <span className="structure-card-title font-bold text-[#1e3a8a] text-xs sm:text-sm block border-b border-blue-100 pb-1 mb-1 font-heading">
-                🔵 Core (ส่วนหลัก)
-              </span>
-              <p className="structure-card-body text-xs text-slate-700">
-                <b>ฉันกำลังทำอะไร:</b><br />
-                <code className="bg-slate-100 text-[#0369a1] px-1.5 py-0.5 rounded font-mono text-xs">I am + V.ing</code>
-              </p>
-            </div>
-
-            <div className="structure-card structure-context-card bg-white border border-emerald-500 rounded-xl p-3.5 shadow-2xs">
-              <span className="structure-card-title font-bold text-emerald-800 text-xs sm:text-sm block border-b border-emerald-100 pb-1 mb-1 font-heading">
-                🟢 Context (บริบท)
-              </span>
-              <p className="structure-card-body text-xs text-slate-700">
-                <b>เพื่ออะไร:</b> <code className="bg-slate-100 text-[#0369a1] px-1.5 py-0.5 rounded font-mono text-xs">to + V.inf</code><br />
-                <b>เมื่อไหร่:</b> <code className="bg-slate-100 text-[#0369a1] px-1.5 py-0.5 rounded font-mono text-xs">now / right now</code>
-              </p>
-            </div>
-
-            <div className="structure-card structure-connect-card bg-white border border-amber-500 rounded-xl p-3.5 shadow-2xs">
-              <span className="structure-card-title font-bold text-amber-800 text-xs sm:text-sm block border-b border-amber-100 pb-1 mb-1 font-heading">
-                🟠 Connect (ส่วนเชื่อม)
-              </span>
-              <p className="structure-card-body text-xs text-slate-700">
-                <b>เพราะอะไร:</b><br />
-                <code className="bg-slate-100 text-[#0369a1] px-1.5 py-0.5 rounded font-mono text-xs">because it is + Adj</code>
-              </p>
-            </div>
-          </div>
-
           <div className="quiz-items-list space-y-6 mt-6">
             {ex3.items?.map((item: any, idx: number) => {
               const key = `ex3_${item.id || idx + 1}`;
@@ -675,14 +645,20 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
 
               return (
                 <div key={key} className="quiz-item-card bg-[#f8fafc] border border-slate-200 rounded-xl p-5 shadow-2xs">
-                  <div className="quiz-question-prompt text-base sm:text-lg font-bold text-[#1e3a8a] mb-2 font-heading">
-                    ภาพที่ {idx + 1}: {item.image_description}
+                  <div className="quiz-question-prompt text-base sm:text-lg font-bold text-[#1e3a8a] mb-3 font-heading">
+                    ภาพที่ {idx + 1} :
                   </div>
 
-                  {item.context_hint && (
-                    <p className="quiz-context-hint text-xs text-slate-600 mb-3 bg-amber-50 p-2.5 rounded border border-amber-200 font-medium">
-                      💡 คำใบ้บริบทภาพ: <span className="font-bold text-slate-800">{item.context_hint}</span>
-                    </p>
+                  {/* Render uploaded image if available */}
+                  {item.image_url && (
+                    <div className="quiz-image-preview mb-4 overflow-hidden rounded-xl border border-slate-200 bg-white p-2 shadow-2xs max-w-md">
+                      <img
+                        src={item.image_url}
+                        alt={`ภาพที่ ${idx + 1}`}
+                        className="w-full h-auto max-h-72 object-contain rounded-lg"
+                        loading="lazy"
+                      />
+                    </div>
                   )}
 
                   <div className="quiz-input-wrapper mb-3">
@@ -714,16 +690,6 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                         </>
                       )}
                     </button>
-
-                    <a
-                      href="https://quillbot.com/grammar-check"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn-quillbot-check bg-[#8b5cf6] hover:bg-[#7c3aed] text-white px-4 py-2 rounded-lg text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all shadow-2xs"
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                      <span>🌐 ตรวจ Grammar ด้วย QuillBot</span>
-                    </a>
                   </div>
 
                   {/* Feedback Box */}

@@ -63,6 +63,7 @@ export async function GET(req: NextRequest) {
                 translations: i.translations || null,
                 image_description: i.image_description,
                 context_hint: i.context_hint,
+                teacher_guidance: i.teacher_guidance || null,
                 image_url: i.image_url
               }))
             };
@@ -301,6 +302,7 @@ export async function POST(req: NextRequest) {
               translations: item.translations || null,
               image_description: item.image_description || null,
               context_hint: item.context_hint || null,
+              teacher_guidance: item.teacher_guidance || null,
               image_url: item.image_url || null
             }));
 

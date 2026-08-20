@@ -29,8 +29,10 @@ import {
   Users,
   Award,
   Eye,
-  ArrowUpRight
+  ArrowUpRight,
+  Upload
 } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
 const INITIAL_BOOKS = [
   { 
@@ -603,6 +605,47 @@ export default function BackendAdminPage() {
       };
       return copy;
     });
+  };
+
+  const [isUploadingImage, setIsUploadingImage] = useState<Record<number, boolean>>({});
+
+  const handleUploadImage = async (qIdx: number, file: File) => {
+    if (!file) return;
+    setIsUploadingImage(prev => ({ ...prev, [qIdx]: true }));
+    try {
+      const fileExt = file.name.split('.').pop() || 'png';
+      const fileName = `ex3_${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
+      const filePath = `exercise-images/${fileName}`;
+
+      if (supabase) {
+        let { data, error } = await supabase.storage
+          .from('exercise-images')
+          .upload(filePath, file, { upsert: true });
+
+        if (!error) {
+          const { data: publicUrlData } = supabase.storage
+            .from('exercise-images')
+            .getPublicUrl(filePath);
+          if (publicUrlData?.publicUrl) {
+            handleUpdateQuestion(qIdx, 'image_url', publicUrlData.publicUrl);
+            setIsUploadingImage(prev => ({ ...prev, [qIdx]: false }));
+            return;
+          }
+        }
+      }
+
+      // Fallback: Read as base64 data URL
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const base64Url = e.target?.result as string;
+        handleUpdateQuestion(qIdx, 'image_url', base64Url);
+        setIsUploadingImage(prev => ({ ...prev, [qIdx]: false }));
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.error('Image upload failed:', err);
+      setIsUploadingImage(prev => ({ ...prev, [qIdx]: false }));
+    }
   };
 
   const handleDeleteQuestion = (idx: number) => {
@@ -1933,31 +1976,99 @@ export default function BackendAdminPage() {
                               </>
                             )}
 
-                            {/* Picture Description */}
+                            {/* Picture Description & AI Pattern Locking */}
                             {currentQuizExercise.exercise.type === 'picture_description' && (
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div>
-                                  <label className="block font-bold text-slate-700 uppercase mb-1.5 text-xs sm:text-sm">
-                                    🖼️ คำบรรยายภาพ:
-                                  </label>
-                                  <input
-                                    type="text"
-                                    value={q.image_description || ''}
-                                    onChange={(e) => handleUpdateQuestion(idx, 'image_description', e.target.value)}
-                                    placeholder="เช่น ผู้ชายกำลังดื่มกาแฟในคาเฟ่"
-                                    className="w-full rounded-2xl bg-white border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-900 focus:outline-none focus:border-[#2563eb]"
-                                  />
+                              <div className="space-y-4">
+                                {/* 1. Image Upload & URL */}
+                                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+                                  <div className="flex items-center justify-between">
+                                    <label className="block font-bold text-slate-800 uppercase text-xs sm:text-sm">
+                                      🖼️ รูปภาพประจำข้อ (ATTACH IMAGE):
+                                    </label>
+                                    <span className="text-[11px] text-slate-500 font-medium">
+                                      อัปโหลดไฟล์ภาพเข้า Supabase Storage หรือวางลิงก์ URL
+                                    </span>
+                                  </div>
+
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
+                                    {/* Upload Button */}
+                                    <div>
+                                      <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+                                        📁 เลือกไฟล์ภาพจากเครื่อง:
+                                      </label>
+                                      <div className="flex items-center gap-2">
+                                        <label className="flex-1 cursor-pointer border-2 border-dashed border-blue-300 hover:border-blue-500 bg-white hover:bg-blue-50/50 rounded-xl px-4 py-3 flex items-center justify-center gap-2 text-xs font-bold text-blue-700 transition-all shadow-2xs">
+                                          <Upload className="w-4 h-4" />
+                                          <span>{isUploadingImage[idx] ? 'กำลังอัปโหลด...' : 'เลือกไฟล์ภาพ (PNG, JPG, WebP)'}</span>
+                                          <input
+                                            type="file"
+                                            accept="image/*"
+                                            className="hidden"
+                                            disabled={isUploadingImage[idx]}
+                                            onChange={(e) => {
+                                              const file = e.target.files?.[0];
+                                              if (file) handleUploadImage(idx, file);
+                                            }}
+                                          />
+                                        </label>
+                                      </div>
+                                    </div>
+
+                                    {/* Direct URL Input */}
+                                    <div>
+                                      <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+                                        🔗 หรือระบุ Image URL โดยตรง:
+                                      </label>
+                                      <input
+                                        type="text"
+                                        value={q.image_url || ''}
+                                        onChange={(e) => handleUpdateQuestion(idx, 'image_url', e.target.value)}
+                                        placeholder="https://... หรือ data:image/..."
+                                        className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-[#2563eb]"
+                                      />
+                                    </div>
+                                  </div>
+
+                                  {/* Image Preview */}
+                                  {q.image_url && (
+                                    <div className="pt-2 border-t border-slate-200 flex items-center gap-4">
+                                      <div className="relative w-28 h-28 rounded-xl border border-slate-300 bg-white p-1 overflow-hidden shrink-0 shadow-2xs">
+                                        <img
+                                          src={q.image_url}
+                                          alt={`ภาพที่ ${idx + 1}`}
+                                          className="w-full h-full object-contain rounded-lg"
+                                        />
+                                      </div>
+                                      <div className="flex-1 text-xs text-slate-600">
+                                        <span className="font-bold text-slate-800 block mb-1">ตัวอย่างรูปภาพที่จะแสดงในหน้านักเรียน</span>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleUpdateQuestion(idx, 'image_url', '')}
+                                          className="text-xs font-bold text-red-600 hover:text-red-700 hover:underline cursor-pointer"
+                                        >
+                                          ลบรูปภาพนี้
+                                        </button>
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
-                                <div>
-                                  <label className="block font-bold text-slate-700 uppercase mb-1.5 text-xs sm:text-sm">
-                                    💡 คำใบ้บริบทภาพ:
-                                  </label>
-                                  <input
-                                    type="text"
-                                    value={q.context_hint || ''}
-                                    onChange={(e) => handleUpdateQuestion(idx, 'context_hint', e.target.value)}
-                                    placeholder="เช่น ดื่มกาแฟ / ในคาเฟ่ / เพื่อความสดชื่น"
-                                    className="w-full rounded-2xl bg-white border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-900 focus:outline-none focus:border-[#2563eb]"
+
+                                {/* 2. Context & AI Pattern Locking Rules */}
+                                <div className="bg-amber-50/70 border border-amber-200 rounded-2xl p-4 space-y-2">
+                                  <div className="flex items-center justify-between">
+                                    <label className="block font-bold text-amber-950 uppercase text-xs sm:text-sm">
+                                      🧠 บริบทและโครงสร้างที่กำหนดให้ AI ตรวจจับ (CONTEXT & AI PATTERN LOCKING):
+                                    </label>
+                                    <span className="text-[11px] text-amber-800 font-medium">
+                                      กำหนดสูตรและตัวอย่างประโยคเพื่อให้ AI ตรวจสอบโครงสร้างได้อย่างแม่นยำ
+                                    </span>
+                                  </div>
+                                  <textarea
+                                    rows={6}
+                                    value={q.teacher_guidance || q.context_hint || ''}
+                                    onChange={(e) => handleUpdateQuestion(idx, 'teacher_guidance', e.target.value)}
+                                    placeholder={`Core: \tI + do + [ V.ไม่ผัน ]\nI do cook at home.\nContext: \tI + do + V.ไม่ผัน + [ to + V.ไม่ผัน ]\nI do cook at home to save money.\nConnect: \tI + do + V.ไม่ผัน + to + V.ไม่ผัน + [ even when I’m + คำคุณศัพท์]\nI do cook at home to save money even when I am tired.\nตัวอย่าง: I do read books to learn new things even when I'm sleepy.\nตัวอย่าง: I do wash my hands to stay clean even when I’m in a hurry.\nตัวอย่าง: I do turn off the lights to save electricity even when I’m busy.`}
+                                    className="w-full rounded-xl bg-white border border-amber-300 p-3.5 text-xs sm:text-sm font-mono text-slate-900 focus:outline-none focus:border-amber-600 leading-relaxed"
                                   />
                                 </div>
                               </div>
@@ -1972,7 +2083,7 @@ export default function BackendAdminPage() {
                                 type="text"
                                 value={q.model_answer || ''}
                                 onChange={(e) => handleUpdateQuestion(idx, 'model_answer', e.target.value)}
-                                placeholder="เช่น I do drink water to stay hydrated."
+                                placeholder="เช่น I do drink water to stay hydrated even when I'm not thirsty."
                                 className="w-full rounded-2xl bg-white border border-slate-300 px-4 py-3 text-sm sm:text-base text-slate-900 font-bold font-mono focus:outline-none focus:border-[#2563eb]"
                               />
                             </div>

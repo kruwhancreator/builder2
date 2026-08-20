@@ -96,22 +96,26 @@ Student Answer: "${req.studentAnswer}"
 Students write free-style sentences following the step structure. Check grammar (I am + V.ing), spelling (e.g. "makeing" -> "making"), and full stop "." at the end.
 Provide breakdown object: { "actionValid": boolean, "timeValid": boolean, "purposeValid": boolean, "reasonValid": boolean }.`;
   } else {
-    prompt = `Exercise Type: Picture Description
-Picture Description: "${req.item.image_description || ''}"
-Context Hint: "${req.item.context_hint || ''}"
+    const teacherPatternContext = req.item.teacher_guidance || req.item.context_hint || '';
+    prompt = `Exercise Type: Picture Description & Sentence Construction (Exercise 3: Core + Context + Connect)
+${req.item.image_description ? `Picture Description: "${req.item.image_description}"` : ''}
 ${modelAnswer}
 ${acceptableAnswers}
-${teacherGuidance}
 
-Required Structure:
-1. Core: S + is/am/are + V.ing (e.g., "The man is drinking coffee", "I am drinking coffee")
-2. Context: time or place (e.g., "at the cafe", "right now", "now")
-3. Connect: cause/reason/purpose (e.g. "because ...", "for refreshment", "to save money")
+Pattern & Structure Rules specified by Teacher for AI to lock onto:
+${teacherPatternContext || `Core: S + do/am/is/are + V\nContext: to + V.inf / time / place\nConnect: because / even when ...`}
 
-Student Answer: "${req.studentAnswer}"
+Student Answer to Evaluate: "${req.studentAnswer}"
 
-Check Core (S + is/am/are + V.ing with any valid subject), Context, Connect, spelling errors, and ending period '.'.
-Return breakdown object: { "core": boolean, "context": boolean, "connect": boolean }.`;
+Evaluation Instructions:
+1. Verify if the student's sentence follows the target Core + Context + Connect structure pattern specified in the rules above.
+2. Check grammar rules (e.g. auxiliary verbs, V.inf after 'to', adjectives/clauses after connectives), spelling, and ending period '.'.
+3. Do NOT include any percentage numbers in "statusText". Provide encouraging, clear Thai status:
+   - "✅ ถูกต้องตามโครงสร้างและหลักภาษาค่ะ 👏" (if correct)
+   - "💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ" (if structure, grammar, or spelling has issues)
+4. Provide detailed Thai feedbackPoints explaining what is correct, what is missing, or what needs adjustment.
+5. In "correctedSentence", provide a natural, fully correct sentence conforming to the target structure.
+6. Return breakdown object: { "core": boolean, "context": boolean, "connect": boolean }.`;
   }
 
   const modelsToTry = [
