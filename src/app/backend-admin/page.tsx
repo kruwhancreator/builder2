@@ -558,6 +558,32 @@ export default function BackendAdminPage() {
     });
   };
 
+  const handleInsertOrderIntoPrompt = (qIdx: number, orderNum: number) => {
+    setQuizItems(prev => {
+      const copy = [...prev];
+      const curPrompt = copy[qIdx].prompt || '';
+      const blankStr = '_____________________';
+      let nextPrompt = curPrompt;
+      if (!curPrompt.trim()) {
+        nextPrompt = blankStr;
+      } else if (curPrompt.endsWith(' ') || curPrompt.endsWith('.')) {
+        nextPrompt = curPrompt.endsWith('.') ? curPrompt.slice(0, -1) + ' ' + blankStr + '.' : curPrompt + blankStr;
+      } else {
+        nextPrompt = curPrompt + ' ' + blankStr;
+      }
+
+      const curOrders: number[] = copy[qIdx].required_orders || [];
+      const nextOrders = curOrders.includes(orderNum) ? curOrders : [...curOrders, orderNum].sort((a, b) => a - b);
+
+      copy[qIdx] = {
+        ...copy[qIdx],
+        prompt: nextPrompt,
+        required_orders: nextOrders
+      };
+      return copy;
+    });
+  };
+
   const handleDeleteQuestion = (idx: number) => {
     setQuizItems(prev => prev.filter((_, i) => i !== idx));
   };
@@ -1678,9 +1704,14 @@ export default function BackendAdminPage() {
                             {(currentQuizExercise.exercise.type === 'guided_sentence' || currentQuizExercise.exercise.code === 'ex-2') && (
                               <>
                                 <div>
-                                  <label className="block font-bold text-slate-700 uppercase mb-1.5 text-xs sm:text-sm">
-                                    📍 โจทย์ข้อความ (Fill in the blanks):
-                                  </label>
+                                  <div className="flex items-center justify-between mb-1.5">
+                                    <label className="block font-bold text-slate-700 uppercase text-xs sm:text-sm">
+                                      📍 โจทย์ข้อความ (Fill in the blanks):
+                                    </label>
+                                    <span className="text-[11px] text-slate-500">
+                                      💡 พิมพ์ข้อความแล้วคลิกปุ่ม Order ด้านล่างเพื่อแทรกช่องว่างอัตโนมัติ
+                                    </span>
+                                  </div>
                                   <input
                                     type="text"
                                     value={q.prompt || ''}
@@ -1688,13 +1719,45 @@ export default function BackendAdminPage() {
                                     placeholder="เช่น I do ____________________ to ____________________."
                                     className="w-full rounded-2xl bg-white border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-900 font-mono focus:outline-none focus:border-[#2563eb]"
                                   />
+
+                                  {/* Live Preview of the interactive question box */}
+                                  {q.prompt && (
+                                    <div className="mt-2 p-3 bg-blue-50/70 rounded-xl border border-blue-200 text-xs">
+                                      <span className="font-bold text-[#1e3a8a] block mb-1.5">
+                                        👁️ แสดงตัวอย่างที่นักเรียนจะเห็นในแบบฝึกหัด (Interactive Preview):
+                                      </span>
+                                      <div className="inline-flex items-center gap-2 flex-wrap bg-white p-2.5 rounded-lg border border-blue-200 text-sm font-bold text-slate-900">
+                                        {(() => {
+                                          const blankRegex = /_{2,}/g;
+                                          const parts = (q.prompt || '').split(blankRegex);
+                                          const totalSlots = Math.max(1, (q.prompt || '').match(blankRegex)?.length || 1);
+                                          const reqCats = quizCategories.filter(c => requiredOrders.includes(c.order));
+                                          return parts.map((part: string, pIdx: number) => (
+                                            <div key={pIdx} className="inline-flex items-center gap-1.5 flex-wrap">
+                                              {part && <span className="font-mono text-[#1e3a8a]">{part}</span>}
+                                              {pIdx < totalSlots && (
+                                                <span className="inline-flex items-center justify-center px-3 py-1 border-2 border-dashed rounded-lg text-xs font-bold border-blue-400 bg-blue-50 text-[#1e3a8a]">
+                                                  ({reqCats[pIdx]?.name || `หมวดที่ ${pIdx + 1}`})
+                                                </span>
+                                              )}
+                                            </div>
+                                          ));
+                                        })()}
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
 
-                                {/* Required Orders Selector */}
+                                {/* Required Orders Selector / Quick Insert */}
                                 <div>
-                                  <label className="block font-bold text-slate-700 uppercase mb-1.5 text-xs sm:text-sm">
-                                    🔀 หมวดหมู่ที่ต้องใช้ในข้อนี้ (Required Orders for Word Bank):
-                                  </label>
+                                  <div className="flex items-center justify-between mb-1.5">
+                                    <label className="block font-bold text-slate-700 uppercase text-xs sm:text-sm">
+                                      🔀 หมวดหมู่ที่ต้องใช้ในข้อนี้ (Required Orders & Quick Insert):
+                                    </label>
+                                    <span className="text-[11px] text-blue-700 font-medium">
+                                      แตะปุ่มเพื่อแทรกช่องว่างลงในโจทย์
+                                    </span>
+                                  </div>
                                   <div className="flex flex-wrap gap-2">
                                     {quizCategories.map((cat) => {
                                       const isSelected = requiredOrders.includes(cat.order);
@@ -1702,14 +1765,17 @@ export default function BackendAdminPage() {
                                         <button
                                           key={cat.order}
                                           type="button"
-                                          onClick={() => handleToggleRequiredOrder(idx, cat.order)}
-                                          className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center gap-1.5 ${
+                                          onClick={() => handleInsertOrderIntoPrompt(idx, cat.order)}
+                                          className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs ${
                                             isSelected
-                                              ? 'bg-blue-600 text-white border-blue-700 shadow-xs'
-                                              : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                                              ? 'bg-[#2563eb] text-white border-blue-700 hover:bg-[#1d4ed8]'
+                                              : 'bg-white text-slate-700 border-slate-300 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700'
                                           }`}
+                                          title={`คลิกเพื่อแทรกช่อง Order ${cat.order} ลงในโจทย์`}
                                         >
-                                          <span>{isSelected ? '✓' : '+'}</span>
+                                          <span className="w-4 h-4 rounded-full bg-white/20 inline-flex items-center justify-center text-[10px]">
+                                            {isSelected ? '✓' : '+'}
+                                          </span>
                                           <span>Order {cat.order}: {cat.name}</span>
                                         </button>
                                       );

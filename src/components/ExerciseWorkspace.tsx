@@ -393,15 +393,76 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
 
               return (
                 <div key={key} className="quiz-item-card bg-[#f8fafc] border border-slate-200 rounded-xl p-5 shadow-2xs">
-                  <div className="quiz-question-prompt text-base sm:text-lg font-bold text-[#1e3a8a] mb-2 font-heading">
-                    {idx + 1}. {item.prompt}
+                  {/* 1. Question Number Header */}
+                  <div className="quiz-question-prompt text-base sm:text-lg font-bold text-[#1e3a8a] mb-3 font-heading flex items-center gap-2">
+                    <span className="w-8 h-8 rounded-xl bg-blue-100 text-[#1e3a8a] inline-flex items-center justify-center text-sm font-bold shadow-2xs">
+                      {idx + 1}
+                    </span>
+                    <span>ข้อที่ {idx + 1}</span>
                   </div>
 
-                  {/* Drag & Drop Target Sentence Construction Area */}
+                  {/* 2. Word Bank in Columns (Easy to read!) */}
+                  <div className="word-bank-container bg-white border border-slate-200 rounded-xl p-4 mb-4 shadow-2xs">
+                    <div className="text-xs font-bold text-slate-600 mb-3 flex items-center justify-between border-b border-slate-100 pb-2">
+                      <span className="flex items-center gap-1.5 text-[#1e3a8a]">
+                        <span>🏷️</span>
+                        <span className="font-bold">Word Bank (แตะหรือลากคำศัพท์มาวางในประโยคด้านล่าง):</span>
+                      </span>
+                      <span className="text-[11px] font-normal text-slate-400">
+                        {visibleCategories.length} หมวดหมู่
+                      </span>
+                    </div>
+
+                    <div className={`grid grid-cols-1 ${visibleCategories.length === 2 ? 'sm:grid-cols-2' : visibleCategories.length >= 3 ? 'sm:grid-cols-3' : 'sm:grid-cols-1'} gap-3`}>
+                      {visibleCategories.map((cat, cIdx) => (
+                        <div key={cat.order} className="category-col-card bg-slate-50/80 border border-slate-200 rounded-xl p-3 flex flex-col justify-start">
+                          <div className="text-xs font-bold text-[#1e3a8a] mb-2.5 pb-1.5 border-b border-slate-200 flex items-center gap-1.5">
+                            <span className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0">
+                              {cat.order}
+                            </span>
+                            <span className="truncate">{cat.name}</span>
+                          </div>
+
+                          <div className="flex flex-col gap-1.5">
+                            {cat.words.map((wObj, wIdx) => {
+                              const isSelected = currentSlots.includes(wObj.en);
+                              return (
+                                <div
+                                  key={wIdx}
+                                  draggable
+                                  onDragStart={(e) => {
+                                    e.dataTransfer.setData('text/plain', wObj.en);
+                                  }}
+                                  onClick={() => handleAutoPlaceWord(key, promptParts, wObj.en, slotCount, cIdx)}
+                                  className={`word-chip-pill px-3 py-2 rounded-lg text-xs sm:text-sm font-bold border transition-all cursor-pointer select-none flex items-center justify-between gap-1.5 ${
+                                    isSelected
+                                      ? 'bg-blue-600 text-white border-blue-700 shadow-xs opacity-90'
+                                      : 'bg-white hover:bg-blue-50 text-slate-800 border-slate-300 hover:border-blue-400 shadow-2xs hover:shadow-xs'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-1.5 min-w-0">
+                                    <GripHorizontal className={`w-3.5 h-3.5 shrink-0 ${isSelected ? 'text-white' : 'text-slate-400'}`} />
+                                    <span className="truncate">{wObj.en}</span>
+                                  </div>
+                                  {wObj.th && (
+                                    <span className={`text-[11px] font-normal shrink-0 ${isSelected ? 'text-blue-100' : 'text-slate-500'}`}>
+                                      {wObj.th}
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 3. Drag & Drop Sentence Builder Dropzone (Below Word Bank) */}
                   <div className="sentence-builder-dropzone bg-white border-2 border-dashed border-blue-200 hover:border-blue-400 rounded-xl p-4 mb-4 transition-all shadow-2xs">
                     <div className="text-xs font-bold text-slate-500 uppercase mb-2.5 flex items-center gap-1.5">
                       <GripHorizontal className="w-3.5 h-3.5 text-blue-500" />
-                      <span>ลากหรือแตะคำศัพท์จาก Word Bank มาวางในช่องว่าง:</span>
+                      <span>ประโยคที่กำลังแต่ง (Interactive Sentence):</span>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2 text-sm sm:text-base font-bold text-slate-900">
@@ -417,58 +478,6 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                               onRemove={() => handleRemoveSlotWord(key, promptParts, pIdx, slotCount)}
                             />
                           )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Word Bank Choices for this item */}
-                  <div className="word-bank-container bg-white border border-slate-200 rounded-xl p-3.5 mb-4 shadow-2xs">
-                    <div className="text-xs font-bold text-slate-600 mb-2.5 flex items-center justify-between">
-                      <span className="flex items-center gap-1">
-                        <span>🏷️</span>
-                        <span>Word Bank (แตะหรือลากคำศัพท์เพื่อวาง):</span>
-                      </span>
-                      <span className="text-[11px] font-normal text-slate-400">
-                        แสดง {visibleCategories.length} หมวดหมู่สำหรับข้อนี้
-                      </span>
-                    </div>
-
-                    <div className="space-y-2.5">
-                      {visibleCategories.map((cat, cIdx) => (
-                        <div key={cat.order} className="category-words-group flex flex-wrap items-center gap-2">
-                          <span className="text-xs font-bold text-[#1e3a8a] bg-blue-50 px-2.5 py-1 rounded-md border border-blue-200/80 shrink-0">
-                            {cat.order}. {cat.name}:
-                          </span>
-
-                          <div className="flex flex-wrap items-center gap-2">
-                            {cat.words.map((wObj, wIdx) => {
-                              const isSelected = currentSlots.includes(wObj.en);
-                              return (
-                                <div
-                                  key={wIdx}
-                                  draggable
-                                  onDragStart={(e) => {
-                                    e.dataTransfer.setData('text/plain', wObj.en);
-                                  }}
-                                  onClick={() => handleAutoPlaceWord(key, promptParts, wObj.en, slotCount, cIdx)}
-                                  className={`word-chip-pill px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold border transition-all cursor-pointer select-none flex items-center gap-1.5 ${
-                                    isSelected
-                                      ? 'bg-blue-600 text-white border-blue-700 shadow-xs scale-98 opacity-90'
-                                      : 'bg-white hover:bg-blue-50 text-slate-800 border-slate-300 hover:border-blue-400 shadow-2xs hover:shadow-xs'
-                                  }`}
-                                >
-                                  <GripHorizontal className={`w-3 h-3 ${isSelected ? 'text-white' : 'text-slate-400'}`} />
-                                  <span>{wObj.en}</span>
-                                  {wObj.th && (
-                                    <span className={`text-[11px] font-normal ${isSelected ? 'text-blue-100' : 'text-slate-500'}`}>
-                                      ({wObj.th})
-                                    </span>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
                         </div>
                       ))}
                     </div>
@@ -827,7 +836,7 @@ function DropSlot({
           : 'border-slate-300 bg-slate-50 text-slate-600 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 cursor-pointer'
       }`}
     >
-      {categoryHint ? `+ วางคำ (${categoryHint})` : '+ วางคำที่นี่'}
+      {categoryHint ? `(${categoryHint})` : '(เลือกคำศัพท์)'}
     </span>
   );
 }
