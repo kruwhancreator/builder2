@@ -568,37 +568,81 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                         )}
                       </div>
 
-                      {/* 💡 ดูเฉลย Button (shown below incorrect feedback) */}
-                      {!fb.isCorrect && item.model_answer && (
-                        <div className="reveal-solution-section mb-3">
-                          <button
-                            type="button"
-                            onClick={() => toggleRevealSolution(key)}
-                            className="btn-reveal-solution inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-[#2563eb] hover:text-[#1d4ed8] bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3.5 py-1.5 rounded-lg transition-all shadow-2xs cursor-pointer"
-                          >
-                            💡 {revealedSolutions[key] ? 'ซ่อนเฉลย' : 'ดูเฉลย'}
-                          </button>
+                  {/* 💡 ดูเฉลย Button (shown for students to learn all valid sentence combinations) */}
+                  <div className="reveal-solution-section mb-3 mt-1">
+                    <button
+                      type="button"
+                      onClick={() => toggleRevealSolution(key)}
+                      className="btn-reveal-solution inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-[#2563eb] hover:text-[#1d4ed8] bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3.5 py-1.5 rounded-lg transition-all shadow-2xs cursor-pointer"
+                    >
+                      💡 {revealedSolutions[key] ? 'ซ่อนเฉลย' : 'ดูเฉลยคำตอบที่เป็นไปได้ทั้งหมด'}
+                    </button>
 
-                          {revealedSolutions[key] && (
-                            <div className="solution-actual-answer-box mt-2.5 p-3.5 bg-[#eff6ff] border border-[#bfdbfe] rounded-xl text-[#1e40af] text-xs sm:text-sm animate-in fade-in duration-200">
-                              <span className="font-bold block mb-1 text-slate-700">เฉลยคำตอบที่ถูกต้อง:</span>
-                              <div className="font-mono font-bold bg-white px-3 py-2 rounded-lg border border-[#bfdbfe] text-[#1e3a8a] text-sm sm:text-base">
-                                {item.model_answer}
-                              </div>
-                              {item.acceptable_answers && item.acceptable_answers.length > 1 && (
-                                <div className="mt-2 space-y-1">
-                                  <span className="text-xs font-semibold text-slate-500 block">คำตอบอื่นที่ใช้ได้:</span>
-                                  {item.acceptable_answers.filter((ans: string) => ans !== item.model_answer).map((ans: string, aIdx: number) => (
-                                    <div key={aIdx} className="font-mono bg-white/80 px-2.5 py-1 rounded border border-[#bfdbfe] text-slate-700 text-xs">
-                                      • {ans}
-                                    </div>
-                                  ))}
+                    {revealedSolutions[key] && (() => {
+                      // Dynamically compute all possible combinations for this item
+                      const firstCat = ex2Categories.find(c => c.order === requiredOrders[0]);
+                      const rowCount = firstCat ? firstCat.words.length : 3;
+                      const allSolutions: Array<{ en: string; th: string }> = [];
+
+                      for (let r = 0; r < rowCount; r++) {
+                        const chosenEnWords: string[] = [];
+                        const chosenThWords: Record<number, string> = {};
+
+                        for (const ord of requiredOrders) {
+                          const cat = ex2Categories.find(c => c.order === ord);
+                          const wObj = cat?.words[r];
+                          if (wObj) {
+                            chosenEnWords.push(wObj.en);
+                            chosenThWords[ord] = wObj.th || wObj.en;
+                          }
+                        }
+
+                        if (chosenEnWords.length === slotCount) {
+                          const enSentence = reconstructSentence(promptParts, chosenEnWords);
+                          let thSentence = '';
+                          if (item.thai_template) {
+                            let tpl = item.thai_template;
+                            for (const ord of requiredOrders) {
+                              if (chosenThWords[ord]) {
+                                tpl = tpl.replace(new RegExp(`\\{${ord}\\}`, 'g'), chosenThWords[ord]);
+                              }
+                            }
+                            thSentence = tpl;
+                          }
+                          allSolutions.push({ en: enSentence, th: thSentence });
+                        }
+                      }
+
+                      return (
+                        <div className="solution-actual-answer-box mt-2.5 p-4 bg-[#eff6ff] border border-[#bfdbfe] rounded-xl text-[#1e40af] text-xs sm:text-sm animate-in fade-in duration-200">
+                          <div className="flex items-center justify-between gap-2 mb-2 pb-2 border-b border-blue-200/80">
+                            <span className="font-bold text-slate-800 text-xs sm:text-sm">
+                              💡 เฉลยคำตอบที่ถูกต้อง ({allSolutions.length} รูปแบบที่เลือกแต่งได้):
+                            </span>
+                            <span className="text-[11px] font-semibold text-blue-700 bg-white px-2 py-0.5 rounded border border-blue-200">
+                              เลือกตอบแบบใดก็ได้
+                            </span>
+                          </div>
+
+                          <div className="space-y-2.5">
+                            {allSolutions.map((sol, sIdx) => (
+                              <div key={sIdx} className="solution-item-card bg-white p-3 rounded-lg border border-[#bfdbfe] shadow-2xs">
+                                <div className="font-mono font-bold text-[#1e3a8a] text-sm sm:text-base">
+                                  {sIdx + 1}. {sol.en}
                                 </div>
-                              )}
-                            </div>
-                          )}
+                                {sol.th && (
+                                  <div className="text-xs sm:text-sm font-medium text-emerald-800 mt-1 flex items-center gap-1.5">
+                                    <span className="font-bold text-emerald-950">📖 คำแปล:</span>
+                                    <span>"{sol.th}"</span>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                      )}
+                      );
+                    })()}
+                  </div>
                     </>
                   )}
                 </div>
