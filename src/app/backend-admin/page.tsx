@@ -450,17 +450,42 @@ export default function BackendAdminPage() {
     setShowQuizModal(true);
   };
 
-  // Category manipulation handlers for guided_sentence
-  const handleAddCategory = () => {
+  // Category & Matrix Grid manipulation handlers for guided_sentence
+  const maxRowCount = Math.max(1, ...quizCategories.map(c => (c.words || []).length));
+
+  const handleAddMatrixSet = () => {
+    setQuizCategories(prev => prev.map(cat => ({
+      ...cat,
+      words: [...(cat.words || []), { en: '', th: '' }]
+    })));
+  };
+
+  const handleDeleteMatrixSet = (rIdx: number) => {
+    setQuizCategories(prev => prev.map(cat => ({
+      ...cat,
+      words: (cat.words || []).filter((_: any, i: number) => i !== rIdx)
+    })));
+  };
+
+  const handleAddMatrixOrder = () => {
     const nextOrder = quizCategories.length + 1;
+    const currentRows = Math.max(1, ...quizCategories.map(c => (c.words || []).length));
+    const newWords = Array.from({ length: currentRows }, () => ({ en: '', th: '' }));
     setQuizCategories(prev => [
       ...prev,
       {
         order: nextOrder,
         name: `หมวดที่ ${nextOrder}`,
-        words: [{ en: '', th: '' }, { en: '', th: '' }, { en: '', th: '' }]
+        words: newWords
       }
     ]);
+  };
+
+  const handleDeleteMatrixOrder = (cIdx: number) => {
+    setQuizCategories(prev => {
+      const filtered = prev.filter((_, i) => i !== cIdx);
+      return filtered.map((cat, idx) => ({ ...cat, order: idx + 1 }));
+    });
   };
 
   const handleUpdateCategoryName = (cIdx: number, name: string) => {
@@ -471,41 +496,15 @@ export default function BackendAdminPage() {
     });
   };
 
-  const handleDeleteCategory = (cIdx: number) => {
-    setQuizCategories(prev => {
-      const filtered = prev.filter((_, i) => i !== cIdx);
-      return filtered.map((cat, idx) => ({ ...cat, order: idx + 1 }));
-    });
-  };
-
-  const handleAddWordToCategory = (cIdx: number) => {
+  const handleUpdateMatrixCell = (cIdx: number, rIdx: number, field: 'en' | 'th', value: string) => {
     setQuizCategories(prev => {
       const copy = [...prev];
-      copy[cIdx] = {
-        ...copy[cIdx],
-        words: [...copy[cIdx].words, { en: '', th: '' }]
-      };
-      return copy;
-    });
-  };
-
-  const handleUpdateWordInCategory = (cIdx: number, wIdx: number, field: 'en' | 'th', value: string) => {
-    setQuizCategories(prev => {
-      const copy = [...prev];
-      const wordsCopy = [...copy[cIdx].words];
-      wordsCopy[wIdx] = { ...wordsCopy[wIdx], [field]: value };
+      const wordsCopy = [...(copy[cIdx].words || [])];
+      while (wordsCopy.length <= rIdx) {
+        wordsCopy.push({ en: '', th: '' });
+      }
+      wordsCopy[rIdx] = { ...wordsCopy[rIdx], [field]: value };
       copy[cIdx] = { ...copy[cIdx], words: wordsCopy };
-      return copy;
-    });
-  };
-
-  const handleDeleteWordFromCategory = (cIdx: number, wIdx: number) => {
-    setQuizCategories(prev => {
-      const copy = [...prev];
-      copy[cIdx] = {
-        ...copy[cIdx],
-        words: copy[cIdx].words.filter((_: any, i: number) => i !== wIdx)
-      };
       return copy;
     });
   };
@@ -1460,118 +1459,138 @@ export default function BackendAdminPage() {
             {/* Modal Questions Body */}
             <div className="quiz-modal-body flex-1 overflow-y-auto p-6 sm:p-8 space-y-8 text-sm">
               {/* ========================================================= */}
-              {/* SPECIAL SECTION FOR GUIDED SENTENCE: 1. CATEGORIES & WORD BANK */}
+              {/* SECTION 1: WORD BANK COHERENT SETS MATRIX (guided_sentence) */}
               {/* ========================================================= */}
               {(currentQuizExercise.exercise.type === 'guided_sentence' || currentQuizExercise.exercise.code === 'ex-2') && (
-                <div className="categories-management-section bg-blue-50/50 border-2 border-blue-200/80 rounded-3xl p-6 sm:p-7 shadow-xs">
-                  <div className="flex flex-wrap items-center justify-between gap-3 mb-5 pb-3 border-b border-blue-200/80">
+                <div className="bg-gradient-to-br from-blue-50/70 to-indigo-50/70 border border-blue-200 rounded-3xl p-5 sm:p-6 mb-8 shadow-xs">
+                  <div className="flex flex-wrap items-center justify-between gap-3 mb-4 pb-3 border-b border-blue-200/80">
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="text-lg">🗂️</span>
+                        <span className="text-xl">🗂️</span>
                         <h4 className="font-extrabold text-[#1e3a8a] text-base sm:text-lg font-heading">
-                          1. จัดการหมวดหมู่และคลังคำศัพท์ (Word Bank Categories by Order)
+                          1. ตารางจัดชุดคำศัพท์ที่เข้าคู่กัน (Coherent Word Sets Matrix)
                         </h4>
                       </div>
                       <p className="text-xs text-slate-600 mt-1">
-                        กำหนดชื่อหมวดหมู่ตามลำดับ Order และคำศัพท์ภาษาอังกฤษพร้อมคำแปลภาษาไทยสำหรับแต่ละหมวด
+                        💡 <b>คำอธิบายการจับคู่:</b> คำศัพท์ใน <b>"แถวเดียวกัน (ชุดเดียวกัน)"</b> จะถือเป็นคู่คำที่มีความหมายเชื่อมโยงกันอย่างสมบูรณ์
                       </p>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={handleAddCategory}
-                      className="bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-3.5 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>+ เพิ่มหมวดหมู่ใหม่ (Order)</span>
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleAddMatrixSet}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>+ เพิ่มชุดคำใหม่ (แถว)</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleAddMatrixOrder}
+                        className="bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-3.5 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>+ เพิ่ม Order ใหม่ (คอลัมน์)</span>
+                      </button>
+                    </div>
                   </div>
 
-                  <div className="space-y-5">
-                    {quizCategories.map((cat, cIdx) => (
-                      <div key={cIdx} className="category-card bg-white rounded-2xl p-5 border border-blue-200/90 shadow-2xs">
-                        <div className="flex items-center justify-between gap-3 mb-3.5 pb-2.5 border-b border-slate-100">
-                          <div className="flex items-center gap-2.5 flex-1">
-                            <span className="bg-[#1e3a8a] text-white text-xs font-extrabold px-3 py-1 rounded-lg">
-                              Order {cat.order}
-                            </span>
-                            <div className="flex-1 max-w-sm">
-                              <input
-                                type="text"
-                                value={cat.name || ''}
-                                onChange={(e) => handleUpdateCategoryName(cIdx, e.target.value)}
-                                placeholder="ชื่อหมวดหมู่ เช่น ทำอะไรจริง ๆ / เพื่ออะไร / แม้ว่า..."
-                                className="w-full rounded-xl bg-slate-50 border border-slate-300 px-3 py-1.5 text-xs sm:text-sm font-bold text-slate-900 focus:outline-none focus:border-[#2563eb]"
-                              />
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => handleAddWordToCategory(cIdx)}
-                              className="text-xs bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 px-2.5 py-1 rounded-lg font-bold flex items-center gap-1 transition-all cursor-pointer"
-                            >
-                              <Plus className="w-3 h-3" />
-                              <span>เพิ่มคำศัพท์</span>
-                            </button>
-
-                            {quizCategories.length > 1 && (
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteCategory(cIdx)}
-                                className="text-red-400 hover:text-red-600 p-1.5 hover:bg-red-50 rounded-lg transition-colors"
-                                title="ลบหมวดนี้"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Words List */}
-                        <div className="words-table-wrapper space-y-2">
-                          <div className="grid grid-cols-12 gap-2 text-[11px] font-bold text-slate-500 uppercase px-1">
-                            <span className="col-span-6">คำศัพท์ภาษาอังกฤษ (English)</span>
-                            <span className="col-span-5">คำแปลภาษาไทย (Thai Meaning)</span>
-                            <span className="col-span-1 text-center">ลบ</span>
-                          </div>
-
-                          {cat.words.map((w: any, wIdx: number) => (
-                            <div key={wIdx} className="grid grid-cols-12 gap-2 items-center">
-                              <div className="col-span-6">
-                                <input
-                                  type="text"
-                                  value={w.en || ''}
-                                  onChange={(e) => handleUpdateWordInCategory(cIdx, wIdx, 'en', e.target.value)}
-                                  placeholder="เช่น drink water"
-                                  className="w-full rounded-xl bg-slate-50 border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-900 font-mono focus:outline-none focus:border-[#2563eb]"
-                                />
+                  {/* MATRIX TABLE GRID */}
+                  <div className="overflow-x-auto rounded-2xl border border-blue-200/80 bg-white shadow-2xs">
+                    <table className="w-full text-xs text-left border-collapse">
+                      <thead>
+                        <tr className="bg-[#1e3a8a] text-white">
+                          <th className="p-3 w-16 text-center font-extrabold border-r border-blue-800">
+                            ชุดที่ (Set)
+                          </th>
+                          {quizCategories.map((cat, cIdx) => (
+                            <th key={cat.order || cIdx} className="p-3 border-r border-blue-800 min-w-[240px]">
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-1.5 flex-1">
+                                  <span className="bg-white/20 text-white text-[11px] font-bold px-2 py-0.5 rounded shrink-0">
+                                    Order {cat.order}
+                                  </span>
+                                  <input
+                                    type="text"
+                                    value={cat.name || ''}
+                                    onChange={(e) => handleUpdateCategoryName(cIdx, e.target.value)}
+                                    placeholder="ชื่อหมวดหมู่..."
+                                    className="w-full bg-white/10 hover:bg-white/20 text-white placeholder-white/60 font-bold px-2 py-1 rounded text-xs border border-white/30 focus:outline-none focus:bg-white focus:text-slate-900"
+                                  />
+                                </div>
+                                {quizCategories.length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteMatrixOrder(cIdx)}
+                                    className="text-white/70 hover:text-rose-300 p-1 rounded hover:bg-white/10 transition-colors"
+                                    title="ลบ Order นี้"
+                                  >
+                                    ✕
+                                  </button>
+                                )}
                               </div>
-                              <div className="col-span-5">
-                                <input
-                                  type="text"
-                                  value={w.th || ''}
-                                  onChange={(e) => handleUpdateWordInCategory(cIdx, wIdx, 'th', e.target.value)}
-                                  placeholder="เช่น ดื่มน้ำ"
-                                  className="w-full rounded-xl bg-slate-50 border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-800 focus:outline-none focus:border-[#2563eb]"
-                                />
-                              </div>
-                              <div className="col-span-1 text-center">
+                            </th>
+                          ))}
+                          <th className="p-3 w-14 text-center font-bold">
+                            ลบ
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200 text-slate-800">
+                        {Array.from({ length: maxRowCount }).map((_, rIdx) => (
+                          <tr key={rIdx} className="hover:bg-blue-50/40 transition-colors">
+                            <td className="p-3 text-center font-extrabold text-[#1e3a8a] bg-slate-50/80 border-r border-slate-200">
+                              <span className="w-6 h-6 rounded-full bg-blue-100 text-blue-800 inline-flex items-center justify-center text-xs">
+                                {rIdx + 1}
+                              </span>
+                            </td>
+
+                            {quizCategories.map((cat, cIdx) => {
+                              const w = (cat.words && cat.words[rIdx]) || { en: '', th: '' };
+                              return (
+                                <td key={cIdx} className="p-2.5 border-r border-slate-200 align-top">
+                                  <div className="space-y-1.5">
+                                    <div>
+                                      <input
+                                        type="text"
+                                        value={w.en || ''}
+                                        onChange={(e) => handleUpdateMatrixCell(cIdx, rIdx, 'en', e.target.value)}
+                                        placeholder="English (เช่น drink water)"
+                                        className="w-full rounded-lg bg-slate-50 border border-slate-300 px-2.5 py-1.5 text-xs font-bold font-mono text-slate-900 focus:outline-none focus:border-[#2563eb] focus:bg-white"
+                                      />
+                                    </div>
+                                    <div>
+                                      <input
+                                        type="text"
+                                        value={w.th || ''}
+                                        onChange={(e) => handleUpdateMatrixCell(cIdx, rIdx, 'th', e.target.value)}
+                                        placeholder="ไทย (เช่น ดื่มน้ำ)"
+                                        className="w-full rounded-lg bg-slate-50 border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:border-[#2563eb] focus:bg-white"
+                                      />
+                                    </div>
+                                  </div>
+                                </td>
+                              );
+                            })}
+
+                            <td className="p-3 text-center align-middle">
+                              {maxRowCount > 1 && (
                                 <button
                                   type="button"
-                                  onClick={() => handleDeleteWordFromCategory(cIdx, wIdx)}
-                                  className="text-slate-400 hover:text-red-600 p-1 hover:bg-slate-100 rounded-lg transition-colors"
-                                  title="ลบคำนี้"
+                                  onClick={() => handleDeleteMatrixSet(rIdx)}
+                                  className="text-slate-400 hover:text-rose-600 p-1.5 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                  title="ลบชุดคำศัพท์แถวนี้"
                                 >
-                                  ✕
+                                  <Trash2 className="w-4 h-4" />
                                 </button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               )}
@@ -1728,6 +1747,82 @@ export default function BackendAdminPage() {
                                     </div>
                                   )}
                                 </div>
+
+                                {/* Live Auto-Generated Answers Matrix Preview for this question */}
+                                {(() => {
+                                  const blankRegex = /_{2,}/g;
+                                  const promptParts = (q.prompt || '').split(blankRegex);
+                                  const slotCount = Math.max(1, (q.prompt || '').match(blankRegex)?.length || 1);
+                                  const allSolutions: Array<{ en: string; th: string }> = [];
+
+                                  for (let r = 0; r < maxRowCount; r++) {
+                                    const chosenEnWords: string[] = [];
+                                    const chosenThWords: Record<number, string> = {};
+
+                                    for (const ord of requiredOrders) {
+                                      const cat = quizCategories.find(c => c.order === ord);
+                                      const wObj = cat?.words && cat.words[r];
+                                      if (wObj && wObj.en) {
+                                        chosenEnWords.push(wObj.en);
+                                        chosenThWords[ord] = wObj.th || wObj.en;
+                                      }
+                                    }
+
+                                    if (chosenEnWords.length === slotCount) {
+                                      let enSentence = '';
+                                      promptParts.forEach((part: string, pIdx: number) => {
+                                        enSentence += part;
+                                        if (pIdx < chosenEnWords.length) {
+                                          enSentence += chosenEnWords[pIdx];
+                                        }
+                                      });
+
+                                      let thSentence = '';
+                                      if (q.thai_template) {
+                                        let tpl = q.thai_template;
+                                        for (const ord of requiredOrders) {
+                                          if (chosenThWords[ord]) {
+                                            tpl = tpl.replace(new RegExp(`\\{${ord}\\}`, 'g'), chosenThWords[ord]);
+                                          }
+                                        }
+                                        thSentence = tpl;
+                                      } else {
+                                        thSentence = requiredOrders.map(ord => chosenThWords[ord] || '').filter(Boolean).join(' ');
+                                      }
+
+                                      allSolutions.push({ en: enSentence, th: thSentence });
+                                    }
+                                  }
+
+                                  if (allSolutions.length === 0) return null;
+
+                                  return (
+                                    <div className="bg-blue-50/70 border border-blue-200 p-4 rounded-2xl space-y-2">
+                                      <div className="flex items-center justify-between">
+                                        <span className="font-bold text-[#1e3a8a] text-xs sm:text-sm">
+                                          💡 เฉลยคำตอบทั้งหมดที่ระบบคำนวณจากตาราง Matrix ({allSolutions.length} รูปแบบ):
+                                        </span>
+                                        <span className="text-[11px] text-blue-700 bg-white px-2 py-0.5 rounded border border-blue-200">
+                                          นักเรียนตอบแบบใดก็ได้
+                                        </span>
+                                      </div>
+                                      <div className="space-y-1.5 pt-1">
+                                        {allSolutions.map((sol, sIdx) => (
+                                          <div key={sIdx} className="bg-white p-2.5 rounded-xl border border-blue-200 text-xs flex flex-wrap items-center justify-between gap-2">
+                                            <span className="font-mono font-bold text-[#1e3a8a]">
+                                              {sIdx + 1}. {sol.en}
+                                            </span>
+                                            {sol.th && (
+                                              <span className="text-emerald-800 font-medium bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                                                📖 {sol.th}
+                                              </span>
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  );
+                                })()}
                               </>
                             )}
 

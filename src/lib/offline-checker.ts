@@ -350,28 +350,57 @@ export function checkGuidedSentenceExercise(
 
   const requiredOrders: number[] = item.required_orders || [1];
 
-  // 1. TIER 1 & TIER 2: IDENTIFY SELECTED WORDS PER ORDER
-  const chosenWordsByOrder: Record<number, { en: string; th: string; index: number; catName: string }> = {};
+  // 1. EXTRACT ALL WORDS PRESENT IN THE SENTENCE WITH THEIR POSITIONS & CATEGORIES
+  interface MatchedWord {
+    en: string;
+    th: string;
+    order: number;
+    catName: string;
+    indices: number[]; // Set/row indices where this word appears
+    position: number;  // Character index in normalized student answer
+  }
 
-  for (const reqOrder of requiredOrders) {
-    const targetCat = parsedCategories.find(c => c.order === reqOrder);
-    if (!targetCat) continue;
+  const matchedWords: MatchedWord[] = [];
 
-    for (const wObj of targetCat.words) {
-      if (wObj.en && normalizedRaw.includes(normalize(wObj.en))) {
-        chosenWordsByOrder[reqOrder] = {
-          en: wObj.en,
-          th: wObj.th,
-          index: wObj.index,
-          catName: targetCat.name
-        };
-        break;
+  for (const cat of parsedCategories) {
+    // Group words in this category by normalized English phrase to collect all row indices
+    const wordMap = new Map<string, { en: string; th: string; indices: number[] }>();
+    for (const w of cat.words) {
+      if (!w.en) continue;
+      const key = normalize(w.en);
+      if (!wordMap.has(key)) {
+        wordMap.set(key, { en: w.en, th: w.th, indices: [w.index] });
+      } else {
+        wordMap.get(key)!.indices.push(w.index);
+      }
+    }
+
+    // Check each unique word against the student answer
+    for (const [normKey, wData] of wordMap.entries()) {
+      let searchPos = 0;
+      while (searchPos < normalizedRaw.length) {
+        const foundPos = normalizedRaw.indexOf(normKey, searchPos);
+        if (foundPos === -1) break;
+        matchedWords.push({
+          en: wData.en,
+          th: wData.th,
+          order: cat.order,
+          catName: cat.name,
+          indices: wData.indices,
+          position: foundPos
+        });
+        searchPos = foundPos + normKey.length;
       }
     }
   }
 
-  // Check missing slots
-  const missingOrders = requiredOrders.filter(ord => !chosenWordsByOrder[ord]);
+  // Sort matched words by their appearance order in the sentence
+  matchedWords.sort((a, b) => a.position - b.position);
+
+  // Check if any required category is completely missing
+  const foundOrders = new Set(matchedWords.map(m => m.order));
+  const missingOrders = requiredOrders.filter(ord => !foundOrders.has(ord));
+
   if (missingOrders.length > 0) {
     const missingCat = parsedCategories.find(c => c.order === missingOrders[0]);
     const missingName = missingCat ? missingCat.name : `หมวดที่ ${missingOrders[0]}`;
@@ -385,10 +414,51 @@ export function checkGuidedSentenceExercise(
     };
   }
 
-  // 2. TIER 3: SEMANTIC COHERENCE (PARALLEL INDEX MATCHING)
-  const chosenList = requiredOrders.map(ord => chosenWordsByOrder[ord]);
-  const primaryIndex = chosenList[0]?.index;
-  const isParallelConsistent = chosenList.every(c => c.index === primaryIndex);
+  // 2. CHECK STRUCTURAL / POSITIONAL ORDER (Order 1 before Order 2 before Order 3)
+  // Get the first occurrence of each required order sorted by position in the sentence
+  const orderedMatches: MatchedWord[] = [];
+  const assignedOrders = new Set<number>();
+
+  for (const m of matchedWords) {
+    if (requiredOrders.includes(m.order) && !assignedOrders.has(m.order)) {
+      orderedMatches.push(m);
+      assignedOrders.add(m.order);
+    }
+  }
+
+  // Verify that the actual sequence of orders in the sentence matches requiredOrders exactly
+  const actualOrderSequence = orderedMatches.map(m => m.order);
+  const isOrderCorrect = requiredOrders.every((reqOrd, idx) => actualOrderSequence[idx] === reqOrd);
+
+  if (!isOrderCorrect) {
+    const expectedCat1 = parsedCategories.find(c => c.order === requiredOrders[0])?.name || `หมวดที่ ${requiredOrders[0]}`;
+    const expectedCat2 = parsedCategories.find(c => c.order === requiredOrders[1])?.name || `หมวดที่ ${requiredOrders[1]}`;
+    return {
+      isCorrect: false,
+      message: 'โครงสร้างประโยคไม่ถูกต้องค่ะ ให้นักเรียนใช้โครงสร้างตามหนังสือนะคะ',
+      points: [
+        `• ลำดับคำศัพท์สลับตำแหน่งกันค่ะ`,
+        `• กรุณาวางคำจาก "${expectedCat1}" ในช่องแรก และตามด้วยคำจาก "${expectedCat2}" ตามลำดับโครงสร้างที่กำหนดนะคะ`
+      ]
+    };
+  }
+
+  // 3. TIER 3: SEMANTIC COHERENCE (MATCHING SAME SET / ROW INDEX)
+  // Map ordered matches to the required orders
+  const chosenWordsByOrder: Record<number, MatchedWord> = {};
+  for (const m of orderedMatches) {
+    chosenWordsByOrder[m.order] = m;
+  }
+
+  // Check if all chosen words share at least one common row/set index
+  const chosenList = requiredOrders.map(ord => chosenWordsByOrder[ord]).filter(Boolean);
+  let commonIndices = chosenList.length > 0 ? [...chosenList[0].indices] : [];
+
+  for (let i = 1; i < chosenList.length; i++) {
+    commonIndices = commonIndices.filter(idx => chosenList[i].indices.includes(idx));
+  }
+
+  const isParallelConsistent = commonIndices.length > 0;
 
   // Check acceptable answers as override if explicitly defined
   const acceptableList: string[] = item.acceptable_answers || (item.model_answer ? [item.model_answer] : []);
@@ -397,13 +467,13 @@ export function checkGuidedSentenceExercise(
   const isCoherent = isParallelConsistent || isExplicitlyAcceptable;
 
   if (!isCoherent && chosenList.length >= 2) {
-    // Semantic mismatch guidance
     const word1 = chosenList[0];
     const word2 = chosenList[1];
 
-    // Find the ideal partner for word 1 (same index)
+    // Find the ideal partner for word 1 (sharing primary index)
+    const primaryIdx = word1.indices[0];
     const cat2 = parsedCategories.find(c => c.order === requiredOrders[1]);
-    const idealPartner = cat2?.words.find(w => w.index === word1.index);
+    const idealPartner = cat2?.words.find(w => w.index === primaryIdx);
 
     return {
       isCorrect: false,
@@ -417,7 +487,7 @@ export function checkGuidedSentenceExercise(
     };
   }
 
-  // 3. AUTO-ASSEMBLE THAI TRANSLATION FROM TEMPLATE
+  // 4. AUTO-ASSEMBLE THAI TRANSLATION FROM TEMPLATE
   let assembledTranslation: string | undefined = undefined;
 
   if (item.thai_template) {
