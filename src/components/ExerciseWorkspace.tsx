@@ -377,36 +377,6 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
             </div>
           </div>
 
-          {/* Categories / Word Bank Reference Table */}
-          {ex2Categories.length > 0 && (
-            <div className="categories-reference-card bg-slate-50 border border-slate-200 rounded-xl p-4 sm:p-5 mb-6">
-              <div className="font-bold text-slate-800 text-xs sm:text-sm mb-3 flex items-center gap-1.5 uppercase tracking-wide">
-                <span>📚</span>
-                <span>ตารางคำศัพท์และหมวดหมู่สำหรับบทนี้ (Vocabulary Reference Table):</span>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                {ex2Categories.map((cat) => (
-                  <div key={cat.order} className="category-col bg-white p-3 rounded-lg border border-slate-200 shadow-2xs">
-                    <div className="font-bold text-[#1e3a8a] text-xs sm:text-sm border-b border-slate-100 pb-1.5 mb-2 flex items-center gap-1.5">
-                      <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-800 flex items-center justify-center text-[11px] font-bold">
-                        {cat.order}
-                      </span>
-                      <span>{cat.name}</span>
-                    </div>
-                    <div className="space-y-1.5">
-                      {cat.words.map((wObj, wIdx) => (
-                        <div key={wIdx} className="text-xs text-slate-700 font-medium leading-tight">
-                          <span className="font-bold text-slate-900">• {wObj.en}</span>
-                          {wObj.th && <span className="text-slate-500 text-[11px] ml-1">({wObj.th})</span>}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
           <div className="quiz-items-list space-y-6">
             {ex2.items?.map((item: any, idx: number) => {
               const key = `ex2_${item.id || idx + 1}`;
