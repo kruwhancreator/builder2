@@ -615,6 +615,16 @@ export default function BackendAdminPage() {
 
     try {
       const isGuided = currentQuizExercise.exercise.type === 'guided_sentence' || currentQuizExercise.exercise.code === 'ex-2';
+      const cleanedItems = quizItems.map(item => {
+        const blankRegex = /_{2,}/g;
+        const slotCount = Math.max(1, (item.prompt || '').match(blankRegex)?.length || 1);
+        const rawOrders = Array.isArray(item.required_orders) && item.required_orders.length > 0 ? item.required_orders : [1];
+        return {
+          ...item,
+          required_orders: rawOrders.slice(0, slotCount)
+        };
+      });
+
       const res = await fetch('/api/admin/curriculum', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -624,7 +634,7 @@ export default function BackendAdminPage() {
           unit_id: currentQuizExercise.unit.id,
           unit_number: currentQuizExercise.unit.unit_number,
           exercise_code: currentQuizExercise.exercise.code,
-          items: quizItems,
+          items: cleanedItems,
           categories: isGuided ? quizCategories : undefined
         })
       });

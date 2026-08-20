@@ -384,12 +384,17 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
               const blankRegex = /_{2,}/g;
               const promptParts = (item.prompt || '').split(blankRegex);
               const slotCount = Math.max(1, (item.prompt || '').match(blankRegex)?.length || 1);
-              const requiredOrders: number[] = item.required_orders || ex2Categories.slice(0, slotCount).map(c => c.order);
+              const rawOrders: number[] = Array.isArray(item.required_orders) && item.required_orders.length > 0
+                ? item.required_orders
+                : [1];
+              const requiredOrders: number[] = rawOrders.slice(0, slotCount);
               const currentSlots = dragSlots[key] || Array(slotCount).fill('');
               const currentConstructed = answers[key] || '';
 
-              // Visible categories for this item
-              const visibleCategories = ex2Categories.filter(cat => requiredOrders.includes(cat.order));
+              // Visible categories strictly for the active slots in this item
+              const visibleCategories = requiredOrders
+                .map(ord => ex2Categories.find(cat => cat.order === ord))
+                .filter(Boolean) as typeof ex2Categories;
 
               return (
                 <div key={key} className="quiz-item-card bg-[#f8fafc] border border-slate-200 rounded-xl p-5 shadow-2xs">
