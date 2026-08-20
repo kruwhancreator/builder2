@@ -47,8 +47,24 @@ export async function GET(req: NextRequest) {
               use_ai_check: ex.use_ai_check !== false,
               instruction: ex.instruction || '',
               guidance: ex.guidance || '',
+              categories: ex.categories || (ex.exercise_code === 'ex-2' ? (chapter1Fallback.exercises['ex-2'] as any)?.categories : null),
+              word_bank: ex.word_bank || null,
               itemCount: exItems.length,
-              items: exItems
+              items: exItems.map(i => ({
+                id: i.item_number,
+                item_number: i.item_number,
+                thai_prompt: i.thai_prompt,
+                thai: i.thai_prompt,
+                prompt: i.prompt,
+                thai_template: i.thai_template,
+                required_orders: i.required_orders || [1],
+                model_answer: i.model_answer,
+                acceptable_answers: i.acceptable_answers || [i.model_answer],
+                translations: i.translations || null,
+                image_description: i.image_description,
+                context_hint: i.context_hint,
+                image_url: i.image_url
+              }))
             };
           });
 
@@ -67,19 +83,23 @@ export async function GET(req: NextRequest) {
                 use_ai_check: true,
                 instruction: 'แปลประโยคภาษาไทยเป็นภาษาอังกฤษ',
                 guidance: 'ตรวจสอบ Subject-Verb Agreement และการเติม -ing',
+                categories: null,
+                word_bank: null,
                 itemCount: ex1Items.length,
-                items: ex1Items
+                items: ex1Items.length > 0 ? ex1Items : chapter1Fallback.exercises['ex-1'].items
               },
               {
                 id: 'ex-2',
                 code: 'ex-2',
-                title: 'Exercise 2: เลือกคำจากที่มีให้มาแต่งประโยค',
+                title: 'Exercise 2: เลือกคำจากตารางมาแต่งประโยค',
                 type: 'guided_sentence',
                 use_ai_check: true,
                 instruction: 'เลือกคำที่กำหนดให้มาเติมลงในประโยค',
                 guidance: 'ตรวจคำศัพท์ที่เลือกและการวางตำแหน่งในประโยค',
+                categories: (chapter1Fallback.exercises['ex-2'] as any)?.categories,
+                word_bank: null,
                 itemCount: ex2Items.length,
-                items: ex2Items
+                items: ex2Items.length > 0 ? ex2Items : chapter1Fallback.exercises['ex-2'].items
               },
               {
                 id: 'ex-3',
@@ -89,8 +109,10 @@ export async function GET(req: NextRequest) {
                 use_ai_check: true,
                 instruction: 'ดูภาพแล้วแต่งประโยคตามโครงสร้างที่กำหนด',
                 guidance: 'ตรวจ 3 องค์ประกอบ: Core + Context + Connect',
+                categories: null,
+                word_bank: null,
                 itemCount: ex3Items.length,
-                items: ex3Items
+                items: ex3Items.length > 0 ? ex3Items : chapter1Fallback.exercises['ex-3'].items
               }
             ];
           }
@@ -133,11 +155,12 @@ export async function GET(req: NextRequest) {
         {
           id: 'ex-2',
           code: 'ex-2',
-          title: 'Exercise 2: เลือกคำจากที่มีให้มาแต่งประโยค',
+          title: 'Exercise 2: เลือกคำจากตารางมาแต่งประโยค',
           type: 'guided_sentence',
           use_ai_check: true,
           instruction: 'เลือกคำที่กำหนดให้มาเติมลงในประโยค',
           guidance: 'ตรวจคำศัพท์ที่เลือกและการวางตำแหน่งในประโยค',
+          categories: (chapter1Fallback.exercises['ex-2'] as any)?.categories,
           itemCount: 4,
           items: chapter1Fallback.exercises['ex-2'].items
         },
@@ -162,7 +185,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { action, bookName, unitData, exerciseData, items } = body;
+    const { action, bookName, unitData, exerciseData, items, categories } = body;
 
     // 1. SAVE UNIT
     if (action === 'save_unit') {
@@ -189,7 +212,7 @@ export async function POST(req: NextRequest) {
 
     // 2. SAVE EXERCISE (CREATE / EDIT EXERCISE CONFIGURATION)
     if (action === 'save_exercise') {
-      const { unit_id, unit_number, exercise_code, title, exercise_type, use_ai_check, instruction, guidance } = exerciseData;
+      const { unit_id, unit_number, exercise_code, title, exercise_type, use_ai_check, instruction, guidance, categories: exCats } = exerciseData;
 
       if (!title) {
         return NextResponse.json({ error: 'กรุณากรอกชื่อแบบฝึกหัด (Exercise Title)' }, { status: 400 });
@@ -217,7 +240,8 @@ export async function POST(req: NextRequest) {
             exercise_type: exercise_type || 'translation',
             use_ai_check: use_ai_check !== false,
             instruction: instruction || null,
-            guidance: guidance || null
+            guidance: guidance || null,
+            categories: exCats || null
           }, { onConflict: 'unit_id,exercise_code' });
 
           if (exErr) {
@@ -229,7 +253,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, message: `บันทึกแบบฝึกหัด "${title}" เรียบร้อยแล้ว!` });
     }
 
-    // 3. SAVE QUIZ ITEMS
+    // 3. SAVE QUIZ ITEMS & CATEGORIES
     if (action === 'save_quiz_items') {
       const { unit_id, unit_number, exercise_code } = body;
 
@@ -246,6 +270,15 @@ export async function POST(req: NextRequest) {
         }
 
         if (resolvedUnitId) {
+          // If categories are passed (for guided_sentence), update exercises.categories
+          if (Array.isArray(categories)) {
+            await supabase
+              .from('exercises')
+              .update({ categories })
+              .eq('unit_id', resolvedUnitId)
+              .eq('exercise_code', exercise_code);
+          }
+
           // Delete existing items for this exercise to cleanly re-insert
           await supabase
             .from('exercise_items')
@@ -261,8 +294,11 @@ export async function POST(req: NextRequest) {
               item_number: idx + 1,
               thai_prompt: item.thai || item.thai_prompt || null,
               prompt: item.prompt || null,
+              thai_template: item.thai_template || null,
+              required_orders: item.required_orders || [1],
               model_answer: item.model_answer || '',
               acceptable_answers: item.acceptable_answers || [item.model_answer],
+              translations: item.translations || null,
               image_description: item.image_description || null,
               context_hint: item.context_hint || null,
               image_url: item.image_url || null

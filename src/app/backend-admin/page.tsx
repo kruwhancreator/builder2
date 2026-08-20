@@ -109,6 +109,7 @@ export default function BackendAdminPage() {
     exercise: any;
   } | null>(null);
   const [quizItems, setQuizItems] = useState<any[]>([]);
+  const [quizCategories, setQuizCategories] = useState<any[]>([]);
   const [isSavingQuiz, setIsSavingQuiz] = useState(false);
 
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -402,7 +403,111 @@ export default function BackendAdminPage() {
   const openQuizEditor = (unit: any, exercise: any) => {
     setCurrentQuizExercise({ unit, exercise });
     setQuizItems(JSON.parse(JSON.stringify(exercise.items || [])));
+    // Load and normalize categories for guided_sentence
+    if (exercise.type === 'guided_sentence' || exercise.code === 'ex-2') {
+      const rawCats = exercise.categories || [];
+      const normalizedCats = Array.isArray(rawCats) && rawCats.length > 0
+        ? rawCats.map((c: any, cIdx: number) => ({
+            order: c.order || cIdx + 1,
+            name: c.name || c.category_name || `หมวดที่ ${cIdx + 1}`,
+            words: (c.words || c.word_bank || []).map((w: any) => 
+              typeof w === 'string' ? { en: w, th: '' } : { en: w.en || '', th: w.th || '' }
+            )
+          }))
+        : [
+            {
+              order: 1,
+              name: 'ทำอะไรจริง ๆ',
+              words: [
+                { en: 'drink water', th: 'ดื่มน้ำ' },
+                { en: 'practise speaking', th: 'ฝึกพูด' },
+                { en: 'travel abroad', th: 'ไปเที่ยวต่างประเทศ' }
+              ]
+            },
+            {
+              order: 2,
+              name: 'เพื่ออะไร',
+              words: [
+                { en: 'stay hydrated', th: 'รักษาระดับน้ำในร่างกาย' },
+                { en: 'build confidence', th: 'สร้างความมั่นใจ' },
+                { en: 'meet new people', th: 'พบปะผู้คนใหม่ ๆ' }
+              ]
+            },
+            {
+              order: 3,
+              name: 'แม้ว่า...',
+              words: [
+                { en: 'not thirsty', th: 'ไม่กระหายน้ำ' },
+                { en: 'shy', th: 'ขี้อาย' },
+                { en: 'alone', th: 'อยู่คนเดียว' }
+              ]
+            }
+          ];
+      setQuizCategories(normalizedCats);
+    } else {
+      setQuizCategories([]);
+    }
     setShowQuizModal(true);
+  };
+
+  // Category manipulation handlers for guided_sentence
+  const handleAddCategory = () => {
+    const nextOrder = quizCategories.length + 1;
+    setQuizCategories(prev => [
+      ...prev,
+      {
+        order: nextOrder,
+        name: `หมวดที่ ${nextOrder}`,
+        words: [{ en: '', th: '' }, { en: '', th: '' }, { en: '', th: '' }]
+      }
+    ]);
+  };
+
+  const handleUpdateCategoryName = (cIdx: number, name: string) => {
+    setQuizCategories(prev => {
+      const copy = [...prev];
+      copy[cIdx] = { ...copy[cIdx], name };
+      return copy;
+    });
+  };
+
+  const handleDeleteCategory = (cIdx: number) => {
+    setQuizCategories(prev => {
+      const filtered = prev.filter((_, i) => i !== cIdx);
+      return filtered.map((cat, idx) => ({ ...cat, order: idx + 1 }));
+    });
+  };
+
+  const handleAddWordToCategory = (cIdx: number) => {
+    setQuizCategories(prev => {
+      const copy = [...prev];
+      copy[cIdx] = {
+        ...copy[cIdx],
+        words: [...copy[cIdx].words, { en: '', th: '' }]
+      };
+      return copy;
+    });
+  };
+
+  const handleUpdateWordInCategory = (cIdx: number, wIdx: number, field: 'en' | 'th', value: string) => {
+    setQuizCategories(prev => {
+      const copy = [...prev];
+      const wordsCopy = [...copy[cIdx].words];
+      wordsCopy[wIdx] = { ...wordsCopy[wIdx], [field]: value };
+      copy[cIdx] = { ...copy[cIdx], words: wordsCopy };
+      return copy;
+    });
+  };
+
+  const handleDeleteWordFromCategory = (cIdx: number, wIdx: number) => {
+    setQuizCategories(prev => {
+      const copy = [...prev];
+      copy[cIdx] = {
+        ...copy[cIdx],
+        words: copy[cIdx].words.filter((_: any, i: number) => i !== wIdx)
+      };
+      return copy;
+    });
   };
 
   const handleAddQuestion = () => {
@@ -419,6 +524,9 @@ export default function BackendAdminPage() {
       newItem.thai = 'พิมพ์โจทย์ภาษาไทย...';
     } else if (exType === 'guided_sentence') {
       newItem.prompt = 'I am ____________________.';
+      newItem.thai_template = 'ฉัน...';
+      newItem.required_orders = [1];
+      newItem.model_answer = 'I am doing fine.';
     } else if (exType === 'picture_description') {
       newItem.image_description = 'คำบรรยายภาพ...';
       newItem.context_hint = 'คำใบ้บริบท...';
@@ -435,6 +543,22 @@ export default function BackendAdminPage() {
     });
   };
 
+  const handleToggleRequiredOrder = (qIdx: number, orderNum: number) => {
+    setQuizItems(prev => {
+      const copy = [...prev];
+      const curOrders: number[] = copy[qIdx].required_orders || [1];
+      let nextOrders: number[];
+      if (curOrders.includes(orderNum)) {
+        if (curOrders.length === 1) return prev; // Keep at least 1 order
+        nextOrders = curOrders.filter(o => o !== orderNum);
+      } else {
+        nextOrders = [...curOrders, orderNum].sort((a, b) => a - b);
+      }
+      copy[qIdx] = { ...copy[qIdx], required_orders: nextOrders };
+      return copy;
+    });
+  };
+
   const handleDeleteQuestion = (idx: number) => {
     setQuizItems(prev => prev.filter((_, i) => i !== idx));
   };
@@ -444,6 +568,7 @@ export default function BackendAdminPage() {
     setIsSavingQuiz(true);
 
     try {
+      const isGuided = currentQuizExercise.exercise.type === 'guided_sentence' || currentQuizExercise.exercise.code === 'ex-2';
       const res = await fetch('/api/admin/curriculum', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -453,13 +578,14 @@ export default function BackendAdminPage() {
           unit_id: currentQuizExercise.unit.id,
           unit_number: currentQuizExercise.unit.unit_number,
           exercise_code: currentQuizExercise.exercise.code,
-          items: quizItems
+          items: quizItems,
+          categories: isGuided ? quizCategories : undefined
         })
       });
 
       const resData = await res.json();
       if (res.ok && resData.success) {
-        setSaveMessage({ type: 'success', text: `🎉 บันทึกคำถามและเฉลยสำหรับ ${currentQuizExercise.exercise.title} เรียบร้อยแล้ว!` });
+        setSaveMessage({ type: 'success', text: `🎉 บันทึกคำถามและหมวดหมู่คำศัพท์สำหรับ ${currentQuizExercise.exercise.title} เรียบร้อยแล้ว!` });
         fetchCurriculum(selectedBook);
         setShowQuizModal(false);
       } else {
@@ -1317,7 +1443,7 @@ export default function BackendAdminPage() {
       {/* ========================================================= */}
       {showQuizModal && currentQuizExercise && (
         <div className="quiz-modal-backdrop fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="quiz-modal-card bg-white rounded-3xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200">
+          <div className="quiz-modal-card bg-white rounded-3xl max-w-4xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-slate-200">
             {/* Modal Header */}
             <div className="quiz-modal-header p-6 border-b border-slate-100 flex items-center justify-between">
               <div>
@@ -1332,124 +1458,329 @@ export default function BackendAdminPage() {
             </div>
 
             {/* Modal Questions Body */}
-            <div className="quiz-modal-body flex-1 overflow-y-auto p-6 sm:p-8 space-y-6 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-slate-700 uppercase text-xs sm:text-sm">
-                  รายการข้อสอบ/คำถาม ({quizItems.length} ข้อ):
-                </span>
-
-                <button
-                  type="button"
-                  onClick={handleAddQuestion}
-                  className="btn-add-question-item bg-blue-50 text-[#2563eb] hover:bg-[#2563eb] hover:text-white px-4 py-2 rounded-2xl font-bold text-xs sm:text-sm transition-colors flex items-center gap-1.5 cursor-pointer"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>+ เพิ่มข้อใหม่</span>
-                </button>
-              </div>
-
-              {quizItems.length === 0 ? (
-                <div className="text-center py-10 text-slate-400 font-semibold border-2 border-dashed border-slate-200 rounded-2xl text-sm">
-                  ยังไม่มีคำถามในแบบฝึกหัดนี้ คลิก &quot;+ เพิ่มข้อใหม่&quot; เพื่อสร้างข้อสอบ
-                </div>
-              ) : (
-                quizItems.map((q, idx) => (
-                  <div key={idx} className="quiz-item-box bg-slate-50 border border-slate-200 rounded-2xl p-6 shadow-2xs relative">
-                    <div className="flex items-center justify-between mb-4 border-b border-slate-200/60 pb-3">
-                      <div className="font-extrabold text-[#1e3a8a] text-base sm:text-lg">
-                        ข้อที่ {idx + 1}
+            <div className="quiz-modal-body flex-1 overflow-y-auto p-6 sm:p-8 space-y-8 text-sm">
+              {/* ========================================================= */}
+              {/* SPECIAL SECTION FOR GUIDED SENTENCE: 1. CATEGORIES & WORD BANK */}
+              {/* ========================================================= */}
+              {(currentQuizExercise.exercise.type === 'guided_sentence' || currentQuizExercise.exercise.code === 'ex-2') && (
+                <div className="categories-management-section bg-blue-50/50 border-2 border-blue-200/80 rounded-3xl p-6 sm:p-7 shadow-xs">
+                  <div className="flex flex-wrap items-center justify-between gap-3 mb-5 pb-3 border-b border-blue-200/80">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">🗂️</span>
+                        <h4 className="font-extrabold text-[#1e3a8a] text-base sm:text-lg font-heading">
+                          1. จัดการหมวดหมู่และคลังคำศัพท์ (Word Bank Categories by Order)
+                        </h4>
                       </div>
-
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteQuestion(idx)}
-                        className="text-red-400 hover:text-red-600 p-2 hover:bg-red-50 rounded-xl transition-colors"
-                        title="ลบข้อนี้"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
+                      <p className="text-xs text-slate-600 mt-1">
+                        กำหนดชื่อหมวดหมู่ตามลำดับ Order และคำศัพท์ภาษาอังกฤษพร้อมคำแปลภาษาไทยสำหรับแต่ละหมวด
+                      </p>
                     </div>
 
-                    <div className="space-y-4">
-                      {/* Translation Prompt */}
-                      {currentQuizExercise.exercise.type === 'translation' && (
-                        <div>
-                          <label className="block font-bold text-slate-700 uppercase mb-1.5 text-xs sm:text-sm">
-                            📍 โจทย์ภาษาไทย:
-                          </label>
-                          <input
-                            type="text"
-                            value={q.thai || q.thai_prompt || ''}
-                            onChange={(e) => handleUpdateQuestion(idx, 'thai', e.target.value)}
-                            placeholder="เช่น ฉันกำลังเดินทางเพื่อกลับบ้าน"
-                            className="w-full rounded-2xl bg-white border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-900 focus:outline-none focus:border-[#2563eb]"
-                          />
-                        </div>
-                      )}
-
-                      {/* Guided Sentence Prompt */}
-                      {currentQuizExercise.exercise.type === 'guided_sentence' && (
-                        <div>
-                          <label className="block font-bold text-slate-700 uppercase mb-1.5 text-xs sm:text-sm">
-                            📍 โจทย์ข้อความ (Fill in the blanks):
-                          </label>
-                          <input
-                            type="text"
-                            value={q.prompt || ''}
-                            onChange={(e) => handleUpdateQuestion(idx, 'prompt', e.target.value)}
-                            placeholder="เช่น I am ____________________."
-                            className="w-full rounded-2xl bg-white border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-900 focus:outline-none focus:border-[#2563eb]"
-                          />
-                        </div>
-                      )}
-
-                      {/* Picture Description */}
-                      {currentQuizExercise.exercise.type === 'picture_description' && (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div>
-                            <label className="block font-bold text-slate-700 uppercase mb-1.5 text-xs sm:text-sm">
-                              🖼️ คำบรรยายภาพ:
-                            </label>
-                            <input
-                              type="text"
-                              value={q.image_description || ''}
-                              onChange={(e) => handleUpdateQuestion(idx, 'image_description', e.target.value)}
-                              placeholder="เช่น ผู้ชายกำลังดื่มกาแฟในคาเฟ่"
-                              className="w-full rounded-2xl bg-white border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-900 focus:outline-none focus:border-[#2563eb]"
-                            />
-                          </div>
-                          <div>
-                            <label className="block font-bold text-slate-700 uppercase mb-1.5 text-xs sm:text-sm">
-                              💡 คำใบ้บริบทภาพ:
-                            </label>
-                            <input
-                              type="text"
-                              value={q.context_hint || ''}
-                              onChange={(e) => handleUpdateQuestion(idx, 'context_hint', e.target.value)}
-                              placeholder="เช่น ดื่มกาแฟ / ในคาเฟ่ / เพื่อความสดชื่น"
-                              className="w-full rounded-2xl bg-white border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-900 focus:outline-none focus:border-[#2563eb]"
-                            />
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Target Model Answer */}
-                      <div>
-                        <label className="block font-extrabold text-[#1e3a8a] uppercase mb-1.5 text-xs sm:text-sm">
-                          🎯 เฉลยคำตอบภาษาอังกฤษ (Model Answer):
-                        </label>
-                        <input
-                          type="text"
-                          value={q.model_answer || ''}
-                          onChange={(e) => handleUpdateQuestion(idx, 'model_answer', e.target.value)}
-                          placeholder="เช่น I am commuting to get home."
-                          className="w-full rounded-2xl bg-white border border-slate-300 px-4 py-3 text-sm sm:text-base text-slate-900 font-bold font-mono focus:outline-none focus:border-[#2563eb]"
-                        />
-                      </div>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={handleAddCategory}
+                      className="bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-3.5 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>+ เพิ่มหมวดหมู่ใหม่ (Order)</span>
+                    </button>
                   </div>
-                ))
+
+                  <div className="space-y-5">
+                    {quizCategories.map((cat, cIdx) => (
+                      <div key={cIdx} className="category-card bg-white rounded-2xl p-5 border border-blue-200/90 shadow-2xs">
+                        <div className="flex items-center justify-between gap-3 mb-3.5 pb-2.5 border-b border-slate-100">
+                          <div className="flex items-center gap-2.5 flex-1">
+                            <span className="bg-[#1e3a8a] text-white text-xs font-extrabold px-3 py-1 rounded-lg">
+                              Order {cat.order}
+                            </span>
+                            <div className="flex-1 max-w-sm">
+                              <input
+                                type="text"
+                                value={cat.name || ''}
+                                onChange={(e) => handleUpdateCategoryName(cIdx, e.target.value)}
+                                placeholder="ชื่อหมวดหมู่ เช่น ทำอะไรจริง ๆ / เพื่ออะไร / แม้ว่า..."
+                                className="w-full rounded-xl bg-slate-50 border border-slate-300 px-3 py-1.5 text-xs sm:text-sm font-bold text-slate-900 focus:outline-none focus:border-[#2563eb]"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleAddWordToCategory(cIdx)}
+                              className="text-xs bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 px-2.5 py-1 rounded-lg font-bold flex items-center gap-1 transition-all cursor-pointer"
+                            >
+                              <Plus className="w-3 h-3" />
+                              <span>เพิ่มคำศัพท์</span>
+                            </button>
+
+                            {quizCategories.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteCategory(cIdx)}
+                                className="text-red-400 hover:text-red-600 p-1.5 hover:bg-red-50 rounded-lg transition-colors"
+                                title="ลบหมวดนี้"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Words List */}
+                        <div className="words-table-wrapper space-y-2">
+                          <div className="grid grid-cols-12 gap-2 text-[11px] font-bold text-slate-500 uppercase px-1">
+                            <span className="col-span-6">คำศัพท์ภาษาอังกฤษ (English)</span>
+                            <span className="col-span-5">คำแปลภาษาไทย (Thai Meaning)</span>
+                            <span className="col-span-1 text-center">ลบ</span>
+                          </div>
+
+                          {cat.words.map((w: any, wIdx: number) => (
+                            <div key={wIdx} className="grid grid-cols-12 gap-2 items-center">
+                              <div className="col-span-6">
+                                <input
+                                  type="text"
+                                  value={w.en || ''}
+                                  onChange={(e) => handleUpdateWordInCategory(cIdx, wIdx, 'en', e.target.value)}
+                                  placeholder="เช่น drink water"
+                                  className="w-full rounded-xl bg-slate-50 border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-900 font-mono focus:outline-none focus:border-[#2563eb]"
+                                />
+                              </div>
+                              <div className="col-span-5">
+                                <input
+                                  type="text"
+                                  value={w.th || ''}
+                                  onChange={(e) => handleUpdateWordInCategory(cIdx, wIdx, 'th', e.target.value)}
+                                  placeholder="เช่น ดื่มน้ำ"
+                                  className="w-full rounded-xl bg-slate-50 border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-800 focus:outline-none focus:border-[#2563eb]"
+                                />
+                              </div>
+                              <div className="col-span-1 text-center">
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteWordFromCategory(cIdx, wIdx)}
+                                  className="text-slate-400 hover:text-red-600 p-1 hover:bg-slate-100 rounded-lg transition-colors"
+                                  title="ลบคำนี้"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
+
+              {/* ========================================================= */}
+              {/* SECTION 2: QUIZ QUESTIONS LIST */}
+              {/* ========================================================= */}
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">📝</span>
+                    <h4 className="font-extrabold text-[#1e3a8a] text-base sm:text-lg font-heading">
+                      {(currentQuizExercise.exercise.type === 'guided_sentence' || currentQuizExercise.exercise.code === 'ex-2')
+                        ? '2. รายการโจทย์ข้อสอบและโครงสร้างคำแปล (Quiz Questions & Thai Template)'
+                        : `รายการข้อสอบ/คำถาม (${quizItems.length} ข้อ)`}
+                    </h4>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleAddQuestion}
+                    className="btn-add-question-item bg-blue-50 text-[#2563eb] hover:bg-[#2563eb] hover:text-white px-4 py-2 rounded-2xl font-bold text-xs sm:text-sm transition-colors flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>+ เพิ่มข้อใหม่</span>
+                  </button>
+                </div>
+
+                {quizItems.length === 0 ? (
+                  <div className="text-center py-10 text-slate-400 font-semibold border-2 border-dashed border-slate-200 rounded-2xl text-sm">
+                    ยังไม่มีคำถามในแบบฝึกหัดนี้ คลิก &quot;+ เพิ่มข้อใหม่&quot; เพื่อสร้างข้อสอบ
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {quizItems.map((q, idx) => {
+                      const requiredOrders: number[] = q.required_orders || [1];
+
+                      // Compute dynamic live translation preview for this question
+                      let livePreview = '';
+                      if (q.thai_template && quizCategories.length > 0) {
+                        let tpl = q.thai_template;
+                        for (const ord of requiredOrders) {
+                          const cat = quizCategories.find(c => c.order === ord);
+                          const firstWordTh = cat?.words[0]?.th || cat?.name || `[Order ${ord}]`;
+                          tpl = tpl.replace(new RegExp(`\\{${ord}\\}`, 'g'), firstWordTh);
+                        }
+                        livePreview = tpl;
+                      }
+
+                      return (
+                        <div key={idx} className="quiz-item-box bg-slate-50 border border-slate-200 rounded-2xl p-6 shadow-2xs relative">
+                          <div className="flex items-center justify-between mb-4 border-b border-slate-200/60 pb-3">
+                            <div className="font-extrabold text-[#1e3a8a] text-base sm:text-lg">
+                              ข้อที่ {idx + 1}
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteQuestion(idx)}
+                              className="text-red-400 hover:text-red-600 p-2 hover:bg-red-50 rounded-xl transition-colors"
+                              title="ลบข้อนี้"
+                            >
+                              <Trash2 className="w-5 h-5" />
+                            </button>
+                          </div>
+
+                          <div className="space-y-4">
+                            {/* Translation Prompt */}
+                            {currentQuizExercise.exercise.type === 'translation' && (
+                              <div>
+                                <label className="block font-bold text-slate-700 uppercase mb-1.5 text-xs sm:text-sm">
+                                  📍 โจทย์ภาษาไทย:
+                                </label>
+                                <input
+                                  type="text"
+                                  value={q.thai || q.thai_prompt || ''}
+                                  onChange={(e) => handleUpdateQuestion(idx, 'thai', e.target.value)}
+                                  placeholder="เช่น ฉันกำลังเดินทางเพื่อกลับบ้าน"
+                                  className="w-full rounded-2xl bg-white border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-900 focus:outline-none focus:border-[#2563eb]"
+                                />
+                              </div>
+                            )}
+
+                            {/* Guided Sentence Prompt */}
+                            {(currentQuizExercise.exercise.type === 'guided_sentence' || currentQuizExercise.exercise.code === 'ex-2') && (
+                              <>
+                                <div>
+                                  <label className="block font-bold text-slate-700 uppercase mb-1.5 text-xs sm:text-sm">
+                                    📍 โจทย์ข้อความ (Fill in the blanks):
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={q.prompt || ''}
+                                    onChange={(e) => handleUpdateQuestion(idx, 'prompt', e.target.value)}
+                                    placeholder="เช่น I do ____________________ to ____________________."
+                                    className="w-full rounded-2xl bg-white border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-900 font-mono focus:outline-none focus:border-[#2563eb]"
+                                  />
+                                </div>
+
+                                {/* Required Orders Selector */}
+                                <div>
+                                  <label className="block font-bold text-slate-700 uppercase mb-1.5 text-xs sm:text-sm">
+                                    🔀 หมวดหมู่ที่ต้องใช้ในข้อนี้ (Required Orders for Word Bank):
+                                  </label>
+                                  <div className="flex flex-wrap gap-2">
+                                    {quizCategories.map((cat) => {
+                                      const isSelected = requiredOrders.includes(cat.order);
+                                      return (
+                                        <button
+                                          key={cat.order}
+                                          type="button"
+                                          onClick={() => handleToggleRequiredOrder(idx, cat.order)}
+                                          className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center gap-1.5 ${
+                                            isSelected
+                                              ? 'bg-blue-600 text-white border-blue-700 shadow-xs'
+                                              : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                                          }`}
+                                        >
+                                          <span>{isSelected ? '✓' : '+'}</span>
+                                          <span>Order {cat.order}: {cat.name}</span>
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+
+                                {/* Thai Translation Template */}
+                                <div className="bg-emerald-50/70 border border-emerald-200 p-4 rounded-2xl space-y-2">
+                                  <label className="block font-bold text-emerald-950 uppercase text-xs sm:text-sm">
+                                    📖 โครงสร้างคำแปลภาษาไทย (Thai Translation Template):
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={q.thai_template || ''}
+                                    onChange={(e) => handleUpdateQuestion(idx, 'thai_template', e.target.value)}
+                                    placeholder="เช่น ฉัน{1}จริง ๆ เพื่อ{2} แม้ว่าฉันจะ{3}ก็ตาม"
+                                    className="w-full rounded-xl bg-white border border-emerald-300 px-3.5 py-2 text-xs sm:text-sm font-bold text-emerald-950 focus:outline-none focus:border-emerald-600"
+                                  />
+                                  <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-emerald-800">
+                                    <span className="font-semibold">💡 ตัวแปรที่ใช้ได้:</span>
+                                    {quizCategories.map(c => (
+                                      <span key={c.order} className="bg-white px-2 py-0.5 rounded border border-emerald-200 font-mono font-bold">
+                                        {`{${c.order}}`} = {c.name}
+                                      </span>
+                                    ))}
+                                  </div>
+
+                                  {livePreview && (
+                                    <div className="pt-2 border-t border-emerald-200/60 text-xs text-emerald-900">
+                                      <span className="font-bold">ตัวอย่างคำแปลเมื่อตอบถูก:</span>{' '}
+                                      <span className="font-medium bg-white/90 px-2 py-0.5 rounded border border-emerald-300">
+                                        "{livePreview}"
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              </>
+                            )}
+
+                            {/* Picture Description */}
+                            {currentQuizExercise.exercise.type === 'picture_description' && (
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                  <label className="block font-bold text-slate-700 uppercase mb-1.5 text-xs sm:text-sm">
+                                    🖼️ คำบรรยายภาพ:
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={q.image_description || ''}
+                                    onChange={(e) => handleUpdateQuestion(idx, 'image_description', e.target.value)}
+                                    placeholder="เช่น ผู้ชายกำลังดื่มกาแฟในคาเฟ่"
+                                    className="w-full rounded-2xl bg-white border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-900 focus:outline-none focus:border-[#2563eb]"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block font-bold text-slate-700 uppercase mb-1.5 text-xs sm:text-sm">
+                                    💡 คำใบ้บริบทภาพ:
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={q.context_hint || ''}
+                                    onChange={(e) => handleUpdateQuestion(idx, 'context_hint', e.target.value)}
+                                    placeholder="เช่น ดื่มกาแฟ / ในคาเฟ่ / เพื่อความสดชื่น"
+                                    className="w-full rounded-2xl bg-white border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-900 focus:outline-none focus:border-[#2563eb]"
+                                  />
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Target Model Answer */}
+                            <div>
+                              <label className="block font-extrabold text-[#1e3a8a] uppercase mb-1.5 text-xs sm:text-sm">
+                                🎯 เฉลยตัวอย่างภาษาอังกฤษ (Model Answer):
+                              </label>
+                              <input
+                                type="text"
+                                value={q.model_answer || ''}
+                                onChange={(e) => handleUpdateQuestion(idx, 'model_answer', e.target.value)}
+                                placeholder="เช่น I do drink water to stay hydrated."
+                                className="w-full rounded-2xl bg-white border border-slate-300 px-4 py-3 text-sm sm:text-base text-slate-900 font-bold font-mono focus:outline-none focus:border-[#2563eb]"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Modal Footer */}
