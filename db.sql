@@ -174,12 +174,3 @@ BEGIN
     last_viewed_at = now();
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- --------------------------------------------------------------------
--- 8. ENSURE DEFAULT BOOKS EXIST (SAFE INSERT WITHOUT OVERWRITING DATA)
--- --------------------------------------------------------------------
-INSERT INTO books (id, slug, title, subtitle, created_at) VALUES
-  ('sentence-builder-vol-1', 'sentence-builder-vol-1', 'Sentence Builder Vol. 1', 'แบบฝึกหัดแต่งประโยคภาษาอังกฤษ Vol. 1 (เทคนิคปูพื้นฐาน)', now()),
-  ('sentence-builder-vol-2', 'sentence-builder-vol-2', 'Sentence Builder Vol. 2', 'แบบฝึกหัดแต่งประโยคและขยายประโยค Vol. 2 (Core + Context + Connect)', now()),
-  ('sentence-builder-vol-3', 'sentence-builder-vol-3', 'Sentence Builder Vol. 3', 'แบบฝึกหัดแต่งประโยคขั้นสูง Vol. 3 (Advanced Business & Writing)', now())
-ON CONFLICT (id) DO NOTHING;
