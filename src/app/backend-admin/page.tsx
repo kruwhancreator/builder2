@@ -1384,13 +1384,13 @@ export default function BackendAdminPage() {
               {/* Description / Instructions */}
               <div>
                 <label className="block font-bold text-slate-700 uppercase mb-1.5 text-xs sm:text-sm">
-                  คำอธิบายแบบฝึกหัด (Description / Instruction for students):
+                  📌 คำแนะนำจากครูหวาน (Description / Instruction for students):
                 </label>
                 <textarea
                   rows={2}
                   value={exerciseFormData.instruction}
                   onChange={(e) => setExerciseFormData(prev => ({ ...prev, instruction: e.target.value }))}
-                  placeholder="เช่น แปลประโยคภาษาไทยเป็นภาษาอังกฤษโดยใช้ Present Continuous"
+                  placeholder="เช่น โปรดใช้คำศัพท์จาก Unit นี้ในหนังสือ Sentence Builder 2 ในการตอบนะคะ..."
                   className="w-full rounded-2xl bg-white border border-slate-300 px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-[#2563eb]"
                 />
               </div>

@@ -254,7 +254,7 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
               ✏️ {ex1.title || 'Exercise 1: แปลประโยคภาษาอังกฤษ'}
             </h2>
             <div className="exercise-instruction-box bg-[#eff6ff] text-[#1e40af] p-3 rounded-lg text-xs sm:text-sm mt-3 border-l-4 border-[#2563eb] leading-relaxed">
-              📌 <b>คำแนะนำจากครูหวาน:</b> {ex1.instruction || `โปรดใช้คำศัพท์จาก Unit ${unitNumber} ในหนังสือ Sentence Builder 2 ในการตอบนะคะ ระบบจะตรวจคำตอบแบบเป๊ะๆ (รวมถึงการพิมพ์ตัวพิมพ์ใหญ่ ตัวพิมพ์เล็ก และจุด Full Stop . ด้านหลังด้วยน้า)`}
+              📌 <b>คำแนะนำจากครูหวาน:</b> {ex1.instruction || ex1.guidance || `โปรดใช้คำศัพท์จาก Unit ${unitNumber} ในหนังสือ Sentence Builder 2 ในการตอบนะคะ ระบบจะตรวจคำตอบแบบเป๊ะๆ (รวมถึงการพิมพ์ตัวพิมพ์ใหญ่ ตัวพิมพ์เล็ก และจุด Full Stop . ด้านหลังด้วยน้า)`}
             </div>
           </div>
 
@@ -373,7 +373,7 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
               🧩 {ex2.title || 'Exercise 2: เลือกคำจากตารางมาแต่งประโยค'}
             </h2>
             <div className="exercise-instruction-box bg-[#eff6ff] text-[#1e40af] p-3 rounded-lg text-xs sm:text-sm mt-3 border-l-4 border-[#2563eb] leading-relaxed">
-              📌 <b>คำแนะนำจากครูหวาน:</b> {ex2.instruction || `ให้เลือกคำจากตารางด้านล่างนี้ในหนังสือ Sentence Builder 2 มาเติมในช่องว่างให้สมบูรณ์ ตรวจเช็คการสะกดคำและเครื่องหมายให้ถูกต้องนะคะ`}
+              📌 <b>คำแนะนำจากครูหวาน:</b> {ex2.instruction || ex2.guidance || `ให้เลือกคำจากตารางด้านล่างนี้ในหนังสือ Sentence Builder 2 มาเติมในช่องว่างให้สมบูรณ์ ตรวจเช็คการสะกดคำและเครื่องหมายให้ถูกต้องนะคะ`}
             </div>
           </div>
 
@@ -646,7 +646,7 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
               🖼️ {ex3.title || 'Exercise 3: ดูภาพแล้วแต่งประโยคโดยใช้โครงสร้าง Core + Context + Connect'}
             </h2>
             <div className="exercise-instruction-box bg-[#eff6ff] text-[#1e40af] p-3 rounded-lg text-xs sm:text-sm mt-3 border-l-4 border-[#2563eb] leading-relaxed">
-              🌟 <b>ข้อแนะนำพิเศษจากครูหวาน:</b> {ex3.instruction || `แบบฝึกหัดนี้ใช้จินตนาการแต่งประโยคจากภาพได้เลยนะคะ ไม่มีถูกไม่มีผิด! ลองแต่งประโยคตามโครงสร้าง 3 กล่องด้านล่างได้เลยค่ะ`}
+              📌 <b>คำแนะนำจากครูหวาน:</b> {ex3.instruction || ex3.guidance || `แบบฝึกหัดนี้ใช้จินตนาการแต่งประโยคจากภาพได้เลยนะคะ ไม่มีถูกไม่มีผิด! ลองแต่งประโยคตามโครงสร้าง 3 กล่องด้านล่างได้เลยค่ะ`}
             </div>
           </div>
 
