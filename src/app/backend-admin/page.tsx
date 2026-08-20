@@ -542,23 +542,46 @@ export default function BackendAdminPage() {
     });
   };
 
-  const handleToggleRequiredOrder = (qIdx: number, orderNum: number) => {
+  const handleUpdatePromptSegment = (qIdx: number, segIdx: number, newText: string) => {
     setQuizItems(prev => {
       const copy = [...prev];
-      const curOrders: number[] = copy[qIdx].required_orders || [1];
-      let nextOrders: number[];
-      if (curOrders.includes(orderNum)) {
-        if (curOrders.length === 1) return prev; // Keep at least 1 order
-        nextOrders = curOrders.filter(o => o !== orderNum);
-      } else {
-        nextOrders = [...curOrders, orderNum].sort((a, b) => a - b);
-      }
-      copy[qIdx] = { ...copy[qIdx], required_orders: nextOrders };
+      const curPrompt = copy[qIdx].prompt || '';
+      const blankRegex = /_{2,}/g;
+      const parts = curPrompt.split(blankRegex);
+      if (parts.length === 0) parts.push('');
+      parts[segIdx] = newText;
+      copy[qIdx] = {
+        ...copy[qIdx],
+        prompt: parts.join('_____________________')
+      };
       return copy;
     });
   };
 
-  const handleDeleteSlotFromPrompt = (qIdx: number, slotIdx: number) => {
+  const handleInsertSlotIntoPrompt = (qIdx: number, orderNum: number) => {
+    setQuizItems(prev => {
+      const copy = [...prev];
+      const curPrompt = copy[qIdx].prompt ?? '';
+      const blankRegex = /_{2,}/g;
+      const parts = curPrompt ? curPrompt.split(blankRegex) : [''];
+      
+      // Append a new segment after the inserted blank
+      parts.push('');
+      const newPrompt = parts.join('_____________________');
+      
+      const curOrders: number[] = copy[qIdx].required_orders ? [...copy[qIdx].required_orders] : [];
+      curOrders.push(orderNum);
+      
+      copy[qIdx] = {
+        ...copy[qIdx],
+        prompt: newPrompt,
+        required_orders: curOrders
+      };
+      return copy;
+    });
+  };
+
+  const handleRemoveSlotFromPrompt = (qIdx: number, slotIdx: number) => {
     setQuizItems(prev => {
       const copy = [...prev];
       const curPrompt = copy[qIdx].prompt || '';
@@ -566,15 +589,18 @@ export default function BackendAdminPage() {
       const parts = curPrompt.split(blankRegex);
       if (parts.length <= 1) return prev;
 
-      let newPrompt = '';
-      for (let i = 0; i < parts.length; i++) {
-        newPrompt += parts[i];
-        if (i < parts.length - 1 && i !== slotIdx) {
-          newPrompt += '_____________________';
-        }
-      }
-      newPrompt = newPrompt.replace(/\s+/g, ' ').trim();
-      copy[qIdx] = { ...copy[qIdx], prompt: newPrompt };
+      // Merge parts[slotIdx] and parts[slotIdx + 1]
+      const merged = (parts[slotIdx] || '') + (parts[slotIdx + 1] || '');
+      parts.splice(slotIdx, 2, merged);
+
+      const curOrders: number[] = copy[qIdx].required_orders ? [...copy[qIdx].required_orders] : [];
+      curOrders.splice(slotIdx, 1);
+
+      copy[qIdx] = {
+        ...copy[qIdx],
+        prompt: parts.join('_____________________'),
+        required_orders: curOrders.length > 0 ? curOrders : [1]
+      };
       return copy;
     });
   };
@@ -1699,73 +1725,88 @@ export default function BackendAdminPage() {
                             {(currentQuizExercise.exercise.type === 'guided_sentence' || currentQuizExercise.exercise.code === 'ex-2') && (
                               <>
                                 <div>
-                                  <label className="block font-bold text-slate-700 uppercase mb-1.5 text-xs sm:text-sm">
-                                    📍 โจทย์ข้อความ (FILL IN THE BLANKS):
-                                  </label>
-                                  <input
-                                    type="text"
-                                    value={q.prompt || ''}
-                                    onChange={(e) => handleUpdateQuestion(idx, 'prompt', e.target.value)}
-                                    placeholder="เช่น I do ____________________ to ____________________."
-                                    className="w-full rounded-2xl bg-white border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-900 font-mono focus:outline-none focus:border-[#2563eb]"
-                                  />
+                                  <div className="flex items-center justify-between mb-2">
+                                    <label className="block font-bold text-slate-700 uppercase text-xs sm:text-sm">
+                                      📍 ตัวแต่งโจทย์ข้อความ (INTERACTIVE SENTENCE BUILDER):
+                                    </label>
+                                    <span className="text-[11px] text-slate-500 font-medium">
+                                      💡 พิมพ์ข้อความในช่อง แล้วคลิกปุ่ม Order ด้านล่างเพื่อแทรกกล่องคำตอบ
+                                    </span>
+                                  </div>
 
-                                  {/* Live Preview of the interactive question box with Delete (X) on slots */}
-                                  {q.prompt && (
-                                    <div className="mt-2 p-3 bg-blue-50/70 rounded-xl border border-blue-200 text-xs">
-                                      <span className="font-bold text-[#1e3a8a] block mb-1.5">
-                                        👁️ แสดงตัวอย่างที่นักเรียนจะเห็นในแบบฝึกหัด (Interactive Preview):
-                                      </span>
-                                      <div className="inline-flex items-center gap-2 flex-wrap bg-white p-2.5 rounded-lg border border-blue-200 text-sm font-bold text-slate-900">
-                                        {(() => {
-                                          const blankRegex = /_{2,}/g;
-                                          const parts = (q.prompt || '').split(blankRegex);
-                                          const totalSlots = Math.max(1, (q.prompt || '').match(blankRegex)?.length || 1);
-                                          const reqCats = quizCategories.filter(c => requiredOrders.includes(c.order));
-                                          return parts.map((part: string, pIdx: number) => (
+                                  {/* Visual Typable Interactive Sentence Builder */}
+                                  <div className="bg-blue-50/70 border-2 border-blue-200/90 rounded-2xl p-4 shadow-2xs">
+                                    <div className="inline-flex items-center gap-2 flex-wrap bg-white p-3 rounded-xl border border-blue-200 text-sm font-bold text-slate-900 shadow-2xs w-full min-h-[56px]">
+                                      {(() => {
+                                        const blankRegex = /_{2,}/g;
+                                        const rawPrompt = q.prompt ?? '';
+                                        const parts = rawPrompt.split(blankRegex);
+                                        if (parts.length === 0) parts.push('');
+                                        const totalSlots = Math.max(0, parts.length - 1);
+                                        const reqOrders = q.required_orders || [];
+
+                                        return parts.map((part: string, pIdx: number) => {
+                                          const slotOrderNum = reqOrders[pIdx];
+                                          const slotCat = quizCategories.find(c => c.order === slotOrderNum);
+                                          const catLabel = slotCat ? slotCat.name : (slotOrderNum ? `หมวดที่ ${slotOrderNum}` : `หมวดที่ ${pIdx + 1}`);
+
+                                          return (
                                             <div key={pIdx} className="inline-flex items-center gap-1.5 flex-wrap">
-                                              {part && <span className="font-mono text-[#1e3a8a]">{part}</span>}
+                                              {/* Typable Segment */}
+                                              <input
+                                                type="text"
+                                                value={part}
+                                                onChange={(e) => handleUpdatePromptSegment(idx, pIdx, e.target.value)}
+                                                placeholder={pIdx === 0 && parts.length === 1 ? "พิมพ์ข้อความ เช่น I do " : "..."}
+                                                style={{ width: `${Math.max(45, (part.length + 2) * 9)}px` }}
+                                                className="font-mono text-[#1e3a8a] font-bold bg-slate-50 hover:bg-blue-50/60 focus:bg-white border-b-2 border-slate-300 focus:border-blue-600 px-2 py-1 text-sm outline-none rounded-t transition-all min-w-[50px]"
+                                              />
+
+                                              {/* Slot Badge with Delete (X) */}
                                               {pIdx < totalSlots && (
-                                                <span className="relative inline-flex items-center justify-center pl-3 pr-6 py-1 border-2 border-dashed rounded-lg text-xs font-bold border-blue-400 bg-blue-50 text-[#1e3a8a]">
-                                                  <span>({reqCats[pIdx]?.name || `หมวดที่ ${pIdx + 1}`})</span>
+                                                <span className="relative inline-flex items-center justify-center pl-3 pr-7 py-1 border-2 border-dashed rounded-lg text-xs font-bold border-blue-400 bg-blue-50 text-[#1e3a8a] shadow-2xs select-none">
+                                                  <span>({catLabel})</span>
                                                   <button
                                                     type="button"
-                                                    onClick={() => handleDeleteSlotFromPrompt(idx, pIdx)}
+                                                    onClick={() => handleRemoveSlotFromPrompt(idx, pIdx)}
                                                     title="ลบช่องว่างนี้ออกจากโจทย์"
-                                                    className="absolute right-1 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-600 hover:bg-red-100 rounded w-4 h-4 inline-flex items-center justify-center text-[10px] font-bold cursor-pointer transition-colors"
+                                                    className="absolute right-1 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white hover:bg-rose-500 rounded-full w-4 h-4 inline-flex items-center justify-center text-[10px] font-bold cursor-pointer transition-colors"
                                                   >
                                                     ✕
                                                   </button>
                                                 </span>
                                               )}
                                             </div>
-                                          ));
-                                        })()}
-                                      </div>
+                                          );
+                                        });
+                                      })()}
                                     </div>
-                                  )}
+                                  </div>
                                 </div>
 
-                                {/* Required Orders Selector */}
+                                {/* Order Buttons for Insertion */}
                                 <div>
-                                  <label className="block font-bold text-slate-700 uppercase mb-1.5 text-xs sm:text-sm">
-                                    🔀 หมวดหมู่ที่ต้องใช้ในข้อนี้ (REQUIRED ORDERS FOR WORD BANK):
-                                  </label>
+                                  <div className="flex items-center justify-between mb-1.5">
+                                    <label className="block font-bold text-slate-700 uppercase text-xs sm:text-sm">
+                                      🔀 คลิกเพื่อแทรกกล่องคำศัพท์ลงในโจทย์ (CLICK TO INSERT ORDER SLOT):
+                                    </label>
+                                    <span className="text-[11px] text-blue-700 font-medium">
+                                      แตะปุ่มเพื่อแทรกกล่องคำศัพท์ต่อท้ายข้อความ
+                                    </span>
+                                  </div>
                                   <div className="flex flex-wrap gap-2">
                                     {quizCategories.map((cat) => {
-                                      const isSelected = requiredOrders.includes(cat.order);
                                       return (
                                         <button
                                           key={cat.order}
                                           type="button"
-                                          onClick={() => handleToggleRequiredOrder(idx, cat.order)}
-                                          className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center gap-1.5 ${
-                                            isSelected
-                                              ? 'bg-blue-600 text-white border-blue-700 shadow-xs'
-                                              : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
-                                          }`}
+                                          onClick={() => handleInsertSlotIntoPrompt(idx, cat.order)}
+                                          className="px-3.5 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs bg-[#2563eb] hover:bg-[#1d4ed8] text-white border-blue-700 active:scale-95"
+                                          title={`คลิกเพื่อแทรกกล่อง Order ${cat.order}: ${cat.name}`}
                                         >
-                                          <span>{isSelected ? '✓' : '+'}</span>
+                                          <span className="w-4 h-4 rounded-full bg-white/20 inline-flex items-center justify-center text-[10px] font-bold">
+                                            +
+                                          </span>
                                           <span>Order {cat.order}: {cat.name}</span>
                                         </button>
                                       );
