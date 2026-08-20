@@ -301,7 +301,7 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                           {fb.isCorrect ? (
                             <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                           ) : (
-                            <XCircle className="w-4 h-4 text-red-600 shrink-0" />
+                          <XCircle className="w-4 h-4 text-red-600 shrink-0" />
                           )}
                           <span>{fb.message}</span>
                         </div>
@@ -334,6 +334,12 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                               <div className="font-mono font-bold bg-white px-3 py-2 rounded-lg border border-[#bfdbfe] text-[#1e3a8a] text-sm sm:text-base">
                                 {item.model_answer}
                               </div>
+                              {(item.thai || item.thai_prompt) && (
+                                <div className="text-xs sm:text-sm font-medium text-emerald-800 mt-2 flex items-center gap-1.5 bg-emerald-50 px-2.5 py-1.5 rounded-lg border border-emerald-200">
+                                  <span className="font-bold text-emerald-950">📖 คำแปลโจทย์:</span>
+                                  <span>"{item.thai || item.thai_prompt}"</span>
+                                </div>
+                              )}
                               {item.acceptable_answers && item.acceptable_answers.length > 1 && (
                                 <div className="mt-2 space-y-1">
                                   <span className="text-xs font-semibold text-slate-500 block">คำตอบอื่นที่ใช้ได้:</span>
@@ -371,155 +377,132 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
             </div>
           </div>
 
-          {/* Dynamic Vocab Reference Table */}
+          {/* Categories / Word Bank Reference Table */}
           {ex2Categories.length > 0 && (
-            <div className="vocab-reference-wrapper overflow-x-auto my-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs">
-              <table className="vocab-reference-table w-full text-xs sm:text-sm text-left border-collapse bg-white rounded-xl overflow-hidden border border-slate-200">
-                <thead>
-                  <tr className="vocab-table-header bg-[#1e3a8a] text-white font-semibold font-heading">
-                    {ex2Categories.map((cat, cIdx) => (
-                      <th key={cIdx} className="p-3.5 border-b border-indigo-100 font-bold">
-                        {cat.order}. {cat.name}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="vocab-table-body divide-y divide-slate-100 text-slate-700 font-medium">
-                  <tr className="vocab-table-row">
-                    {ex2Categories.map((cat, cIdx) => (
-                      <td key={cIdx} className="p-3.5 leading-relaxed align-top">
-                        {cat.words.map((w, wIdx) => (
-                          <div key={wIdx} className="py-0.5">
-                            • <span className="font-semibold text-slate-900">{w.en}</span>
-                            {w.th && <span className="text-slate-500 text-xs ml-1 font-normal">({w.th})</span>}
-                          </div>
-                        ))}
-                      </td>
-                    ))}
-                  </tr>
-                </tbody>
-              </table>
+            <div className="categories-reference-card bg-slate-50 border border-slate-200 rounded-xl p-4 sm:p-5 mb-6">
+              <div className="font-bold text-slate-800 text-xs sm:text-sm mb-3 flex items-center gap-1.5 uppercase tracking-wide">
+                <span>📚</span>
+                <span>ตารางคำศัพท์และหมวดหมู่สำหรับบทนี้ (Vocabulary Reference Table):</span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {ex2Categories.map((cat) => (
+                  <div key={cat.order} className="category-col bg-white p-3 rounded-lg border border-slate-200 shadow-2xs">
+                    <div className="font-bold text-[#1e3a8a] text-xs sm:text-sm border-b border-slate-100 pb-1.5 mb-2 flex items-center gap-1.5">
+                      <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-800 flex items-center justify-center text-[11px] font-bold">
+                        {cat.order}
+                      </span>
+                      <span>{cat.name}</span>
+                    </div>
+                    <div className="space-y-1.5">
+                      {cat.words.map((wObj, wIdx) => (
+                        <div key={wIdx} className="text-xs text-slate-700 font-medium leading-tight">
+                          <span className="font-bold text-slate-900">• {wObj.en}</span>
+                          {wObj.th && <span className="text-slate-500 text-[11px] ml-1">({wObj.th})</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
-          <div className="quiz-items-list space-y-6 mt-6">
+          <div className="quiz-items-list space-y-6">
             {ex2.items?.map((item: any, idx: number) => {
               const key = `ex2_${item.id || idx + 1}`;
               const fb = feedbacks[key];
-
-              // Parse blanks from prompt (e.g. "I do ____________________.")
               const blankRegex = /_{2,}/g;
               const promptParts = (item.prompt || '').split(blankRegex);
               const slotCount = Math.max(1, (item.prompt || '').match(blankRegex)?.length || 1);
+              const requiredOrders: number[] = item.required_orders || ex2Categories.slice(0, slotCount).map(c => c.order);
               const currentSlots = dragSlots[key] || Array(slotCount).fill('');
               const currentConstructed = answers[key] || '';
 
-              // Progressive Word Bank: Only show categories required for this item
-              const requiredOrders: number[] = item.required_orders || ex2Categories.slice(0, slotCount).map(c => c.order);
-              const displayedCategories = ex2Categories.filter(c => requiredOrders.includes(c.order));
+              // Visible categories for this item
+              const visibleCategories = ex2Categories.filter(cat => requiredOrders.includes(cat.order));
 
               return (
                 <div key={key} className="quiz-item-card bg-[#f8fafc] border border-slate-200 rounded-xl p-5 shadow-2xs">
-                  <div className="quiz-question-prompt text-base sm:text-lg font-bold text-[#1e3a8a] mb-3 font-heading flex flex-wrap items-center justify-between gap-2">
-                    <span>{idx + 1}. {item.prompt}</span>
-                    {currentSlots.some(Boolean) && (
-                      <button
-                        type="button"
-                        onClick={() => handleResetSlots(key)}
-                        className="text-xs text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2.5 py-1 rounded-lg font-bold flex items-center gap-1 cursor-pointer transition-all shadow-2xs"
-                      >
-                        <RotateCcw className="w-3 h-3" />
-                        <span>ล้างคำตอบ</span>
-                      </button>
-                    )}
+                  <div className="quiz-question-prompt text-base sm:text-lg font-bold text-[#1e3a8a] mb-2 font-heading">
+                    {idx + 1}. {item.prompt}
                   </div>
 
-                  {/* 1. INTERACTIVE DRAG & DROP SENTENCE SLOTS ZONE */}
-                  <div className="sentence-builder-dropzone bg-white rounded-2xl border-2 border-indigo-100 p-4 sm:p-5 mb-4 shadow-2xs">
-                    <div className="text-[11px] sm:text-xs font-bold text-indigo-700 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-                      <GripHorizontal className="w-3.5 h-3.5 text-indigo-500" />
+                  {/* Drag & Drop Target Sentence Construction Area */}
+                  <div className="sentence-builder-dropzone bg-white border-2 border-dashed border-blue-200 hover:border-blue-400 rounded-xl p-4 mb-4 transition-all shadow-2xs">
+                    <div className="text-xs font-bold text-slate-500 uppercase mb-2.5 flex items-center gap-1.5">
+                      <GripHorizontal className="w-3.5 h-3.5 text-blue-500" />
                       <span>ลากหรือแตะคำศัพท์จาก Word Bank มาวางในช่องว่าง:</span>
                     </div>
 
-                    <div className="sentence-tokens-row flex flex-wrap items-center gap-2 text-base sm:text-lg font-bold text-slate-800 font-heading leading-loose">
-                      {promptParts.map((part: string, pIdx: number) => {
-                        const expectedCat = displayedCategories[pIdx] || ex2Categories[pIdx];
-                        return (
-                          <span key={pIdx} className="inline-flex items-center gap-2">
-                            {part.trim() && <span>{part.trim()}</span>}
-                            {pIdx < slotCount && (
-                              <DropSlot
-                                slotIdx={pIdx}
-                                value={currentSlots[pIdx]}
-                                categoryHint={expectedCat ? expectedCat.name : undefined}
-                                onPlace={(word: string) => handlePlaceSlotWord(key, promptParts, pIdx, word, slotCount)}
-                                onRemove={() => handleRemoveSlotWord(key, promptParts, pIdx, slotCount)}
-                              />
-                            )}
-                          </span>
-                        );
-                      })}
+                    <div className="flex flex-wrap items-center gap-2 text-sm sm:text-base font-bold text-slate-900">
+                      {promptParts.map((part: string, pIdx: number) => (
+                        <div key={pIdx} className="inline-flex items-center gap-2 flex-wrap">
+                          {part && <span className="font-mono text-[#1e3a8a]">{part}</span>}
+                          {pIdx < slotCount && (
+                            <DropSlot
+                              slotIdx={pIdx}
+                              value={currentSlots[pIdx] || ''}
+                              categoryHint={visibleCategories[pIdx]?.name || `หมวดที่ ${pIdx + 1}`}
+                              onPlace={(word) => handlePlaceSlotWord(key, promptParts, pIdx, word, slotCount)}
+                              onRemove={() => handleRemoveSlotWord(key, promptParts, pIdx, slotCount)}
+                            />
+                          )}
+                        </div>
+                      ))}
                     </div>
-
-                    {/* Live Sentence Preview */}
-                    {currentConstructed && (
-                      <div className="assembled-sentence-preview mt-3.5 pt-3 border-t border-slate-100 flex flex-wrap items-center gap-2 text-xs sm:text-sm">
-                        <span className="text-slate-500 font-semibold">ประโยคที่ต่อได้:</span>
-                        <span className="font-bold text-[#1e3a8a] bg-blue-50 px-3 py-1 rounded-xl border border-blue-200">
-                          {currentConstructed}
-                        </span>
-                      </div>
-                    )}
                   </div>
 
-                  {/* 2. PROGRESSIVE WORD BANK CHIPS (ONLY SHOWS REQUIRED ORDERS FOR THIS QUIZ) */}
-                  {displayedCategories.length > 0 && (
-                    <div className="word-bank-chips-panel bg-slate-100/80 rounded-2xl p-4 border border-slate-200 mb-4">
-                      <div className="text-xs font-bold text-slate-700 mb-3 flex items-center justify-between">
-                        <span>📚 Word Bank (แตะหรือลากคำศัพท์เพื่อวาง):</span>
-                        <span className="text-[11px] font-medium text-slate-500">
-                          แสดง {displayedCategories.length} หมวดหมู่สำหรับข้อนี้
-                        </span>
-                      </div>
-
-                      <div className="categories-stack space-y-3">
-                        {displayedCategories.map((cat, cIdx) => (
-                          <div key={cat.order || cIdx} className="category-group flex flex-wrap items-center gap-2">
-                            <span className="text-xs font-extrabold px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-700 shadow-2xs">
-                              {cat.order}. {cat.name}:
-                            </span>
-                            <div className="chips-row flex flex-wrap gap-1.5">
-                              {cat.words.map((wObj, wIdx: number) => {
-                                const word = wObj.en;
-                                const isUsed = currentSlots.includes(word);
-                                return (
-                                  <button
-                                    key={wIdx}
-                                    type="button"
-                                    draggable
-                                    onDragStart={(e) => e.dataTransfer.setData('text/plain', word)}
-                                    onClick={() => handleAutoPlaceWord(key, promptParts, word, slotCount, cIdx)}
-                                    className={`word-chip px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold border transition-all shadow-2xs flex items-center gap-1.5 cursor-grab active:cursor-grabbing select-none ${
-                                      isUsed
-                                        ? 'bg-blue-600 text-white border-blue-700 ring-2 ring-blue-300/40 shadow-xs'
-                                        : 'bg-white hover:bg-blue-50 text-slate-800 border-slate-300 hover:border-blue-400'
-                                    }`}
-                                  >
-                                    <GripHorizontal className={`w-3 h-3 ${isUsed ? 'text-white/70' : 'text-slate-400'}`} />
-                                    <span>{word}</span>
-                                    {wObj.th && !isUsed && (
-                                      <span className="text-[11px] font-normal text-slate-500">({wObj.th})</span>
-                                    )}
-                                    {isUsed && <CheckCircle2 className="w-3.5 h-3.5 text-white shrink-0 ml-0.5" />}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                  {/* Word Bank Choices for this item */}
+                  <div className="word-bank-container bg-white border border-slate-200 rounded-xl p-3.5 mb-4 shadow-2xs">
+                    <div className="text-xs font-bold text-slate-600 mb-2.5 flex items-center justify-between">
+                      <span className="flex items-center gap-1">
+                        <span>🏷️</span>
+                        <span>Word Bank (แตะหรือลากคำศัพท์เพื่อวาง):</span>
+                      </span>
+                      <span className="text-[11px] font-normal text-slate-400">
+                        แสดง {visibleCategories.length} หมวดหมู่สำหรับข้อนี้
+                      </span>
                     </div>
-                  )}
+
+                    <div className="space-y-2.5">
+                      {visibleCategories.map((cat, cIdx) => (
+                        <div key={cat.order} className="category-words-group flex flex-wrap items-center gap-2">
+                          <span className="text-xs font-bold text-[#1e3a8a] bg-blue-50 px-2.5 py-1 rounded-md border border-blue-200/80 shrink-0">
+                            {cat.order}. {cat.name}:
+                          </span>
+
+                          <div className="flex flex-wrap items-center gap-2">
+                            {cat.words.map((wObj, wIdx) => {
+                              const isSelected = currentSlots.includes(wObj.en);
+                              return (
+                                <div
+                                  key={wIdx}
+                                  draggable
+                                  onDragStart={(e) => {
+                                    e.dataTransfer.setData('text/plain', wObj.en);
+                                  }}
+                                  onClick={() => handleAutoPlaceWord(key, promptParts, wObj.en, slotCount, cIdx)}
+                                  className={`word-chip-pill px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold border transition-all cursor-pointer select-none flex items-center gap-1.5 ${
+                                    isSelected
+                                      ? 'bg-blue-600 text-white border-blue-700 shadow-xs scale-98 opacity-90'
+                                      : 'bg-white hover:bg-blue-50 text-slate-800 border-slate-300 hover:border-blue-400 shadow-2xs hover:shadow-xs'
+                                  }`}
+                                >
+                                  <GripHorizontal className={`w-3 h-3 ${isSelected ? 'text-white' : 'text-slate-400'}`} />
+                                  <span>{wObj.en}</span>
+                                  {wObj.th && (
+                                    <span className={`text-[11px] font-normal ${isSelected ? 'text-blue-100' : 'text-slate-500'}`}>
+                                      ({wObj.th})
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
 
                   <div className="quiz-action-group flex flex-wrap gap-2.5 mb-3">
                     <button
@@ -568,81 +551,82 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                         )}
                       </div>
 
-                  {/* 💡 ดูเฉลย Button (shown for students to learn all valid sentence combinations) */}
-                  <div className="reveal-solution-section mb-3 mt-1">
-                    <button
-                      type="button"
-                      onClick={() => toggleRevealSolution(key)}
-                      className="btn-reveal-solution inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-[#2563eb] hover:text-[#1d4ed8] bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3.5 py-1.5 rounded-lg transition-all shadow-2xs cursor-pointer"
-                    >
-                      💡 {revealedSolutions[key] ? 'ซ่อนเฉลย' : 'ดูเฉลยคำตอบที่เป็นไปได้ทั้งหมด'}
-                    </button>
+                      {/* 💡 ดูเฉลย Button */}
+                      <div className="reveal-solution-section mb-3 mt-1">
+                        <button
+                          type="button"
+                          onClick={() => toggleRevealSolution(key)}
+                          className="btn-reveal-solution inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-[#2563eb] hover:text-[#1d4ed8] bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3.5 py-1.5 rounded-lg transition-all shadow-2xs cursor-pointer"
+                        >
+                          💡 {revealedSolutions[key] ? 'ซ่อนเฉลย' : 'ดูเฉลยคำตอบที่เป็นไปได้ทั้งหมด'}
+                        </button>
 
-                    {revealedSolutions[key] && (() => {
-                      // Dynamically compute all possible combinations for this item
-                      const firstCat = ex2Categories.find(c => c.order === requiredOrders[0]);
-                      const rowCount = firstCat ? firstCat.words.length : 3;
-                      const allSolutions: Array<{ en: string; th: string }> = [];
+                        {revealedSolutions[key] && (() => {
+                          const firstCat = ex2Categories.find(c => c.order === requiredOrders[0]);
+                          const rowCount = firstCat ? firstCat.words.length : 3;
+                          const allSolutions: Array<{ en: string; th: string }> = [];
 
-                      for (let r = 0; r < rowCount; r++) {
-                        const chosenEnWords: string[] = [];
-                        const chosenThWords: Record<number, string> = {};
+                          for (let r = 0; r < rowCount; r++) {
+                            const chosenEnWords: string[] = [];
+                            const chosenThWords: Record<number, string> = {};
 
-                        for (const ord of requiredOrders) {
-                          const cat = ex2Categories.find(c => c.order === ord);
-                          const wObj = cat?.words[r];
-                          if (wObj) {
-                            chosenEnWords.push(wObj.en);
-                            chosenThWords[ord] = wObj.th || wObj.en;
-                          }
-                        }
-
-                        if (chosenEnWords.length === slotCount) {
-                          const enSentence = reconstructSentence(promptParts, chosenEnWords);
-                          let thSentence = '';
-                          if (item.thai_template) {
-                            let tpl = item.thai_template;
                             for (const ord of requiredOrders) {
-                              if (chosenThWords[ord]) {
-                                tpl = tpl.replace(new RegExp(`\\{${ord}\\}`, 'g'), chosenThWords[ord]);
+                              const cat = ex2Categories.find(c => c.order === ord);
+                              const wObj = cat?.words[r];
+                              if (wObj) {
+                                chosenEnWords.push(wObj.en);
+                                chosenThWords[ord] = wObj.th || wObj.en;
                               }
                             }
-                            thSentence = tpl;
+
+                            if (chosenEnWords.length === slotCount) {
+                              const enSentence = reconstructSentence(promptParts, chosenEnWords);
+                              let thSentence = '';
+                              if (item.thai_template) {
+                                let tpl = item.thai_template;
+                                for (const ord of requiredOrders) {
+                                  if (chosenThWords[ord]) {
+                                    tpl = tpl.replace(new RegExp(`\\{${ord}\\}`, 'g'), chosenThWords[ord]);
+                                  }
+                                }
+                                thSentence = tpl;
+                              } else {
+                                thSentence = requiredOrders.map(ord => chosenThWords[ord] || '').filter(Boolean).join(' ');
+                              }
+                              allSolutions.push({ en: enSentence, th: thSentence });
+                            }
                           }
-                          allSolutions.push({ en: enSentence, th: thSentence });
-                        }
-                      }
 
-                      return (
-                        <div className="solution-actual-answer-box mt-2.5 p-4 bg-[#eff6ff] border border-[#bfdbfe] rounded-xl text-[#1e40af] text-xs sm:text-sm animate-in fade-in duration-200">
-                          <div className="flex items-center justify-between gap-2 mb-2 pb-2 border-b border-blue-200/80">
-                            <span className="font-bold text-slate-800 text-xs sm:text-sm">
-                              💡 เฉลยคำตอบที่ถูกต้อง ({allSolutions.length} รูปแบบที่เลือกแต่งได้):
-                            </span>
-                            <span className="text-[11px] font-semibold text-blue-700 bg-white px-2 py-0.5 rounded border border-blue-200">
-                              เลือกตอบแบบใดก็ได้
-                            </span>
-                          </div>
-
-                          <div className="space-y-2.5">
-                            {allSolutions.map((sol, sIdx) => (
-                              <div key={sIdx} className="solution-item-card bg-white p-3 rounded-lg border border-[#bfdbfe] shadow-2xs">
-                                <div className="font-mono font-bold text-[#1e3a8a] text-sm sm:text-base">
-                                  {sIdx + 1}. {sol.en}
-                                </div>
-                                {sol.th && (
-                                  <div className="text-xs sm:text-sm font-medium text-emerald-800 mt-1 flex items-center gap-1.5">
-                                    <span className="font-bold text-emerald-950">📖 คำแปล:</span>
-                                    <span>"{sol.th}"</span>
-                                  </div>
-                                )}
+                          return (
+                            <div className="solution-actual-answer-box mt-2.5 p-4 bg-[#eff6ff] border border-[#bfdbfe] rounded-xl text-[#1e40af] text-xs sm:text-sm animate-in fade-in duration-200">
+                              <div className="flex items-center justify-between gap-2 mb-2 pb-2 border-b border-blue-200/80">
+                                <span className="font-bold text-slate-800 text-xs sm:text-sm">
+                                  💡 เฉลยคำตอบที่ถูกต้อง ({allSolutions.length} รูปแบบที่เลือกแต่งได้):
+                                </span>
+                                <span className="text-[11px] font-semibold text-blue-700 bg-white px-2 py-0.5 rounded border border-blue-200">
+                                  เลือกตอบแบบใดก็ได้
+                                </span>
                               </div>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    })()}
-                  </div>
+
+                              <div className="space-y-2.5">
+                                {allSolutions.map((sol, sIdx) => (
+                                  <div key={sIdx} className="solution-item-card bg-white p-3 rounded-lg border border-[#bfdbfe] shadow-2xs">
+                                    <div className="font-mono font-bold text-[#1e3a8a] text-sm sm:text-base">
+                                      {sIdx + 1}. {sol.en}
+                                    </div>
+                                    {sol.th && (
+                                      <div className="text-xs sm:text-sm font-medium text-emerald-800 mt-1 flex items-center gap-1.5">
+                                        <span className="font-bold text-emerald-950">📖 คำแปล:</span>
+                                        <span>"{sol.th}"</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
                     </>
                   )}
                 </div>
@@ -782,6 +766,34 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                             </li>
                           ))}
                         </ul>
+                      )}
+                    </div>
+                  )}
+
+                  {/* 💡 ดูเฉลยตัวอย่าง Button for Exercise 3 */}
+                  {item.model_answer && (
+                    <div className="reveal-solution-section mb-1 mt-2.5">
+                      <button
+                        type="button"
+                        onClick={() => toggleRevealSolution(key)}
+                        className="btn-reveal-solution inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-[#2563eb] hover:text-[#1d4ed8] bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3.5 py-1.5 rounded-lg transition-all shadow-2xs cursor-pointer"
+                      >
+                        💡 {revealedSolutions[key] ? 'ซ่อนเฉลย' : 'ดูตัวอย่างประโยคเฉลย'}
+                      </button>
+
+                      {revealedSolutions[key] && (
+                        <div className="solution-actual-answer-box mt-2.5 p-3.5 bg-[#eff6ff] border border-[#bfdbfe] rounded-xl text-[#1e40af] text-xs sm:text-sm animate-in fade-in duration-200">
+                          <span className="font-bold block mb-1 text-slate-700">ตัวอย่างประโยคที่ถูกต้อง:</span>
+                          <div className="font-mono font-bold bg-white px-3 py-2 rounded-lg border border-[#bfdbfe] text-[#1e3a8a] text-sm sm:text-base">
+                            {item.model_answer}
+                          </div>
+                          {(item.image_description || item.context_hint) && (
+                            <div className="text-xs sm:text-sm font-medium text-emerald-800 mt-2 flex items-center gap-1.5 bg-emerald-50 px-2.5 py-1.5 rounded-lg border border-emerald-200">
+                              <span className="font-bold text-emerald-950">📖 บริบทภาพ/คำแปล:</span>
+                              <span>"{item.image_description || item.context_hint}"</span>
+                            </div>
+                          )}
+                        </div>
                       )}
                     </div>
                   )}

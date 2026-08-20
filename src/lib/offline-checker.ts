@@ -441,6 +441,11 @@ export function checkGuidedSentenceExercise(
     assembledTranslation = item.translation;
   }
 
+  // Fallback if no template is specified: join Thai meanings
+  if (!assembledTranslation && chosenList.length > 0) {
+    assembledTranslation = chosenList.map(c => c.th || c.en).join(' ');
+  }
+
   return {
     isCorrect: true,
     message: 'ถูกต้องเลยค่ะ เก่งมากเลย 👏',

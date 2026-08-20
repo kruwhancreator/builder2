@@ -207,7 +207,11 @@ export async function getChapterDataFromDb(slugOrId: string = 'sentence-builder-
               items: exItems.map(i => ({
                 id: i.item_number,
                 thai: i.thai_prompt,
+                thai_prompt: i.thai_prompt,
                 prompt: i.prompt,
+                thai_template: i.thai_template || null,
+                required_orders: i.required_orders || [1],
+                translations: i.translations || null,
                 model_answer: i.model_answer,
                 acceptable_answers: i.acceptable_answers || [i.model_answer],
                 image_url: i.image_url,
@@ -230,6 +234,7 @@ export async function getChapterDataFromDb(slugOrId: string = 'sentence-builder-
             items: ex1Items.map(i => ({
               id: i.item_number,
               thai: i.thai_prompt,
+              thai_prompt: i.thai_prompt,
               model_answer: i.model_answer,
               acceptable_answers: i.acceptable_answers || [i.model_answer]
             }))
@@ -245,6 +250,9 @@ export async function getChapterDataFromDb(slugOrId: string = 'sentence-builder-
             items: ex2Items.map(i => ({
               id: i.item_number,
               prompt: i.prompt,
+              thai_template: i.thai_template || null,
+              required_orders: i.required_orders || [1],
+              translations: i.translations || null,
               model_answer: i.model_answer,
               acceptable_answers: i.acceptable_answers || [i.model_answer]
             }))
