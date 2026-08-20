@@ -37,18 +37,18 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
   const ex3 = chapterData.exercises?.['ex-3'];
 
   // Normalize categories for Exercise 2
-  const ex2Categories: Array<{ order: number; name: string; words: string[] }> = ex2
+  const ex2Categories: Array<{ order: number; name: string; words: Array<{ en: string; th?: string }> }> = ex2
     ? Array.isArray(ex2.categories)
       ? ex2.categories.map((c: any, idx: number) => ({
           order: c.order || idx + 1,
           name: c.name || c.category_name || `หมวดที่ ${idx + 1}`,
-          words: c.words || c.word_bank || []
+          words: (c.words || c.word_bank || []).map((w: any) => typeof w === 'string' ? { en: w, th: '' } : { en: w.en || '', th: w.th || '' })
         }))
       : ex2.word_bank
         ? Object.entries(ex2.word_bank).map(([catKey, words]: [string, any], idx: number) => ({
             order: idx + 1,
             name: catKey === 'action' ? 'กำลังทำอะไร' : catKey === 'purpose' ? 'เพื่ออะไร (to...)' : catKey === 'time' ? 'เมื่อไหร่' : catKey === 'reason' ? 'เพราะอะไร (because...)' : catKey,
-            words: Array.isArray(words) ? words : []
+            words: (Array.isArray(words) ? words : []).map((w: any) => typeof w === 'string' ? { en: w, th: '' } : { en: w.en || '', th: w.th || '' })
           }))
         : []
     : [];
@@ -389,7 +389,10 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                     {ex2Categories.map((cat, cIdx) => (
                       <td key={cIdx} className="p-3.5 leading-relaxed align-top">
                         {cat.words.map((w, wIdx) => (
-                          <div key={wIdx} className="py-0.5">• {w}</div>
+                          <div key={wIdx} className="py-0.5">
+                            • <span className="font-semibold text-slate-900">{w.en}</span>
+                            {w.th && <span className="text-slate-500 text-xs ml-1 font-normal">({w.th})</span>}
+                          </div>
                         ))}
                       </td>
                     ))}
@@ -486,7 +489,8 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                               {cat.order}. {cat.name}:
                             </span>
                             <div className="chips-row flex flex-wrap gap-1.5">
-                              {cat.words.map((word: string, wIdx: number) => {
+                              {cat.words.map((wObj, wIdx: number) => {
+                                const word = wObj.en;
                                 const isUsed = currentSlots.includes(word);
                                 return (
                                   <button
@@ -503,6 +507,9 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                                   >
                                     <GripHorizontal className={`w-3 h-3 ${isUsed ? 'text-white/70' : 'text-slate-400'}`} />
                                     <span>{word}</span>
+                                    {wObj.th && !isUsed && (
+                                      <span className="text-[11px] font-normal text-slate-500">({wObj.th})</span>
+                                    )}
                                     {isUsed && <CheckCircle2 className="w-3.5 h-3.5 text-white shrink-0 ml-0.5" />}
                                   </button>
                                 );

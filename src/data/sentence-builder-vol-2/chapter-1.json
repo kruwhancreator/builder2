@@ -58,27 +58,27 @@
           "order": 1,
           "name": "ทำอะไรจริง ๆ",
           "words": [
-            "drink water",
-            "practise speaking",
-            "travel abroad"
+            { "en": "drink water", "th": "ดื่มน้ำ" },
+            { "en": "practise speaking", "th": "ฝึกพูด" },
+            { "en": "travel abroad", "th": "ไปเที่ยวต่างประเทศ" }
           ]
         },
         {
           "order": 2,
           "name": "เพื่ออะไร",
           "words": [
-            "stay hydrated",
-            "build confidence",
-            "meet new people"
+            { "en": "stay hydrated", "th": "รักษาระดับน้ำในร่างกาย" },
+            { "en": "build confidence", "th": "สร้างความมั่นใจ" },
+            { "en": "meet new people", "th": "พบปะผู้คนใหม่ ๆ" }
           ]
         },
         {
           "order": 3,
           "name": "แม้ว่า...",
           "words": [
-            "not thirsty",
-            "shy",
-            "alone"
+            { "en": "not thirsty", "th": "ไม่กระหายน้ำ" },
+            { "en": "shy", "th": "ขี้อาย" },
+            { "en": "alone", "th": "อยู่คนเดียว" }
           ]
         }
       ],
@@ -87,65 +87,29 @@
           "id": 1,
           "prompt": "I do ____________________.",
           "required_orders": [1],
-          "model_answer": "I do drink water.",
-          "acceptable_answers": [
-            "I do drink water.",
-            "I do practise speaking.",
-            "I do travel abroad."
-          ],
-          "translations": {
-            "drink water": "ฉันดื่มน้ำจริง ๆ",
-            "practise speaking": "ฉันฝึกพูดจริง ๆ",
-            "travel abroad": "ฉันไปเที่ยวต่างประเทศจริง ๆ"
-          }
+          "thai_template": "ฉัน{1}จริง ๆ",
+          "model_answer": "I do drink water."
         },
         {
           "id": 2,
           "prompt": "I do ____________________ to ____________________.",
           "required_orders": [1, 2],
-          "model_answer": "I do drink water to stay hydrated.",
-          "acceptable_answers": [
-            "I do drink water to stay hydrated.",
-            "I do practise speaking to build confidence.",
-            "I do travel abroad to meet new people."
-          ],
-          "translations": {
-            "drink water|stay hydrated": "ฉันดื่มน้ำจริง ๆ เพื่อรักษาระดับน้ำในร่างกาย",
-            "practise speaking|build confidence": "ฉันฝึกพูดจริง ๆ เพื่อสร้างความมั่นใจ",
-            "travel abroad|meet new people": "ฉันไปเที่ยวต่างประเทศจริง ๆ เพื่อพบปะผู้คนใหม่ ๆ"
-          }
+          "thai_template": "ฉัน{1}จริง ๆ เพื่อ{2}",
+          "model_answer": "I do drink water to stay hydrated."
         },
         {
           "id": 3,
           "prompt": "I do ____________________ to ____________________ even when I'm ____________________.",
           "required_orders": [1, 2, 3],
-          "model_answer": "I do drink water to stay hydrated even when I'm not thirsty.",
-          "acceptable_answers": [
-            "I do drink water to stay hydrated even when I'm not thirsty.",
-            "I do practise speaking to build confidence even when I'm shy.",
-            "I do travel abroad to meet new people even when I'm alone."
-          ],
-          "translations": {
-            "drink water|stay hydrated|not thirsty": "ฉันดื่มน้ำจริง ๆ เพื่อรักษาระดับน้ำในร่างกาย แม้ว่าฉันจะไม่กระหายน้ำก็ตาม",
-            "practise speaking|build confidence|shy": "ฉันฝึกพูดจริง ๆ เพื่อสร้างความมั่นใจ แม้ว่าฉันจะเป็นคนขี้อายก็ตาม",
-            "travel abroad|meet new people|alone": "ฉันไปเที่ยวต่างประเทศจริง ๆ เพื่อพบปะผู้คนใหม่ ๆ แม้ว่าฉันจะไปคนเดียวก็ตาม"
-          }
+          "thai_template": "ฉัน{1}จริง ๆ เพื่อ{2} แม้ว่าฉันจะ{3}ก็ตาม",
+          "model_answer": "I do drink water to stay hydrated even when I'm not thirsty."
         },
         {
           "id": 4,
           "prompt": "I do ____________________ to ____________________ even when I'm ____________________.",
           "required_orders": [1, 2, 3],
-          "model_answer": "I do practise speaking to build confidence even when I'm shy.",
-          "acceptable_answers": [
-            "I do drink water to stay hydrated even when I'm not thirsty.",
-            "I do practise speaking to build confidence even when I'm shy.",
-            "I do travel abroad to meet new people even when I'm alone."
-          ],
-          "translations": {
-            "drink water|stay hydrated|not thirsty": "ฉันดื่มน้ำจริง ๆ เพื่อรักษาระดับน้ำในร่างกาย แม้ว่าฉันจะไม่กระหายน้ำก็ตาม",
-            "practise speaking|build confidence|shy": "ฉันฝึกพูดจริง ๆ เพื่อสร้างความมั่นใจ แม้ว่าฉันจะเป็นคนขี้อายก็ตาม",
-            "travel abroad|meet new people|alone": "ฉันไปเที่ยวต่างประเทศจริง ๆ เพื่อพบปะผู้คนใหม่ ๆ แม้ว่าฉันจะไปคนเดียวก็ตาม"
-          }
+          "thai_template": "ฉัน{1}จริง ๆ เพื่อ{2} แม้ว่าฉันจะ{3}ก็ตาม",
+          "model_answer": "I do practise speaking to build confidence even when I'm shy."
         }
       ]
     },

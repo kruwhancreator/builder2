@@ -54,7 +54,7 @@ CREATE TABLE exercises (
   instruction TEXT,                    -- Exercise description / instructions for students
   guidance TEXT,                       -- Teacher / AI grading guidance notes
   grammar_focus TEXT,                  -- Grammar rules for this exercise
-  categories JSONB,                    -- Categories with orders & words for Ex 2 (e.g. [{ order: 1, name: "ทำอะไรจริง ๆ", words: [...] }])
+  categories JSONB,                    -- Modular Categories with words {en, th} for Ex 2
   word_bank JSONB,                     -- Word bank reference data for Ex 2
   structure_required JSONB,            -- Core / Context / Connect structure reference
   created_at TIMESTAMPTZ DEFAULT now(),
@@ -71,10 +71,11 @@ CREATE TABLE exercise_items (
   item_number INT NOT NULL,        -- 1, 2, 3, 4
   thai_prompt TEXT,                -- Thai prompt / sentence to translate
   prompt TEXT,                     -- Fill-in-the-blank prompt for Ex 2
+  thai_template TEXT,              -- Modular Thai template for auto-assembly (e.g. "ฉัน{1}จริง ๆ เพื่อ{2}")
   model_answer TEXT NOT NULL,      -- Target answer (e.g., "I am commuting to get home.")
   acceptable_answers TEXT[],       -- Alternative valid answers array
   required_orders INT[],           -- Target categories required for this item (e.g., [1, 2])
-  translations JSONB,              -- Mapping of answer word combinations to Thai translation
+  translations JSONB,              -- Optional custom override mapping of answer to Thai translation
   image_url TEXT,                  -- Public Supabase CDN URL for Exercise 3 picture
   image_description TEXT,          -- Image caption / description
   context_hint TEXT,               -- Context hint for Ex 3
@@ -163,9 +164,33 @@ BEGIN
     (u1_id, 'ex-1', 'Exercise 1: แปลประโยคภาษาอังกฤษ', 'translation', true, 'แปลประโยคภาษาไทยเป็นภาษาอังกฤษโดยใช้โครงสร้าง Present Continuous', 'เน้นตรวจสอบ Subject-Verb Agreement และการเติม -ing', NULL),
     (u1_id, 'ex-2', 'Exercise 2: เลือกคำจากตารางมาแต่งประโยค', 'guided_sentence', true, 'เลือกคำจากตารางมาเติมในช่องว่างให้สมบูรณ์ โดยเชื่อมโยงความหมายให้ถูกต้อง', 'ตรวจคำศัพท์ที่เลือกและการวางตำแหน่งในประโยค', 
      '[
-        {"order": 1, "name": "ทำอะไรจริง ๆ", "words": ["drink water", "practise speaking", "travel abroad"]},
-        {"order": 2, "name": "เพื่ออะไร", "words": ["stay hydrated", "build confidence", "meet new people"]},
-        {"order": 3, "name": "แม้ว่า...", "words": ["not thirsty", "shy", "alone"]}
+        {
+          "order": 1,
+          "name": "ทำอะไรจริง ๆ",
+          "words": [
+            {"en": "drink water", "th": "ดื่มน้ำ"},
+            {"en": "practise speaking", "th": "ฝึกพูด"},
+            {"en": "travel abroad", "th": "ไปเที่ยวต่างประเทศ"}
+          ]
+        },
+        {
+          "order": 2,
+          "name": "เพื่ออะไร",
+          "words": [
+            {"en": "stay hydrated", "th": "รักษาระดับน้ำในร่างกาย"},
+            {"en": "build confidence", "th": "สร้างความมั่นใจ"},
+            {"en": "meet new people", "th": "พบปะผู้คนใหม่ ๆ"}
+          ]
+        },
+        {
+          "order": 3,
+          "name": "แม้ว่า...",
+          "words": [
+            {"en": "not thirsty", "th": "ไม่กระหายน้ำ"},
+            {"en": "shy", "th": "ขี้อาย"},
+            {"en": "alone", "th": "อยู่คนเดียว"}
+          ]
+        }
       ]'::jsonb),
     (u1_id, 'ex-3', 'Exercise 3: ดูภาพแล้วแต่งประโยค (Core + Context + Connect)', 'picture_description', true, 'แต่งประโยคบรรยายภาพโดยใช้เทคนิค Core + Context + Connect', 'ตรวจ 3 องค์ประกอบหลัก: ประโยคแกนกลาง + บริบท + ตัวเชื่อม', NULL);
 
@@ -178,28 +203,13 @@ BEGIN
     (u1_id, 'ex-1', 3, 'ฉันกำลังติดตามพัสดุเพราะว่ามันเร่งด่วน', 'I am tracking a parcel because it is urgent.', ARRAY['I am tracking a parcel because it is urgent.']),
     (u1_id, 'ex-1', 4, 'ฉันกำลังลังเลที่จะออกไปข้างนอก ณ ตอนนี้เพราะมันดึกแล้ว', 'I am hesitating to go outside now because it is late.', ARRAY['I am hesitating to go outside now because it is late.']);
 
-  -- Exercise 2 Items with Progressive Orders & Translations
-  INSERT INTO exercise_items (unit_id, exercise_code, item_number, prompt, model_answer, acceptable_answers, required_orders, translations)
+  -- Exercise 2 Items with Modular Thai Templates (Zero-Maintenance Translation Assembly)
+  INSERT INTO exercise_items (unit_id, exercise_code, item_number, prompt, thai_template, model_answer, required_orders)
   VALUES
-    (u1_id, 'ex-2', 1, 'I do ____________________.', 'I do drink water.', 
-     ARRAY['I do drink water.', 'I do practise speaking.', 'I do travel abroad.'],
-     ARRAY[1],
-     '{"drink water": "ฉันดื่มน้ำจริง ๆ", "practise speaking": "ฉันฝึกพูดจริง ๆ", "travel abroad": "ฉันไปเที่ยวต่างประเทศจริง ๆ"}'::jsonb),
-     
-    (u1_id, 'ex-2', 2, 'I do ____________________ to ____________________.', 'I do drink water to stay hydrated.', 
-     ARRAY['I do drink water to stay hydrated.', 'I do practise speaking to build confidence.', 'I do travel abroad to meet new people.'],
-     ARRAY[1, 2],
-     '{"drink water|stay hydrated": "ฉันดื่มน้ำจริง ๆ เพื่อรักษาระดับน้ำในร่างกาย", "practise speaking|build confidence": "ฉันฝึกพูดจริง ๆ เพื่อสร้างความมั่นใจ", "travel abroad|meet new people": "ฉันไปเที่ยวต่างประเทศจริง ๆ เพื่อพบปะผู้คนใหม่ ๆ"}'::jsonb),
-     
-    (u1_id, 'ex-2', 3, 'I do ____________________ to ____________________ even when I''m ____________________.', 'I do drink water to stay hydrated even when I''m not thirsty.', 
-     ARRAY['I do drink water to stay hydrated even when I''m not thirsty.', 'I do practise speaking to build confidence even when I''m shy.', 'I do travel abroad to meet new people even when I''m alone.'],
-     ARRAY[1, 2, 3],
-     '{"drink water|stay hydrated|not thirsty": "ฉันดื่มน้ำจริง ๆ เพื่อรักษาระดับน้ำในร่างกาย แม้ว่าฉันจะไม่กระหายน้ำก็ตาม", "practise speaking|build confidence|shy": "ฉันฝึกพูดจริง ๆ เพื่อสร้างความมั่นใจ แม้ว่าฉันจะเป็นคนขี้อายก็ตาม", "travel abroad|meet new people|alone": "ฉันไปเที่ยวต่างประเทศจริง ๆ เพื่อพบปะผู้คนใหม่ ๆ แม้ว่าฉันจะไปคนเดียวก็ตาม"}'::jsonb),
-     
-    (u1_id, 'ex-2', 4, 'I do ____________________ to ____________________ even when I''m ____________________.', 'I do practise speaking to build confidence even when I''m shy.', 
-     ARRAY['I do drink water to stay hydrated even when I''m not thirsty.', 'I do practise speaking to build confidence even when I''m shy.', 'I do travel abroad to meet new people even when I''m alone.'],
-     ARRAY[1, 2, 3],
-     '{"drink water|stay hydrated|not thirsty": "ฉันดื่มน้ำจริง ๆ เพื่อรักษาระดับน้ำในร่างกาย แม้ว่าฉันจะไม่กระหายน้ำก็ตาม", "practise speaking|build confidence|shy": "ฉันฝึกพูดจริง ๆ เพื่อสร้างความมั่นใจ แม้ว่าฉันจะเป็นคนขี้อายก็ตาม", "travel abroad|meet new people|alone": "ฉันไปเที่ยวต่างประเทศจริง ๆ เพื่อพบปะผู้คนใหม่ ๆ แม้ว่าฉันจะไปคนเดียวก็ตาม"}'::jsonb);
+    (u1_id, 'ex-2', 1, 'I do ____________________.', 'ฉัน{1}จริง ๆ', 'I do drink water.', ARRAY[1]),
+    (u1_id, 'ex-2', 2, 'I do ____________________ to ____________________.', 'ฉัน{1}จริง ๆ เพื่อ{2}', 'I do drink water to stay hydrated.', ARRAY[1, 2]),
+    (u1_id, 'ex-2', 3, 'I do ____________________ to ____________________ even when I''m ____________________.', 'ฉัน{1}จริง ๆ เพื่อ{2} แม้ว่าฉันจะ{3}ก็ตาม', 'I do drink water to stay hydrated even when I''m not thirsty.', ARRAY[1, 2, 3]),
+    (u1_id, 'ex-2', 4, 'I do ____________________ to ____________________ even when I''m ____________________.', 'ฉัน{1}จริง ๆ เพื่อ{2} แม้ว่าฉันจะ{3}ก็ตาม', 'I do practise speaking to build confidence even when I''m shy.', ARRAY[1, 2, 3]);
 
   -- Exercise 3 Items
   INSERT INTO exercise_items (unit_id, exercise_code, item_number, image_description, context_hint, model_answer)

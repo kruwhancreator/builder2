@@ -308,16 +308,17 @@ export function checkOfflineGrammarAndSpelling(
 }
 
 /**
- * Smart 3-Tier Grammar & Coherence Checker for Exercise 2 (Choose Provided Word)
+ * Smart Modular Grammar & Coherence Checker for Exercise 2 (Choose Provided Word)
+ * Features Modular Translation Auto-Assembly from thai_template and word bank {en, th}
  * Tier 1: Completeness check
  * Tier 2: Category Placement / Order check
- * Tier 3: Semantic Coherence / Meaning Pairing check
- * + Instant Thai Translation retrieval from database
+ * Tier 3: Semantic Coherence / Parallel Index check
+ * + Instant Dynamic Thai Translation Assembly
  */
 export function checkGuidedSentenceExercise(
   item: any,
   studentAnswer: string,
-  categories: Array<{ order: number; name?: string; category_name?: string; words?: string[]; word_bank?: string[] }> = []
+  categories: Array<{ order: number; name?: string; category_name?: string; words?: Array<string | { en: string; th?: string }>; word_bank?: Array<string | { en: string; th?: string }> }> = []
 ): OfflineCheckResult {
   const raw = (studentAnswer || '').trim();
   if (!raw) {
@@ -331,111 +332,121 @@ export function checkGuidedSentenceExercise(
   const normalize = (s: string) => s.trim().replace(/\s+/g, ' ').toLowerCase().replace(/[.!?,]$/, '');
   const normalizedRaw = normalize(raw);
 
-  // 1. Acceptable answers list
-  const acceptableList: string[] = item.acceptable_answers || (item.model_answer ? [item.model_answer] : []);
-  const matchedAnswer = acceptableList.find(ans => normalize(ans) === normalizedRaw);
-
-  // Helper to extract translation
-  const getTranslationForAnswer = (): string | undefined => {
-    if (item.translations && typeof item.translations === 'object') {
-      for (const [key, trans] of Object.entries(item.translations)) {
-        const subWords = key.split('|').map(w => w.trim().toLowerCase());
-        const allPresent = subWords.every(w => normalizedRaw.includes(w));
-        if (allPresent) {
-          return trans as string;
-        }
+  // Normalize categories structure
+  const parsedCategories = (categories || []).map(cat => {
+    const rawWords = cat.words || cat.word_bank || [];
+    const wordList = rawWords.map((w: any, idx: number) => {
+      if (typeof w === 'string') {
+        return { en: w, th: w, index: idx };
       }
-      return Object.values(item.translations)[0] as string;
-    }
-    return item.translation || undefined;
-  };
-
-  if (matchedAnswer) {
+      return { en: w.en || '', th: w.th || w.en || '', index: idx };
+    });
     return {
-      isCorrect: true,
-      message: 'ถูกต้องเลยค่ะ เก่งมากเลย 👏',
-      points: [],
-      translation: getTranslationForAnswer()
+      order: cat.order || 1,
+      name: cat.name || cat.category_name || `หมวดที่ ${cat.order}`,
+      words: wordList
+    };
+  });
+
+  const requiredOrders: number[] = item.required_orders || [1];
+
+  // 1. TIER 1 & TIER 2: IDENTIFY SELECTED WORDS PER ORDER
+  const chosenWordsByOrder: Record<number, { en: string; th: string; index: number; catName: string }> = {};
+
+  for (const reqOrder of requiredOrders) {
+    const targetCat = parsedCategories.find(c => c.order === reqOrder);
+    if (!targetCat) continue;
+
+    for (const wObj of targetCat.words) {
+      if (wObj.en && normalizedRaw.includes(normalize(wObj.en))) {
+        chosenWordsByOrder[reqOrder] = {
+          en: wObj.en,
+          th: wObj.th,
+          index: wObj.index,
+          catName: targetCat.name
+        };
+        break;
+      }
+    }
+  }
+
+  // Check missing slots
+  const missingOrders = requiredOrders.filter(ord => !chosenWordsByOrder[ord]);
+  if (missingOrders.length > 0) {
+    const missingCat = parsedCategories.find(c => c.order === missingOrders[0]);
+    const missingName = missingCat ? missingCat.name : `หมวดที่ ${missingOrders[0]}`;
+    return {
+      isCorrect: false,
+      message: 'ยังเติมคำในช่องว่างไม่ครบนะคะ',
+      points: [
+        `• ยังขาดคำศัพท์จากหมวด "${missingName}" ค่ะ`,
+        `• กรุณาแตะหรือลากคำศัพท์มาวางในช่องว่างให้ครบถ้วนนะคะ`
+      ]
     };
   }
 
-  // 2. TIER 2: ORDER & CATEGORY PLACEMENT CHECK
-  if (categories && categories.length > 0) {
-    const requiredOrders: number[] = item.required_orders || [1];
+  // 2. TIER 3: SEMANTIC COHERENCE (PARALLEL INDEX MATCHING)
+  const chosenList = requiredOrders.map(ord => chosenWordsByOrder[ord]);
+  const primaryIndex = chosenList[0]?.index;
+  const isParallelConsistent = chosenList.every(c => c.index === primaryIndex);
 
-    for (const reqOrder of requiredOrders) {
-      const targetCat = categories.find(c => c.order === reqOrder);
-      const catName = targetCat?.name || targetCat?.category_name || `หมวดที่ ${reqOrder}`;
-      const catWords = targetCat?.words || targetCat?.word_bank || [];
+  // Check acceptable answers as override if explicitly defined
+  const acceptableList: string[] = item.acceptable_answers || (item.model_answer ? [item.model_answer] : []);
+  const isExplicitlyAcceptable = acceptableList.some(ans => normalize(ans) === normalizedRaw);
 
-      // Check if student answer has a word from this required order
-      const hasCatWord = catWords.some(w => normalizedRaw.includes(normalize(w)));
-      if (!hasCatWord) {
-        // Look if they used a word from another order instead
-        for (const otherCat of categories) {
-          if (otherCat.order !== reqOrder) {
-            const otherWords = otherCat.words || otherCat.word_bank || [];
-            const otherCatName = otherCat.name || otherCat.category_name || `หมวดที่ ${otherCat.order}`;
-            const usedOtherWord = otherWords.find(w => normalizedRaw.includes(normalize(w)));
-            if (usedOtherWord && !requiredOrders.includes(otherCat.order)) {
-              return {
-                isCorrect: false,
-                message: 'ยังไม่ถูกต้องตามตำแหน่งโครงสร้างนะคะ',
-                points: [
-                  `• คำว่า "${usedOtherWord}" มาจากหมวด "${otherCatName}" ซึ่งข้อนี้ยังไม่ได้ใช้หมวดนี้ค่ะ`,
-                  `• กรุณาเลือกคำจากหมวด "${catName}" เช่น "${catWords[0]}" มาเติมแทนนะคะ`
-                ]
-              };
-            }
-          }
-        }
-      }
-    }
+  const isCoherent = isParallelConsistent || isExplicitlyAcceptable;
 
-    // 3. TIER 3: SEMANTIC COHERENCE / MEANING MISMATCH CHECK
-    const usedWords: Array<{ order: number; word: string; catName: string }> = [];
-    for (const cat of categories) {
-      const words = cat.words || cat.word_bank || [];
-      const catName = cat.name || cat.category_name || `หมวดที่ ${cat.order}`;
-      for (const w of words) {
-        if (normalizedRaw.includes(normalize(w))) {
-          usedWords.push({ order: cat.order, word: w, catName });
-        }
-      }
-    }
+  if (!isCoherent && chosenList.length >= 2) {
+    // Semantic mismatch guidance
+    const word1 = chosenList[0];
+    const word2 = chosenList[1];
 
-    if (usedWords.length >= 2) {
-      const firstWord = usedWords[0].word;
-      const validCombo = acceptableList.find(ans => normalize(ans).includes(normalize(firstWord)));
+    // Find the ideal partner for word 1 (same index)
+    const cat2 = parsedCategories.find(c => c.order === requiredOrders[1]);
+    const idealPartner = cat2?.words.find(w => w.index === word1.index);
 
-      let suggestedPartner = '';
-      if (validCombo) {
-        for (const cat of categories) {
-          if (cat.order !== usedWords[0].order) {
-            const otherWords = cat.words || cat.word_bank || [];
-            const partner = otherWords.find(w => normalize(validCombo).includes(normalize(w)));
-            if (partner) {
-              suggestedPartner = partner;
-              break;
-            }
-          }
-        }
-      }
-
-      return {
-        isCorrect: false,
-        message: 'โครงสร้างประโยคถูกต้องแล้วค่ะ แต่ความหมายยังไม่สอดคล้องกันนะคะ',
-        points: [
-          `• การเลือก "${usedWords[0].word}" และ "${usedWords[1].word}" ความหมายยังไม่เชื่อมโยงกันอย่างสมบูรณ์ค่ะ`,
-          suggestedPartner
-            ? `• แนะนำให้จับคู่คำว่า "${usedWords[0].word}" กับ "${suggestedPartner}" เพื่อให้ความหมายสมเหตุสมผลนะคะ`
-            : `• ลองทบทวนการจับคู่ความหมายระหว่างหมวดคำศัพท์ดูอีกครั้งนะคะ`
-        ]
-      };
-    }
+    return {
+      isCorrect: false,
+      message: 'โครงสร้างประโยคถูกต้องแล้วค่ะ แต่ความหมายยังไม่สอดคล้องกันนะคะ',
+      points: [
+        `• การเลือก "${word1.en}" (${word1.th}) คู่กับ "${word2.en}" (${word2.th}) ความหมายยังไม่เชื่อมโยงกันค่ะ`,
+        idealPartner 
+          ? `• คำว่า "${word1.en}" (${word1.th}) ควรคู่กับ "${idealPartner.en}" (${idealPartner.th}) เพื่อให้ความหมายสมบูรณ์ค่ะ`
+          : `• ลองทบทวนการจับคู่ความหมายระหว่างหมวดคำศัพท์ดูอีกครั้งนะคะ`
+      ]
+    };
   }
 
-  // Fallback to standard check
-  return checkOfflineGrammarAndSpelling(item, studentAnswer, 'guided_sentence');
+  // 3. AUTO-ASSEMBLE THAI TRANSLATION FROM TEMPLATE
+  let assembledTranslation: string | undefined = undefined;
+
+  if (item.thai_template) {
+    let tpl: string = item.thai_template;
+    for (const ord of requiredOrders) {
+      const chosen = chosenWordsByOrder[ord];
+      if (chosen) {
+        tpl = tpl.replace(new RegExp(`\\{${ord}\\}`, 'g'), chosen.th);
+      }
+    }
+    assembledTranslation = tpl;
+  } else if (item.translations && typeof item.translations === 'object') {
+    for (const [key, trans] of Object.entries(item.translations)) {
+      const subWords = key.split('|').map(w => w.trim().toLowerCase());
+      if (subWords.every(w => normalizedRaw.includes(w))) {
+        assembledTranslation = trans as string;
+        break;
+      }
+    }
+  } else if (item.translation) {
+    assembledTranslation = item.translation;
+  }
+
+  return {
+    isCorrect: true,
+    message: 'ถูกต้องเลยค่ะ เก่งมากเลย 👏',
+    points: [],
+    translation: assembledTranslation
+  };
 }
+
 
