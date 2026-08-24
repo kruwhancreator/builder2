@@ -438,6 +438,12 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                     <div className="flex flex-wrap items-center gap-2 text-sm sm:text-base font-bold text-slate-900 leading-loose">
                       {promptParts.map((part: string, pIdx: number) => {
                         const currentVal = currentSlots[pIdx] || '';
+                        const slotOrder = requiredOrders[pIdx] ?? (pIdx + 1);
+                        const targetCat = ex2Categories.find(c => c.order === slotOrder);
+                        const placeholderText = targetCat?.name ? `(${targetCat.name})` : `(ช่องที่ ${pIdx + 1})`;
+                        const baseWidth = Math.max(140, (placeholderText.length + 4) * 10);
+                        const dynamicWidth = Math.max(baseWidth, (currentVal.length + 3) * 11);
+
                         return (
                           <div key={pIdx} className="inline-flex items-center gap-2 flex-wrap">
                             {part && <span className="font-mono text-[#1e3a8a]">{part}</span>}
@@ -446,9 +452,9 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                                 type="text"
                                 value={currentVal}
                                 onChange={(e) => handleSlotInputChange(key, promptParts, pIdx, e.target.value, slotCount)}
-                                placeholder={`... (ช่องที่ ${pIdx + 1})`}
-                                style={{ width: `${Math.max(130, (currentVal.length + 3) * 11)}px` }}
-                                className="inline-block px-3 py-1.5 rounded-xl border-2 border-dashed border-blue-400 bg-blue-50/70 focus:bg-white text-sm sm:text-base font-bold text-[#1e3a8a] text-center outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-all font-mono shadow-2xs min-w-[120px]"
+                                placeholder={placeholderText}
+                                style={{ width: `${dynamicWidth}px`, minWidth: `${baseWidth}px` }}
+                                className="inline-block px-3 py-1.5 rounded-xl border-2 border-dashed border-blue-400 bg-blue-50/70 focus:bg-white text-sm sm:text-base font-bold text-[#1e3a8a] text-center outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-all font-mono shadow-2xs placeholder:text-blue-400/80 placeholder:font-sans placeholder:text-xs sm:placeholder:text-sm placeholder:font-semibold"
                               />
                             )}
                           </div>
