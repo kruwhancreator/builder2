@@ -437,10 +437,10 @@ export function checkGuidedSentenceExercise(
     // Run Advanced Grammar Inflection & Fuzzy Spell Checking
     const cleanWord = (w: string) => w.toLowerCase().replace(/[^a-z0-9'-]/g, '');
     const studentTokens = raw.split(/\s+/).map(cleanWord).filter(Boolean);
-    const grammarPoints: string[] = [];
+    // Check words in missing categories for grammar inflections or close typos
+    let hasGrammarMismatch = false;
     const spellingPoints: string[] = [];
 
-    // Check words in missing categories for grammar inflections or close typos
     for (const ord of missingOrders) {
       const cat = parsedCategories.find(c => c.order === ord);
       if (!cat) continue;
@@ -461,52 +461,16 @@ export function checkGuidedSentenceExercise(
 
           const isRestMatching = sRest === tRest || getLevenshteinDistance(sRest, tRest) <= 1;
 
-          // 1. GRAMMATICAL INFLECTION CHECKS (Verb forms: -ing, -s/-es, past tense vs Base Form)
+          // 1. GRAMMATICAL INFLECTION (Real word variants like drinking, drinks, drank, drinked vs drink)
           if (isRestMatching) {
-            const hasDoAux = /\b(do|does|did|don't|doesn't|didn't|to)\b/i.test(item.prompt || raw);
             const sLemma = nlp(sFirst).verbs().toInfinitive().text() || '';
             const isRelatedVerb = sLemma === tFirst ||
                                   sFirst.replace(/(ing|ed|es|s)$/, '') === tFirst.replace(/(ing|ed|es|s)$/, '') ||
                                   sFirst.startsWith(tFirst);
 
-            if (isRelatedVerb) {
-              // Case A: Typed -ing when target is base form (e.g. drinking water vs drink water)
-              if (sFirst.endsWith('ing') && !tFirst.endsWith('ing')) {
-                grammarPoints.push(
-                  hasDoAux
-                    ? `• ไวยากรณ์ไม่ถูกต้อง: หลัง do / to ต้องใช้คำกริยารูปเดิม (Base Form / V.inf) ไม่เติม -ing นะคะ (ให้ใช้ "${targetWord.en}" ไม่ใช่ "${studentChunk}")`
-                    : `• ไวยากรณ์ไม่ถูกต้อง: ตำแหน่งนี้ต้องใช้คำกริยารูปเดิม (Base Form / V.inf) ไม่เติม -ing นะคะ (ให้ใช้ "${targetWord.en}" ไม่ใช่ "${studentChunk}")`
-                );
-                break;
-              }
-
-              // Case B: Typed -s / -es when target is base form (e.g. drinks water / drinkes water vs drink water)
-              if ((sFirst.endsWith('s') || sFirst.endsWith('es')) && !tFirst.endsWith('s')) {
-                grammarPoints.push(
-                  hasDoAux
-                    ? `• ไวยากรณ์ไม่ถูกต้อง: หลัง do ต้องใช้คำกริยารูปเดิม (Base Form / V.inf) ไม่เติม -s / -es นะคะ (ให้ใช้ "${targetWord.en}" ไม่ใช่ "${studentChunk}")`
-                    : `• ไวยากรณ์ไม่ถูกต้อง: ตำแหน่งนี้ต้องใช้คำกริยารูปเดิม (Base Form / V.inf) ไม่เติม -s / -es นะคะ (ให้ใช้ "${targetWord.en}" ไม่ใช่ "${studentChunk}")`
-                );
-                break;
-              }
-
-              // Case C: Typed past tense (-ed / drank / spoke) when target is base form
-              if (sFirst.endsWith('ed') || sFirst === 'drank' || sFirst === 'spoke' || sFirst === 'went' || sFirst === 'saw' || sFirst === 'ate') {
-                grammarPoints.push(
-                  hasDoAux
-                    ? `• ไวยากรณ์ไม่ถูกต้อง: หลัง do ต้องใช้คำกริยารูปเดิม (Base Form / V.inf) ไม่ผันเป็นรูปอดีต (V.2) นะคะ (ให้ใช้ "${targetWord.en}" ไม่ใช่ "${studentChunk}")`
-                    : `• ไวยากรณ์ไม่ถูกต้อง: ตำแหน่งนี้ต้องใช้คำกริยารูปเดิม (Base Form / V.inf) ไม่ผันเป็นรูปอดีตนะคะ (ให้ใช้ "${targetWord.en}" ไม่ใช่ "${studentChunk}")`
-                );
-                break;
-              }
-
-              // Case D: Typed base form when target is -ing (e.g. Present Continuous)
-              if (tFirst.endsWith('ing') && !sFirst.endsWith('ing')) {
-                grammarPoints.push(
-                  `• ไวยากรณ์ไม่ถูกต้อง: ในโครงสร้างนี้ต้องใช้คำกริยาเติม -ing (Present Continuous) นะคะ (ให้ใช้ "${targetWord.en}" ไม่ใช่ "${studentChunk}")`
-                );
-                break;
-              }
+            if (isRelatedVerb && sFirst !== tFirst) {
+              hasGrammarMismatch = true;
+              break;
             }
           }
 
@@ -516,7 +480,7 @@ export function checkGuidedSentenceExercise(
             break;
           }
 
-          // 3. TYPO / LEVENSHTEIN SPELL CHECK (When not a grammatical inflection)
+          // 3. TYPO / LEVENSHTEIN SPELL CHECK (Real misspellings like drnk, wate, travl)
           const dist = getLevenshteinDistance(studentChunk, targetEn);
           const sim = getWordSimilarity(studentChunk, targetEn);
 
@@ -527,14 +491,16 @@ export function checkGuidedSentenceExercise(
             }
           }
         }
+        if (hasGrammarMismatch) break;
       }
+      if (hasGrammarMismatch) break;
     }
 
-    if (grammarPoints.length > 0) {
+    if (hasGrammarMismatch) {
       return {
         isCorrect: false,
-        message: '⚡ ตรวจพบข้อผิดพลาดทางไวยากรณ์ (Grammar Error):',
-        points: grammarPoints
+        message: 'ยังไม่ถูกต้องตามโครงสร้างหนังสือนะคะ ลองใหม่อีกครั้งค่ะ',
+        points: ['• โครงสร้างประโยคยังไม่ถูกต้องตามหนังสือนะคะ ให้นักเรียนใช้โครงสร้างคำศัพท์ตามหนังสือแล้วลองใหม่อีกครั้งค่ะ']
       };
     }
 
