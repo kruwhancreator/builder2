@@ -297,81 +297,76 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                     />
                   </div>
 
-                  <div className="quiz-action-group flex flex-wrap gap-2.5 mb-3">
+                  <div className="quiz-action-group flex flex-wrap items-center gap-2.5 mb-3">
                     <button
                       onClick={() => handleOfflineCheck(item, key, 'ex-1')}
-                      className="btn-check-answer bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-4 py-2 rounded-lg text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+                      className="btn-check-answer bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-4 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
                     >
                       🔍 ตรวจคำตอบ
                     </button>
+                    {item.model_answer && (
+                      <button
+                        type="button"
+                        onClick={() => toggleRevealSolution(key)}
+                        className="btn-reveal-solution inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-[#2563eb] hover:text-[#1d4ed8] bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3.5 py-2 rounded-xl transition-all shadow-2xs cursor-pointer"
+                      >
+                        💡 {revealedSolutions[key] ? 'ซ่อนเฉลย' : 'ดูเฉลย'}
+                      </button>
+                    )}
                   </div>
 
                   {/* Feedback Box */}
                   {fb && (
-                    <>
-                      <div className={`feedback-result-box p-3.5 rounded-lg text-xs sm:text-sm transition-all animate-in fade-in duration-200 mb-3 ${
-                        fb.isCorrect 
-                          ? 'feedback-correct bg-[#ecfdf5] text-[#065f46] border border-[#a7f3d0]' 
-                          : 'feedback-incorrect bg-[#fef2f2] text-[#991b1b] border border-[#fecaca]'
-                      }`}>
-                        <div className="feedback-message-title font-bold flex items-center gap-1.5 mb-1 text-sm sm:text-base">
-                          {fb.isCorrect ? (
-                            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                          ) : (
-                          <XCircle className="w-4 h-4 text-red-600 shrink-0" />
-                          )}
-                          <span>{fb.message}</span>
-                        </div>
-
-                        {fb.points && fb.points.length > 0 && (
-                          <ul className="feedback-points-list space-y-1 mt-1.5 pl-1">
-                            {fb.points.map((pt, pIdx) => (
-                              <li key={pIdx} className="feedback-point-item font-medium text-xs sm:text-sm leading-relaxed">
-                                {pt}
-                              </li>
-                            ))}
-                          </ul>
+                    <div className={`feedback-result-box p-3.5 rounded-xl text-xs sm:text-sm transition-all animate-in fade-in duration-200 mb-3 ${
+                      fb.isCorrect 
+                        ? 'feedback-correct bg-[#ecfdf5] text-[#065f46] border border-[#a7f3d0]' 
+                        : 'feedback-incorrect bg-[#fef2f2] text-[#991b1b] border border-[#fecaca]'
+                    }`}>
+                      <div className="feedback-message-title font-bold flex items-center gap-1.5 mb-1 text-sm sm:text-base">
+                        {fb.isCorrect ? (
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                        ) : (
+                        <XCircle className="w-4 h-4 text-red-600 shrink-0" />
                         )}
+                        <span>{fb.message}</span>
                       </div>
 
-                      {/* 🔎 ดูเฉลย Button (shown below incorrect feedback) */}
-                      {!fb.isCorrect && item.model_answer && (
-                        <div className="reveal-solution-section mb-3">
-                          <button
-                            type="button"
-                            onClick={() => toggleRevealSolution(key)}
-                            className="btn-reveal-solution inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-[#2563eb] hover:text-[#1d4ed8] bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3.5 py-1.5 rounded-lg transition-all shadow-2xs cursor-pointer"
-                          >
-                            💡 {revealedSolutions[key] ? 'ซ่อนเฉลย' : 'ดูเฉลย'}
-                          </button>
+                      {fb.points && fb.points.length > 0 && (
+                        <ul className="feedback-points-list space-y-1 mt-1.5 pl-1">
+                          {fb.points.map((pt, pIdx) => (
+                            <li key={pIdx} className="feedback-point-item font-medium text-xs sm:text-sm leading-relaxed">
+                              {pt}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  )}
 
-                          {revealedSolutions[key] && (
-                            <div className="solution-actual-answer-box mt-2.5 p-3.5 bg-[#eff6ff] border border-[#bfdbfe] rounded-xl text-[#1e40af] text-xs sm:text-sm animate-in fade-in duration-200">
-                              <span className="font-bold block mb-1 text-slate-700">เฉลยคำตอบที่ถูกต้อง:</span>
-                              <div className="font-mono font-bold bg-white px-3 py-2 rounded-lg border border-[#bfdbfe] text-[#1e3a8a] text-sm sm:text-base">
-                                {item.model_answer}
-                              </div>
-                              {(item.thai || item.thai_prompt) && (
-                                <div className="text-xs sm:text-sm font-medium text-emerald-800 mt-2 flex items-center gap-1.5 bg-emerald-50 px-2.5 py-1.5 rounded-lg border border-emerald-200">
-                                  <span className="font-bold text-emerald-950">📖 คำแปลโจทย์:</span>
-                                  <span>"{item.thai || item.thai_prompt}"</span>
-                                </div>
-                              )}
-                              {item.acceptable_answers && item.acceptable_answers.length > 1 && (
-                                <div className="mt-2 space-y-1">
-                                  <span className="text-xs font-semibold text-slate-500 block">คำตอบอื่นที่ใช้ได้:</span>
-                                  {item.acceptable_answers.filter((ans: string) => ans !== item.model_answer).map((ans: string, aIdx: number) => (
-                                    <div key={aIdx} className="font-mono bg-white/80 px-2.5 py-1 rounded border border-[#bfdbfe] text-slate-700 text-xs">
-                                      • {ans}
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          )}
+                  {/* 💡 เฉลย Box (shown when revealedSolutions is toggled) */}
+                  {revealedSolutions[key] && item.model_answer && (
+                    <div className="solution-actual-answer-box mb-3 p-3.5 bg-[#eff6ff] border border-[#bfdbfe] rounded-xl text-[#1e40af] text-xs sm:text-sm animate-in fade-in duration-200">
+                      <span className="font-bold block mb-1 text-slate-700">เฉลยคำตอบที่ถูกต้อง:</span>
+                      <div className="font-mono font-bold bg-white px-3 py-2 rounded-lg border border-[#bfdbfe] text-[#1e3a8a] text-sm sm:text-base">
+                        {item.model_answer}
+                      </div>
+                      {(item.thai || item.thai_prompt) && (
+                        <div className="text-xs sm:text-sm font-medium text-emerald-800 mt-2 flex items-center gap-1.5 bg-emerald-50 px-2.5 py-1.5 rounded-lg border border-emerald-200">
+                          <span className="font-bold text-emerald-950">📖 คำแปลโจทย์:</span>
+                          <span>"{item.thai || item.thai_prompt}"</span>
                         </div>
                       )}
-                    </>
+                      {item.acceptable_answers && item.acceptable_answers.length > 1 && (
+                        <div className="mt-2 space-y-1">
+                          <span className="text-xs font-semibold text-slate-500 block">คำตอบอื่นที่ใช้ได้:</span>
+                          {item.acceptable_answers.filter((ans: string) => ans !== item.model_answer).map((ans: string, aIdx: number) => (
+                            <div key={aIdx} className="font-mono bg-white/80 px-2.5 py-1 rounded border border-[#bfdbfe] text-slate-700 text-xs">
+                              • {ans}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               );
@@ -463,64 +458,62 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                     </div>
                   </div>
 
-                  <div className="quiz-action-group flex flex-wrap gap-2.5 mb-3">
+                  <div className="quiz-action-group flex flex-wrap items-center gap-2.5 mb-3">
                     <button
                       onClick={() => handleOfflineCheck(item, key, 'ex-2')}
                       className="btn-check-answer bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
                     >
                       🔍 ตรวจคำตอบ
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => toggleRevealSolution(key)}
+                      className="btn-reveal-solution inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-[#2563eb] hover:text-[#1d4ed8] bg-blue-50 hover:bg-blue-100 border border-blue-200 px-4 py-2.5 rounded-xl transition-all shadow-2xs cursor-pointer"
+                    >
+                      💡 {revealedSolutions[key] ? 'ซ่อนเฉลย' : 'ดูเฉลยคำตอบที่เป็นไปได้ทั้งหมด'}
+                    </button>
                   </div>
 
                   {/* Feedback Box */}
                   {fb && (
-                    <>
-                      <div className={`feedback-result-box p-4 rounded-xl text-xs sm:text-sm transition-all animate-in fade-in duration-200 mb-3 ${
-                        fb.isCorrect 
-                          ? 'feedback-correct bg-[#ecfdf5] text-[#065f46] border border-[#a7f3d0]' 
-                          : 'feedback-incorrect bg-[#fef2f2] text-[#991b1b] border border-[#fecaca]'
-                      }`}>
-                        <div className="feedback-message-title font-bold flex items-center gap-1.5 mb-1 text-sm sm:text-base">
-                          {fb.isCorrect ? (
-                            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                          ) : (
-                            <XCircle className="w-4 h-4 text-red-600 shrink-0" />
-                          )}
-                          <span>{fb.message}</span>
-                        </div>
-
-                        {fb.points && fb.points.length > 0 && (
-                          <ul className="feedback-points-list space-y-1 mt-1.5 pl-1">
-                            {fb.points.map((pt, pIdx) => (
-                              <li key={pIdx} className="feedback-point-item font-medium text-xs sm:text-sm leading-relaxed">
-                                {pt}
-                              </li>
-                            ))}
-                          </ul>
+                    <div className={`feedback-result-box p-4 rounded-xl text-xs sm:text-sm transition-all animate-in fade-in duration-200 mb-3 ${
+                      fb.isCorrect 
+                        ? 'feedback-correct bg-[#ecfdf5] text-[#065f46] border border-[#a7f3d0]' 
+                        : 'feedback-incorrect bg-[#fef2f2] text-[#991b1b] border border-[#fecaca]'
+                    }`}>
+                      <div className="feedback-message-title font-bold flex items-center gap-1.5 mb-1 text-sm sm:text-base">
+                        {fb.isCorrect ? (
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                        ) : (
+                          <XCircle className="w-4 h-4 text-red-600 shrink-0" />
                         )}
-
-                        {/* Translation Box (when correct answer is checked) */}
-                        {fb.isCorrect && fb.translation && (
-                          <div className="feedback-translation-box mt-3 pt-3 border-t border-emerald-200/80 flex flex-wrap items-center gap-2 text-xs sm:text-sm">
-                            <span className="font-extrabold text-emerald-950">📖 คำแปล:</span>
-                            <span className="font-semibold text-emerald-900 bg-white/90 px-3 py-1.5 rounded-lg border border-emerald-300 shadow-2xs">
-                              "{fb.translation}"
-                            </span>
-                          </div>
-                        )}
+                        <span>{fb.message}</span>
                       </div>
 
-                      {/* 💡 ดูเฉลย Button */}
-                      <div className="reveal-solution-section mb-3 mt-1">
-                        <button
-                          type="button"
-                          onClick={() => toggleRevealSolution(key)}
-                          className="btn-reveal-solution inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-[#2563eb] hover:text-[#1d4ed8] bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3.5 py-1.5 rounded-lg transition-all shadow-2xs cursor-pointer"
-                        >
-                          💡 {revealedSolutions[key] ? 'ซ่อนเฉลย' : 'ดูเฉลยคำตอบที่เป็นไปได้ทั้งหมด'}
-                        </button>
+                      {fb.points && fb.points.length > 0 && (
+                        <ul className="feedback-points-list space-y-1 mt-1.5 pl-1">
+                          {fb.points.map((pt, pIdx) => (
+                            <li key={pIdx} className="feedback-point-item font-medium text-xs sm:text-sm leading-relaxed">
+                              {pt}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
 
-                        {revealedSolutions[key] && (() => {
+                      {/* Translation Box (when correct answer is checked) */}
+                      {fb.isCorrect && fb.translation && (
+                        <div className="feedback-translation-box mt-3 pt-3 border-t border-emerald-200/80 flex flex-wrap items-center gap-2 text-xs sm:text-sm">
+                          <span className="font-extrabold text-emerald-950">📖 คำแปล:</span>
+                          <span className="font-semibold text-emerald-900 bg-white/90 px-3 py-1.5 rounded-lg border border-emerald-300 shadow-2xs">
+                            "{fb.translation}"
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* 💡 เฉลย Box (shown when revealedSolutions is toggled) */}
+                  {revealedSolutions[key] && (() => {
                           const firstCat = ex2Categories.find(c => c.order === requiredOrders[0]);
                           const rowCount = firstCat ? firstCat.words.length : 3;
                           const allSolutions: Array<{ en: string; th: string }> = [];
@@ -585,13 +578,10 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                             </div>
                           );
                         })()}
-                      </div>
-                    </>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+                    </div>
+                  );
+                })}
+              </div>
         </section>
       )}
 
@@ -649,11 +639,11 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                     />
                   </div>
 
-                  <div className="quiz-action-group flex flex-wrap gap-2.5 mb-3">
+                  <div className="quiz-action-group flex flex-wrap items-center gap-2.5 mb-3">
                     <button
                       onClick={() => handleAiCheck(item, key, idx)}
                       disabled={isLoading}
-                      className="btn-ai-check bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-4 py-2 rounded-lg text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer disabled:opacity-50"
+                      className="btn-ai-check bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-4 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer disabled:opacity-50"
                     >
                       {isLoading ? (
                         <>
@@ -667,11 +657,20 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                         </>
                       )}
                     </button>
+                    {item.model_answer && (
+                      <button
+                        type="button"
+                        onClick={() => toggleRevealSolution(key)}
+                        className="btn-reveal-solution inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-[#2563eb] hover:text-[#1d4ed8] bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3.5 py-2 rounded-xl transition-all shadow-2xs cursor-pointer"
+                      >
+                        💡 {revealedSolutions[key] ? 'ซ่อนเฉลย' : 'ดูตัวอย่างประโยคเฉลย'}
+                      </button>
+                    )}
                   </div>
 
                   {/* Feedback Box */}
                   {fb && (
-                    <div className={`feedback-result-box p-3.5 rounded-lg text-xs sm:text-sm transition-all animate-in fade-in duration-200 ${
+                    <div className={`feedback-result-box p-3.5 rounded-xl text-xs sm:text-sm transition-all animate-in fade-in duration-200 mb-3 ${
                       fb.isCorrect 
                         ? 'feedback-correct bg-[#ecfdf5] text-[#065f46] border border-[#a7f3d0]' 
                         : 'feedback-incorrect bg-[#fef2f2] text-[#991b1b] border border-[#fecaca]'
@@ -697,29 +696,17 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                     </div>
                   )}
 
-                  {/* 💡 ดูเฉลยตัวอย่าง Button for Exercise 3 */}
-                  {item.model_answer && (
-                    <div className="reveal-solution-section mb-1 mt-2.5">
-                      <button
-                        type="button"
-                        onClick={() => toggleRevealSolution(key)}
-                        className="btn-reveal-solution inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-[#2563eb] hover:text-[#1d4ed8] bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3.5 py-1.5 rounded-lg transition-all shadow-2xs cursor-pointer"
-                      >
-                        💡 {revealedSolutions[key] ? 'ซ่อนเฉลย' : 'ดูตัวอย่างประโยคเฉลย'}
-                      </button>
-
-                      {revealedSolutions[key] && (
-                        <div className="solution-actual-answer-box mt-2.5 p-3.5 bg-[#eff6ff] border border-[#bfdbfe] rounded-xl text-[#1e40af] text-xs sm:text-sm animate-in fade-in duration-200">
-                          <span className="font-bold block mb-1 text-slate-700">ตัวอย่างประโยคที่ถูกต้อง:</span>
-                          <div className="font-mono font-bold bg-white px-3 py-2 rounded-lg border border-[#bfdbfe] text-[#1e3a8a] text-sm sm:text-base">
-                            {item.model_answer}
-                          </div>
-                          {(item.image_description || item.context_hint) && (
-                            <div className="text-xs sm:text-sm font-medium text-emerald-800 mt-2 flex items-center gap-1.5 bg-emerald-50 px-2.5 py-1.5 rounded-lg border border-emerald-200">
-                              <span className="font-bold text-emerald-950">📖 บริบทภาพ/คำแปล:</span>
-                              <span>"{item.image_description || item.context_hint}"</span>
-                            </div>
-                          )}
+                  {/* 💡 ดูเฉลยตัวอย่าง Box for Exercise 3 */}
+                  {revealedSolutions[key] && item.model_answer && (
+                    <div className="solution-actual-answer-box mb-3 p-3.5 bg-[#eff6ff] border border-[#bfdbfe] rounded-xl text-[#1e40af] text-xs sm:text-sm animate-in fade-in duration-200">
+                      <span className="font-bold block mb-1 text-slate-700">ตัวอย่างประโยคที่ถูกต้อง:</span>
+                      <div className="font-mono font-bold bg-white px-3 py-2 rounded-lg border border-[#bfdbfe] text-[#1e3a8a] text-sm sm:text-base">
+                        {item.model_answer}
+                      </div>
+                      {(item.image_description || item.context_hint) && (
+                        <div className="text-xs sm:text-sm font-medium text-emerald-800 mt-2 flex items-center gap-1.5 bg-emerald-50 px-2.5 py-1.5 rounded-lg border border-emerald-200">
+                          <span className="font-bold text-emerald-950">📖 บริบทภาพ/คำแปล:</span>
+                          <span>"{item.image_description || item.context_hint}"</span>
                         </div>
                       )}
                     </div>
