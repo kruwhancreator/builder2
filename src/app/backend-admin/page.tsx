@@ -404,7 +404,11 @@ export default function BackendAdminPage() {
   // Quiz Editor Handlers
   const openQuizEditor = (unit: any, exercise: any) => {
     setCurrentQuizExercise({ unit, exercise });
-    setQuizItems(JSON.parse(JSON.stringify(exercise.items || [])));
+    const rawItems = (exercise.items || []).map((item: any) => ({
+      ...item,
+      teacher_guidance: item.teacher_guidance || item.context_hint || ''
+    }));
+    setQuizItems(JSON.parse(JSON.stringify(rawItems)));
     // Load and normalize categories for guided_sentence
     if (exercise.type === 'guided_sentence' || exercise.code === 'ex-2') {
       const rawCats = exercise.categories || [];
@@ -2117,8 +2121,15 @@ export default function BackendAdminPage() {
                                   </div>
                                   <textarea
                                     rows={6}
-                                    value={q.teacher_guidance || q.context_hint || ''}
-                                    onChange={(e) => handleUpdateQuestion(idx, 'teacher_guidance', e.target.value)}
+                                    value={q.teacher_guidance ?? ''}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      setQuizItems(prev => {
+                                        const copy = [...prev];
+                                        copy[idx] = { ...copy[idx], teacher_guidance: val, context_hint: val };
+                                        return copy;
+                                      });
+                                    }}
                                     placeholder={`Core: \tI + do + [ V.ไม่ผัน ]\nI do cook at home.\nContext: \tI + do + V.ไม่ผัน + [ to + V.ไม่ผัน ]\nI do cook at home to save money.\nConnect: \tI + do + V.ไม่ผัน + to + V.ไม่ผัน + [ even when I’m + คำคุณศัพท์]\nI do cook at home to save money even when I am tired.\nตัวอย่าง: I do read books to learn new things even when I'm sleepy.\nตัวอย่าง: I do wash my hands to stay clean even when I’m in a hurry.\nตัวอย่าง: I do turn off the lights to save electricity even when I’m busy.`}
                                     className="w-full rounded-xl bg-white border border-amber-300 p-3.5 text-xs sm:text-sm font-mono text-slate-900 focus:outline-none focus:border-amber-600 leading-relaxed"
                                   />
