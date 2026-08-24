@@ -168,10 +168,10 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
           exerciseType: 'picture_description',
           item: {
             ...item,
-            image_description: item.image_description,
-            context_hint: item.context_hint,
-            teacher_guidance: item.teacher_guidance || ex3?.guidance || '',
-            model_answer: item.model_answer
+            image_description: item.image_description || '',
+            context_hint: item.context_hint || '',
+            teacher_guidance: item.teacher_guidance || item.context_hint || ex3?.guidance || ex3?.instruction || '',
+            model_answer: item.model_answer || ''
           },
           studentAnswer: studentAns
         })
@@ -179,7 +179,11 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
 
       const data: EvaluationResult = await res.json();
 
-      const isScoreGood = data.score >= 80;
+      // Sentence is strictly correct only if score is 100 and status does not flag errors/incompleteness
+      const isStatusIncomplete = (data.statusText || '').includes('ไม่สมบูรณ์') || 
+                                 (data.statusText || '').includes('💡') || 
+                                 (data.statusText || '').includes('❌');
+      const isScoreGood = data.score >= 95 && !isStatusIncomplete;
       const points: string[] = [];
 
       if (data.feedbackPoints && data.feedbackPoints.length > 0) {
@@ -191,7 +195,7 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
       }
 
       // Clean any percentage format if present from status text
-      const cleanStatus = (data.statusText || (isScoreGood ? 'ยอดเยี่ยมมากค่ะ! ประโยคถูกต้องตามโครงสร้าง 👏' : 'เกือบสมบูรณ์แล้วค่ะ ลองปรับตามคำแนะนำดูนะคะ'))
+      const cleanStatus = (data.statusText || (isScoreGood ? '✅ ถูกต้องตามโครงสร้างและหลักภาษาค่ะ 👏' : '💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ'))
         .replace(/\s*\(\d+%\)/g, '');
 
       setFeedbacks(prev => ({

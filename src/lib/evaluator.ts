@@ -45,31 +45,36 @@ export async function evaluateAnswer(req: EvaluationRequest): Promise<Evaluation
 async function evaluateWithGemini(apiKey: string, req: EvaluationRequest): Promise<EvaluationResult> {
   const ai = new GoogleGenAI({ apiKey });
 
-  const systemInstruction = `You are an expert English Language Teacher & QuillBot-style AI Exercise Advisor for Thai students using Sentence Builder Vol. 2.
-Your goal is to evaluate student answers, check grammar (Present Continuous: S + is/am/are + V.ing), detect spelling errors, check punctuation (must end with a period '.'), and provide encouraging feedback in Thai.
+  const systemInstruction = `You are an expert English Language Teacher & AI Exercise Advisor for Thai students using Sentence Builder Vol. 2.
+Your goal is to evaluate student answers strictly against the specific sentence structure patterns, teacher instructions, spelling, and grammar provided in each exercise.
 
 CRITICAL EVALUATION RULES:
-1. For Exercise 1 (Translation):
-   - You MUST compare the student's answer against the exact "Target Model Answer" provided in the prompt.
-   - The field "correctedSentence" MUST ALWAYS BE set to the exact "Target Model Answer" (e.g. "I am commuting to get home."). Do NOT rewrite the student's incorrect words or invent random verbs like "walking" or "walikng".
-   - If the student's answer differs from the Target Model Answer, explain the difference clearly in Thai feedbackPoints.
-2. Check Spelling: Carefully look for spelling errors in words (e.g., "hom" -> "home", "makeing" -> "making"). Mention spelling errors explicitly in feedbackPoints in Thai.
-3. Check Punctuation: Check if the sentence ends with a period (Full stop "."). If missing, remind the student in Thai: "อย่าลืมใส่เครื่องหมายจุด Full Stop (.) ท้ายประโยคด้วยครับ".
-4. For Exercise 2 (Guided Free Style Sentence): Students write free-style sentences. Verify grammar (S + is/am/are + V.ing) and step requirements.
+1. STRICT SCORING & STATUS CRITERIA:
+   - score: 100 ONLY if the sentence is 100% correct in all aspects: (1) Matches the Core + Context + Connect structure pattern specified in the rules, (2) Has ZERO spelling errors, (3) Has correct grammar (e.g. Base form verbs after 'do' and 'to', valid adjectives/clauses), (4) Capitalized first letter and ends with a period '.'.
+   - score: 50-70 if there is ANY spelling mistake (e.g. "bok" -> "book"), grammatical mistake, missing structure part, or missing period.
+   - For statusText:
+     • If score === 100: "✅ ถูกต้องตามโครงสร้างและหลักภาษาค่ะ 👏"
+     • If score < 100: "💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ"
+2. Check Spelling: Carefully inspect every word for spelling errors (e.g. "bok" -> "book", "drnk" -> "drink", "slepy" -> "sleepy"). Point out spelling errors clearly in Thai in feedbackPoints.
+3. Check Punctuation: The sentence must end with a period (Full stop ".").
+4. Pattern & Formula Locking for Exercise 3:
+   - Carefully follow the "Pattern & Structure Rules specified by Teacher" (Core + Context + Connect).
+   - Ensure the student's sentence matches the meaning/context of the picture and follows the required structure (e.g. "I do [V.inf] to [V.inf] even when I'm [Adj]").
+   - If the student used a wrong verb form (e.g. added -ing or -s after 'do' or 'to') or wrong clause, explain the exact rule in Thai.
 
 CRITICAL REQUIREMENT: You MUST respond ONLY with valid, raw JSON matching this schema:
 {
-  "score": number (0-100),
-  "statusText": "string in Thai (e.g. ✅ ถูกต้องสมบูรณ์! (100%) or ⚡ เกือบถูกต้องแล้ว! (60%))",
-  "correctedSentence": "string (for Exercise 1, MUST be the exact Target Model Answer provided)",
+  "score": number (0-100, must be < 80 if there is ANY typo or grammar issue),
+  "statusText": "string in Thai (e.g. ✅ ถูกต้องตามโครงสร้างและหลักภาษาค่ะ 👏 or 💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ)",
+  "correctedSentence": "string (A natural, fully correct sentence conforming to the target pattern)",
   "feedbackPoints": ["string in Thai", "string in Thai"],
-  "breakdown": optional object with key-value checks (e.g. { "actionValid": true, "timeValid": true, "purposeValid": true, "reasonValid": true })
+  "breakdown": { "core": boolean, "context": boolean, "connect": boolean }
 }
 Do not wrap in markdown code blocks. Return pure raw JSON string only.`;
 
   const modelAnswer = req.item.model_answer ? `Target Model Answer (Ground Truth): "${req.item.model_answer}"` : '';
   const acceptableAnswers = req.item.acceptable_answers ? `Acceptable Variations: ${JSON.stringify(req.item.acceptable_answers)}` : '';
-  const teacherGuidance = req.item.teacher_guidance ? `Teacher Instructions: "${req.item.teacher_guidance}"` : '';
+  const teacherGuidance = req.item.teacher_guidance || req.item.context_hint ? `Teacher Pattern & Context Rules:\n${req.item.teacher_guidance || req.item.context_hint}` : '';
 
   let prompt = '';
   if (req.exerciseType === 'translation') {
@@ -83,7 +88,7 @@ Student Answer: "${req.studentAnswer}"
 Task for Exercise 1:
 1. Evaluate if Student Answer matches the Target Model Answer "${req.item.model_answer}".
 2. Set "correctedSentence" EXACTLY to "${req.item.model_answer}".
-3. If student wrote incorrect words or typos (e.g. "i walking hom"), explain in Thai feedbackPoints why it should be "${req.item.model_answer}" (e.g. Missing "am", "hom" is misspelled, verb should be "commuting").`;
+3. If student wrote incorrect words or typos, explain in Thai feedbackPoints why it should be "${req.item.model_answer}".`;
   } else if (req.exerciseType === 'guided_sentence') {
     prompt = `Exercise Type: Guided Sentence (Free Style)
 Prompt Step: "${req.item.prompt || ''}"
@@ -93,28 +98,34 @@ ${modelAnswer}
 ${teacherGuidance}
 Student Answer: "${req.studentAnswer}"
 
-Students write free-style sentences following the step structure. Check grammar (I am + V.ing), spelling (e.g. "makeing" -> "making"), and full stop "." at the end.
+Students write free-style sentences following the step structure. Check grammar, spelling, and full stop "." at the end.
 Provide breakdown object: { "actionValid": boolean, "timeValid": boolean, "purposeValid": boolean, "reasonValid": boolean }.`;
   } else {
     const teacherPatternContext = req.item.teacher_guidance || req.item.context_hint || '';
     prompt = `Exercise Type: Picture Description & Sentence Construction (Exercise 3: Core + Context + Connect)
-${req.item.image_description ? `Picture Description: "${req.item.image_description}"` : ''}
+${req.item.image_description ? `Picture Description & Scene Context:\n"${req.item.image_description}"\n` : ''}
 ${modelAnswer}
 ${acceptableAnswers}
 
-Pattern & Structure Rules specified by Teacher for AI to lock onto:
-${teacherPatternContext || `Core: S + do/am/is/are + V\nContext: to + V.inf / time / place\nConnect: because / even when ...`}
+Teacher Pattern & Structure Rules (STRICTLY LOCK ONTO THESE FORMULAS & PATTERNS):
+${teacherPatternContext || `Core: I + do + [ V.ไม่ผัน ]\nContext: to + [ V.ไม่ผัน ]\nConnect: even when I'm + [ คำคุณศัพท์ ]\nExample: I do read books to learn new things even when I'm sleepy.`}
 
 Student Answer to Evaluate: "${req.studentAnswer}"
 
 Evaluation Instructions:
-1. Verify if the student's sentence follows the target Core + Context + Connect structure pattern specified in the rules above.
-2. Check grammar rules (e.g. auxiliary verbs, V.inf after 'to', adjectives/clauses after connectives), spelling, and ending period '.'.
-3. Do NOT include any percentage numbers in "statusText". Provide encouraging, clear Thai status:
-   - "✅ ถูกต้องตามโครงสร้างและหลักภาษาค่ะ 👏" (if correct)
-   - "💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ" (if structure, grammar, or spelling has issues)
-4. Provide detailed Thai feedbackPoints explaining what is correct, what is missing, or what needs adjustment.
-5. In "correctedSentence", provide a natural, fully correct sentence conforming to the target structure.
+1. Check if the Student Answer follows the 3-part structure (Core + Context + Connect) according to the Teacher's pattern rules above.
+2. Check grammar rules:
+   - Core: S + do + Base Verb (V.inf ไม่ผัน, ไม่เติม -s/-es/-ing/-ed)
+   - Context: to + Base Verb (V.inf ไม่ผัน)
+   - Connect: connective clause (e.g. even when I'm + adjective)
+3. Check Spelling: Check every single word for spelling errors (e.g. "bok" -> "book", "tired", "smart").
+   - If there is ANY typo/misspelling or grammar error, set "score" to 60 or less, and statusText to "💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ".
+   - Set score to 100 ONLY if there are 0 typos and the structure is 100% correct.
+4. In "feedbackPoints", provide clear, supportive feedback in Thai mentioning:
+   - What structure was recognized.
+   - Any spelling corrections needed (e.g. "พบคำสะกดผิด: คำว่า 'bok' ควรสะกดเป็น 'book'").
+   - Any grammar corrections.
+5. In "correctedSentence", provide the fully corrected sentence: e.g. "I do read a book to get smart even when I'm tired."
 6. Return breakdown object: { "core": boolean, "context": boolean, "connect": boolean }.`;
   }
 
