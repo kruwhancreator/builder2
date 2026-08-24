@@ -174,3 +174,46 @@ BEGIN
     last_viewed_at = now();
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- --------------------------------------------------------------------
+-- 8. SUPABASE STORAGE BUCKET: exercise-images (Public Image Hosting)
+-- --------------------------------------------------------------------
+-- 8.1 Create the public bucket if it doesn't exist
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'exercise-images',
+  'exercise-images',
+  true,
+  5242880, -- 5MB limit
+  ARRAY['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/gif', 'image/svg+xml']
+)
+ON CONFLICT (id) DO UPDATE SET public = true;
+
+-- 8.2 Storage Access Policies (Allow Public Read, Upload, Update, Delete)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE schemaname = 'storage' AND tablename = 'objects' AND policyname = 'Public Read exercise-images'
+  ) THEN
+    CREATE POLICY "Public Read exercise-images" ON storage.objects FOR SELECT TO public USING (bucket_id = 'exercise-images');
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE schemaname = 'storage' AND tablename = 'objects' AND policyname = 'Public Insert exercise-images'
+  ) THEN
+    CREATE POLICY "Public Insert exercise-images" ON storage.objects FOR INSERT TO public WITH CHECK (bucket_id = 'exercise-images');
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE schemaname = 'storage' AND tablename = 'objects' AND policyname = 'Public Update exercise-images'
+  ) THEN
+    CREATE POLICY "Public Update exercise-images" ON storage.objects FOR UPDATE TO public USING (bucket_id = 'exercise-images');
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE schemaname = 'storage' AND tablename = 'objects' AND policyname = 'Public Delete exercise-images'
+  ) THEN
+    CREATE POLICY "Public Delete exercise-images" ON storage.objects FOR DELETE TO public USING (bucket_id = 'exercise-images');
+  END IF;
+END $$;
+

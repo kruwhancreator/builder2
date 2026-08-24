@@ -650,19 +650,34 @@ export default function BackendAdminPage() {
     if (!file) return;
     setIsUploadingImage(prev => ({ ...prev, [qIdx]: true }));
     try {
-      const fileExt = file.name.split('.').pop() || 'png';
-      const fileName = `ex3_${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
-      const filePath = `exercise-images/${fileName}`;
+      // 1. Upload via dedicated backend API route (handles bucket creation and public CDN URL)
+      const formData = new FormData();
+      formData.append('file', file);
 
+      const res = await fetch('/api/admin/upload-image', {
+        method: 'POST',
+        body: formData
+      });
+
+      const resData = await res.json();
+      if (res.ok && resData.publicUrl) {
+        handleUpdateQuestion(qIdx, 'image_url', resData.publicUrl);
+        setIsUploadingImage(prev => ({ ...prev, [qIdx]: false }));
+        return;
+      }
+
+      // 2. Direct client-side Supabase storage attempt
       if (supabase) {
-        let { data, error } = await supabase.storage
+        const fileExt = file.name.split('.').pop() || 'png';
+        const fileName = `ex3_${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
+        const { error } = await supabase.storage
           .from('exercise-images')
-          .upload(filePath, file, { upsert: true });
+          .upload(fileName, file, { upsert: true });
 
         if (!error) {
           const { data: publicUrlData } = supabase.storage
             .from('exercise-images')
-            .getPublicUrl(filePath);
+            .getPublicUrl(fileName);
           if (publicUrlData?.publicUrl) {
             handleUpdateQuestion(qIdx, 'image_url', publicUrlData.publicUrl);
             setIsUploadingImage(prev => ({ ...prev, [qIdx]: false }));
@@ -671,7 +686,7 @@ export default function BackendAdminPage() {
         }
       }
 
-      // Fallback: Read as base64 data URL
+      // 3. Fallback: Read as base64 data URL
       const reader = new FileReader();
       reader.onload = (e) => {
         const base64Url = e.target?.result as string;
