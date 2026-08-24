@@ -22,7 +22,7 @@ interface ExerciseWorkspaceProps {
 export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWorkspaceProps) {
   // State per question item: answers, feedback, solution visibility, loading state
   const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [feedbacks, setFeedbacks] = useState<Record<string, { isCorrect: boolean; message: string; points: string[]; translation?: string }>>({});
+  const [feedbacks, setFeedbacks] = useState<Record<string, { isCorrect: boolean; message: string; points: string[]; translation?: string; studentTranslation?: string }>>({});
   const [revealedSolutions, setRevealedSolutions] = useState<Record<string, boolean>>({});
   const [dragSlots, setDragSlots] = useState<Record<string, string[]>>({});
   const [aiLoading, setAiLoading] = useState<Record<string, boolean>>({});
@@ -179,11 +179,10 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
 
       const data: EvaluationResult = await res.json();
 
-      // Sentence is strictly correct only if score is 100 and status does not flag errors/incompleteness
-      const isStatusIncomplete = (data.statusText || '').includes('ไม่สมบูรณ์') || 
-                                 (data.statusText || '').includes('💡') || 
-                                 (data.statusText || '').includes('❌');
-      const isScoreGood = data.score >= 95 && !isStatusIncomplete;
+      const isCorrect = typeof data.isCorrect === 'boolean'
+        ? data.isCorrect
+        : (data.score ? data.score >= 95 : false);
+
       const points: string[] = [];
 
       if (data.feedbackPoints && data.feedbackPoints.length > 0) {
@@ -194,16 +193,17 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
         points.push(`✨ ประโยคตัวอย่างที่แนะนำ: "${data.correctedSentence}"`);
       }
 
-      // Clean any percentage format if present from status text
-      const cleanStatus = (data.statusText || (isScoreGood ? '✅ ถูกต้องตามโครงสร้างและหลักภาษาค่ะ 👏' : '💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ'))
-        .replace(/\s*\(\d+%\)/g, '');
+      const finalMessage = isCorrect
+        ? 'ถูกต้องเลยค่ะ เก่งมากเลย 👏'
+        : (data.statusText || '💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ');
 
       setFeedbacks(prev => ({
         ...prev,
         [key]: {
-          isCorrect: isScoreGood,
-          message: cleanStatus,
-          points: points.length > 0 ? points : ['ประโยคถูกต้องตามโครงสร้างที่กำหนด']
+          isCorrect,
+          message: finalMessage,
+          studentTranslation: data.studentTranslation || '',
+          points: points.length > 0 ? points : ['ประโยคถูกต้องตามโครงสร้างที่กำหนดค่ะ']
         }
       }));
     } catch (err) {
@@ -687,6 +687,14 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                         )}
                         <span>{fb.message}</span>
                       </div>
+
+                      {/* 📖 คำแปลประโยคของนักเรียน */}
+                      {fb.studentTranslation && (
+                        <div className="feedback-student-translation my-2 p-2.5 bg-white/95 rounded-lg border border-slate-200 text-xs sm:text-sm">
+                          <span className="font-bold text-slate-800">📖 คำแปลประโยคของคุณ:</span>
+                          <span className="ml-1.5 text-slate-700 font-medium">"{fb.studentTranslation}"</span>
+                        </div>
+                      )}
 
                       {fb.points && fb.points.length > 0 && (
                         <ul className="feedback-points-list space-y-1 mt-1.5 pl-1">
