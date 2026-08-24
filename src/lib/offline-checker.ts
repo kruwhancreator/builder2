@@ -434,12 +434,13 @@ export function checkGuidedSentenceExercise(
   const missingOrders = requiredOrders.filter(ord => !foundOrders.has(ord));
 
   if (missingOrders.length > 0) {
-    // Run Levenshtein Fuzzy Spell Checking to see if student typed a misspelled version
+    // Run Advanced Grammar Inflection & Fuzzy Spell Checking
     const cleanWord = (w: string) => w.toLowerCase().replace(/[^a-z0-9'-]/g, '');
     const studentTokens = raw.split(/\s+/).map(cleanWord).filter(Boolean);
+    const grammarPoints: string[] = [];
     const spellingPoints: string[] = [];
 
-    // Check words in missing categories for close matches
+    // Check words in missing categories for grammar inflections or close typos
     for (const ord of missingOrders) {
       const cat = parsedCategories.find(c => c.order === ord);
       if (!cat) continue;
@@ -448,18 +449,76 @@ export function checkGuidedSentenceExercise(
         if (!targetWord.en) continue;
         const targetEn = targetWord.en.toLowerCase();
         const targetWordsList = targetEn.split(/\s+/);
+        const tFirst = targetWordsList[0];
 
-        // Check single-word or multi-word phrase similarity
+        // Check single-word or multi-word phrase
         for (let i = 0; i <= studentTokens.length - targetWordsList.length; i++) {
           const studentChunk = studentTokens.slice(i, i + targetWordsList.length).join(' ');
-          const dist = getLevenshteinDistance(studentChunk, targetEn);
-          const sim = getWordSimilarity(studentChunk, targetEn);
+          const sWords = studentChunk.split(/\s+/);
+          const sFirst = sWords[0];
+          const sRest = sWords.slice(1).join(' ');
+          const tRest = targetWordsList.slice(1).join(' ');
 
-          // E-dropping rule (e.g. makeing -> making, hesitateing -> hesitating)
+          const isRestMatching = sRest === tRest || getLevenshteinDistance(sRest, tRest) <= 1;
+
+          // 1. GRAMMATICAL INFLECTION CHECKS (Verb forms: -ing, -s/-es, past tense vs Base Form)
+          if (isRestMatching) {
+            const hasDoAux = /\b(do|does|did|don't|doesn't|didn't|to)\b/i.test(item.prompt || raw);
+            const sLemma = nlp(sFirst).verbs().toInfinitive().text() || '';
+            const isRelatedVerb = sLemma === tFirst ||
+                                  sFirst.replace(/(ing|ed|es|s)$/, '') === tFirst.replace(/(ing|ed|es|s)$/, '') ||
+                                  sFirst.startsWith(tFirst);
+
+            if (isRelatedVerb) {
+              // Case A: Typed -ing when target is base form (e.g. drinking water vs drink water)
+              if (sFirst.endsWith('ing') && !tFirst.endsWith('ing')) {
+                grammarPoints.push(
+                  hasDoAux
+                    ? `• ไวยากรณ์ไม่ถูกต้อง: หลัง do / to ต้องใช้คำกริยารูปเดิม (Base Form / V.inf) ไม่เติม -ing นะคะ (ให้ใช้ "${targetWord.en}" ไม่ใช่ "${studentChunk}")`
+                    : `• ไวยากรณ์ไม่ถูกต้อง: ตำแหน่งนี้ต้องใช้คำกริยารูปเดิม (Base Form / V.inf) ไม่เติม -ing นะคะ (ให้ใช้ "${targetWord.en}" ไม่ใช่ "${studentChunk}")`
+                );
+                break;
+              }
+
+              // Case B: Typed -s / -es when target is base form (e.g. drinks water / drinkes water vs drink water)
+              if ((sFirst.endsWith('s') || sFirst.endsWith('es')) && !tFirst.endsWith('s')) {
+                grammarPoints.push(
+                  hasDoAux
+                    ? `• ไวยากรณ์ไม่ถูกต้อง: หลัง do ต้องใช้คำกริยารูปเดิม (Base Form / V.inf) ไม่เติม -s / -es นะคะ (ให้ใช้ "${targetWord.en}" ไม่ใช่ "${studentChunk}")`
+                    : `• ไวยากรณ์ไม่ถูกต้อง: ตำแหน่งนี้ต้องใช้คำกริยารูปเดิม (Base Form / V.inf) ไม่เติม -s / -es นะคะ (ให้ใช้ "${targetWord.en}" ไม่ใช่ "${studentChunk}")`
+                );
+                break;
+              }
+
+              // Case C: Typed past tense (-ed / drank / spoke) when target is base form
+              if (sFirst.endsWith('ed') || sFirst === 'drank' || sFirst === 'spoke' || sFirst === 'went' || sFirst === 'saw' || sFirst === 'ate') {
+                grammarPoints.push(
+                  hasDoAux
+                    ? `• ไวยากรณ์ไม่ถูกต้อง: หลัง do ต้องใช้คำกริยารูปเดิม (Base Form / V.inf) ไม่ผันเป็นรูปอดีต (V.2) นะคะ (ให้ใช้ "${targetWord.en}" ไม่ใช่ "${studentChunk}")`
+                    : `• ไวยากรณ์ไม่ถูกต้อง: ตำแหน่งนี้ต้องใช้คำกริยารูปเดิม (Base Form / V.inf) ไม่ผันเป็นรูปอดีตนะคะ (ให้ใช้ "${targetWord.en}" ไม่ใช่ "${studentChunk}")`
+                );
+                break;
+              }
+
+              // Case D: Typed base form when target is -ing (e.g. Present Continuous)
+              if (tFirst.endsWith('ing') && !sFirst.endsWith('ing')) {
+                grammarPoints.push(
+                  `• ไวยากรณ์ไม่ถูกต้อง: ในโครงสร้างนี้ต้องใช้คำกริยาเติม -ing (Present Continuous) นะคะ (ให้ใช้ "${targetWord.en}" ไม่ใช่ "${studentChunk}")`
+                );
+                break;
+              }
+            }
+          }
+
+          // 2. MORPHOLOGICAL SPELLING: E-dropping rule (e.g. makeing -> making, hesitateing -> hesitating)
           if (studentChunk.endsWith('eing') && targetEn.endsWith('ing')) {
             spellingPoints.push(`• สะกดคำผิด: "${studentChunk}" ควรตัด e ออกก่อนเติม -ing เป็น "${targetEn}" (${targetWord.th})`);
             break;
           }
+
+          // 3. TYPO / LEVENSHTEIN SPELL CHECK (When not a grammatical inflection)
+          const dist = getLevenshteinDistance(studentChunk, targetEn);
+          const sim = getWordSimilarity(studentChunk, targetEn);
 
           if ((dist <= 2 && sim >= 0.55) || (targetEn.length <= 4 && dist <= 1)) {
             if (studentChunk !== targetEn) {
@@ -469,6 +528,14 @@ export function checkGuidedSentenceExercise(
           }
         }
       }
+    }
+
+    if (grammarPoints.length > 0) {
+      return {
+        isCorrect: false,
+        message: '⚡ ตรวจพบข้อผิดพลาดทางไวยากรณ์ (Grammar Error):',
+        points: grammarPoints
+      };
     }
 
     if (spellingPoints.length > 0) {
