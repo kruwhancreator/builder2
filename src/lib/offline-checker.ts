@@ -318,7 +318,7 @@ export function checkOfflineGrammarAndSpelling(
 export function checkGuidedSentenceExercise(
   item: any,
   studentAnswer: string,
-  categories: Array<{ order: number; name?: string; category_name?: string; words?: Array<string | { en: string; th?: string }>; word_bank?: Array<string | { en: string; th?: string }> }> = []
+  categories: Array<{ order: number; name?: string; category_name?: string; words?: Array<string | { en: string; th?: string }>; word_bank?: Array<string | { en: string; th?: string }>; }> = []
 ): OfflineCheckResult {
   const raw = (studentAnswer || '').trim();
   if (!raw) {
@@ -332,61 +332,73 @@ export function checkGuidedSentenceExercise(
   const normalize = (s: string) => s.trim().replace(/\s+/g, ' ').toLowerCase().replace(/[.!?,]$/, '');
   const normalizedRaw = normalize(raw);
 
-  // Normalize categories structure
-  const parsedCategories = (categories || []).map(cat => {
-    const rawWords = cat.words || cat.word_bank || [];
+  // 1. NORMALIZE CATEGORIES & WORD CHOICES (with id, next_valid_ids, and row index)
+  const parsedCategories = (categories || []).map((cat, cIdx) => {
+    const rawWords = Array.isArray(cat.words) ? cat.words : (cat.word_bank || []);
     const wordList = rawWords.map((w: any, idx: number) => {
+      const defaultId = `${cat.order || cIdx + 1}${String.fromCharCode(97 + idx)}`; // e.g. "1a", "1b", "1c"
       if (typeof w === 'string') {
-        return { en: w, th: w, index: idx };
+        return { id: defaultId, en: w, th: w, index: idx, next_valid_ids: undefined };
       }
-      return { en: w.en || '', th: w.th || w.en || '', index: idx };
+      return {
+        id: w.id || defaultId,
+        en: w.en || '',
+        th: w.th || w.en || '',
+        index: typeof w.index === 'number' ? w.index : idx,
+        next_valid_ids: Array.isArray(w.next_valid_ids) ? w.next_valid_ids : undefined
+      };
     });
     return {
-      order: cat.order || 1,
-      name: cat.name || cat.category_name || `หมวดที่ ${cat.order}`,
+      order: cat.order || (cIdx + 1),
+      name: cat.name || cat.category_name || `หมวดที่ ${cat.order || cIdx + 1}`,
       words: wordList
     };
   });
 
-  const requiredOrders: number[] = item.required_orders || [1];
+  const requiredOrders: number[] = item.required_orders && item.required_orders.length > 0 
+    ? item.required_orders 
+    : parsedCategories.map(c => c.order);
 
-  // 1. EXTRACT ALL WORDS PRESENT IN THE SENTENCE WITH THEIR POSITIONS & CATEGORIES
-  interface MatchedWord {
+  // Check acceptable answers first if explicitly defined
+  const acceptableList: string[] = item.acceptable_answers || (item.model_answer ? [item.model_answer] : []);
+  if (acceptableList.some(ans => normalize(ans) === normalizedRaw)) {
+    return {
+      isCorrect: true,
+      message: '🎉 ยอดเยี่ยมมากค่ะ! ตอบได้ถูกต้องตามเฉลยสมบูรณ์แบบ 👏',
+      points: ['• โครงสร้างประโยคถูกต้อง', '• ความหมายสอดคล้องสมบูรณ์']
+    };
+  }
+
+  // 2. MATCH WORDS IN EACH REQUIRED SLOT
+  interface MatchedSlotWord {
+    id: string;
     en: string;
     th: string;
     order: number;
     catName: string;
-    indices: number[]; // Set/row indices where this word appears
-    position: number;  // Character index in normalized student answer
+    index: number;
+    next_valid_ids?: string[];
+    position: number;
   }
 
-  const matchedWords: MatchedWord[] = [];
+  const matchedWords: MatchedSlotWord[] = [];
 
   for (const cat of parsedCategories) {
-    // Group words in this category by normalized English phrase to collect all row indices
-    const wordMap = new Map<string, { en: string; th: string; indices: number[] }>();
     for (const w of cat.words) {
       if (!w.en) continue;
-      const key = normalize(w.en);
-      if (!wordMap.has(key)) {
-        wordMap.set(key, { en: w.en, th: w.th, indices: [w.index] });
-      } else {
-        wordMap.get(key)!.indices.push(w.index);
-      }
-    }
-
-    // Check each unique word against the student answer
-    for (const [normKey, wData] of wordMap.entries()) {
+      const normKey = normalize(w.en);
       let searchPos = 0;
       while (searchPos < normalizedRaw.length) {
         const foundPos = normalizedRaw.indexOf(normKey, searchPos);
         if (foundPos === -1) break;
         matchedWords.push({
-          en: wData.en,
-          th: wData.th,
+          id: w.id,
+          en: w.en,
+          th: w.th,
           order: cat.order,
           catName: cat.name,
-          indices: wData.indices,
+          index: w.index,
+          next_valid_ids: w.next_valid_ids,
           position: foundPos
         });
         searchPos = foundPos + normKey.length;
@@ -394,10 +406,10 @@ export function checkGuidedSentenceExercise(
     }
   }
 
-  // Sort matched words by their appearance order in the sentence
+  // Sort matched words by appearance order
   matchedWords.sort((a, b) => a.position - b.position);
 
-  // Check if any required category is completely missing
+  // Check missing categories
   const foundOrders = new Set(matchedWords.map(m => m.order));
   const missingOrders = requiredOrders.filter(ord => !foundOrders.has(ord));
 
@@ -408,17 +420,16 @@ export function checkGuidedSentenceExercise(
     });
     return {
       isCorrect: false,
-      message: 'โครงสร้างประโยคไม่ถูกต้องค่ะ ให้นักเรียนใช้โครงสร้างตามหนังสือนะคะ',
+      message: 'ยังเติมคำในช่องว่างไม่ครบถ้วน หรือสะกดคำศัพท์ไม่ถูกต้องนะคะ',
       points: [
-        `• ยังขาดคำศัพท์จากหมวด ${missingNames.join(', ')} ค่ะ`,
-        `• กรุณาแตะหรือลากคำศัพท์มาวางในช่องว่างให้ครบถ้วนนะคะ`
+        `• ยังขาดคำศัพท์ใน ${missingNames.join(', ')} ค่ะ`,
+        `• กรุณาพิมพ์เติมคำในช่องว่างให้ครบทุกช่องนะคะ`
       ]
     };
   }
 
-  // 2. CHECK STRUCTURAL / POSITIONAL ORDER (Order 1 before Order 2 before Order 3)
-  // Get the first occurrence of each required order sorted by position in the sentence
-  const orderedMatches: MatchedWord[] = [];
+  // 3. CHECK STRUCTURAL SEQUENCE (First occurrence of each order by position)
+  const orderedMatches: MatchedSlotWord[] = [];
   const assignedOrders = new Set<number>();
 
   for (const m of matchedWords) {
@@ -428,69 +439,71 @@ export function checkGuidedSentenceExercise(
     }
   }
 
-  // Verify that the actual sequence of orders in the sentence matches requiredOrders exactly
   const actualOrderSequence = orderedMatches.map(m => m.order);
   const isOrderCorrect = requiredOrders.every((reqOrd, idx) => actualOrderSequence[idx] === reqOrd);
 
   if (!isOrderCorrect) {
-    const expectedCat1 = parsedCategories.find(c => c.order === requiredOrders[0])?.name || `หมวดที่ ${requiredOrders[0]}`;
-    const expectedCat2 = parsedCategories.find(c => c.order === requiredOrders[1])?.name || `หมวดที่ ${requiredOrders[1]}`;
+    const expectedCat1 = parsedCategories.find(c => c.order === requiredOrders[0])?.name || `ช่องที่ 1`;
+    const expectedCat2 = parsedCategories.find(c => c.order === requiredOrders[1])?.name || `ช่องที่ 2`;
     return {
       isCorrect: false,
-      message: 'โครงสร้างประโยคไม่ถูกต้องค่ะ ให้นักเรียนใช้โครงสร้างตามหนังสือนะคะ',
+      message: 'โครงสร้างประโยคไม่ถูกต้องค่ะ ลำดับคำศัพท์สลับตำแหน่งกันนะคะ',
       points: [
-        `• ลำดับคำศัพท์สลับตำแหน่งกันค่ะ`,
-        `• กรุณาวางคำจาก "${expectedCat1}" ในช่องแรก และตามด้วยคำจาก "${expectedCat2}" ตามลำดับโครงสร้างที่กำหนดนะคะ`
+        `• ลำดับคำศัพท์ในแต่ละช่องสลับตำแหน่งกันค่ะ`,
+        `• กรุณาเติมคำจาก "${expectedCat1}" ในช่องแรก และตามด้วยคำจาก "${expectedCat2}" ตามลำดับนะคะ`
       ]
     };
   }
 
-  // 3. TIER 3: SEMANTIC COHERENCE (MATCHING SAME SET / ROW INDEX)
-  // Map ordered matches to the required orders
-  const chosenWordsByOrder: Record<number, MatchedWord> = {};
+  // 4. COMPATIBILITY MATRIX / PATH VALIDATION (Check consecutive pairs: 1a -> 2b -> 3b)
+  for (let i = 0; i < orderedMatches.length - 1; i++) {
+    const currentWord = orderedMatches[i];
+    const nextWord = orderedMatches[i + 1];
+
+    let isPairValid = false;
+
+    if (currentWord.next_valid_ids && currentWord.next_valid_ids.length > 0) {
+      // Check explicit next_valid_ids (e.g. currentWord allows ["2a", "2b"])
+      isPairValid = currentWord.next_valid_ids.includes(nextWord.id) ||
+                    currentWord.next_valid_ids.includes(nextWord.en) ||
+                    currentWord.next_valid_ids.includes(String(nextWord.index));
+    } else {
+      // Fallback: horizontal row index consistency
+      isPairValid = currentWord.index === nextWord.index;
+    }
+
+    if (!isPairValid) {
+      const nextCat = parsedCategories.find(c => c.order === nextWord.order);
+      let allowedNames: string[] = [];
+      if (currentWord.next_valid_ids && nextCat) {
+        allowedNames = nextCat.words
+          .filter(w => currentWord.next_valid_ids!.includes(w.id))
+          .map(w => `"${w.en}" (${w.th})`);
+      } else if (nextCat) {
+        const partner = nextCat.words.find(w => w.index === currentWord.index);
+        if (partner) allowedNames.push(`"${partner.en}" (${partner.th})`);
+      }
+
+      return {
+        isCorrect: false,
+        message: 'โครงสร้างประโยคถูกต้องแล้วค่ะ แต่ความหมายยังไม่สอดคล้องกันนะคะ',
+        points: [
+          `• การเลือก "${currentWord.en}" (${currentWord.th}) ไม่สอดคล้องกับ "${nextWord.en}" (${nextWord.th}) ในบริบทนี้ค่ะ`,
+          allowedNames.length > 0 
+            ? `• คำว่า "${currentWord.en}" สามารถจับคู่กับ: ${allowedNames.join(' หรือ ')} ได้ค่ะ`
+            : `• ลองทบทวนการจับคู่ความหมายระหว่างคำศัพท์ดูอีกครั้งนะคะ`
+        ]
+      };
+    }
+  }
+
+  // 5. ASSEMBLE THAI TRANSLATION FROM TEMPLATE
+  let assembledTranslation: string | undefined = undefined;
+
+  const chosenWordsByOrder: Record<number, MatchedSlotWord> = {};
   for (const m of orderedMatches) {
     chosenWordsByOrder[m.order] = m;
   }
-
-  // Check if all chosen words share at least one common row/set index
-  const chosenList = requiredOrders.map(ord => chosenWordsByOrder[ord]).filter(Boolean);
-  let commonIndices = chosenList.length > 0 ? [...chosenList[0].indices] : [];
-
-  for (let i = 1; i < chosenList.length; i++) {
-    commonIndices = commonIndices.filter(idx => chosenList[i].indices.includes(idx));
-  }
-
-  const isParallelConsistent = commonIndices.length > 0;
-
-  // Check acceptable answers as override if explicitly defined
-  const acceptableList: string[] = item.acceptable_answers || (item.model_answer ? [item.model_answer] : []);
-  const isExplicitlyAcceptable = acceptableList.some(ans => normalize(ans) === normalizedRaw);
-
-  const isCoherent = isParallelConsistent || isExplicitlyAcceptable;
-
-  if (!isCoherent && chosenList.length >= 2) {
-    const word1 = chosenList[0];
-    const word2 = chosenList[1];
-
-    // Find the ideal partner for word 1 (sharing primary index)
-    const primaryIdx = word1.indices[0];
-    const cat2 = parsedCategories.find(c => c.order === requiredOrders[1]);
-    const idealPartner = cat2?.words.find(w => w.index === primaryIdx);
-
-    return {
-      isCorrect: false,
-      message: 'โครงสร้างประโยคถูกต้องแล้วค่ะ แต่ความหมายยังไม่สอดคล้องกันนะคะ',
-      points: [
-        `• การเลือก "${word1.en}" (${word1.th}) คู่กับ "${word2.en}" (${word2.th}) ความหมายยังไม่เชื่อมโยงกันค่ะ`,
-        idealPartner 
-          ? `• คำว่า "${word1.en}" (${word1.th}) ควรคู่กับ "${idealPartner.en}" (${idealPartner.th}) เพื่อให้ความหมายสมบูรณ์ค่ะ`
-          : `• ลองทบทวนการจับคู่ความหมายระหว่างหมวดคำศัพท์ดูอีกครั้งนะคะ`
-      ]
-    };
-  }
-
-  // 4. AUTO-ASSEMBLE THAI TRANSLATION FROM TEMPLATE
-  let assembledTranslation: string | undefined = undefined;
 
   if (item.thai_template) {
     let tpl: string = item.thai_template;
@@ -513,9 +526,8 @@ export function checkGuidedSentenceExercise(
     assembledTranslation = item.translation;
   }
 
-  // Fallback if no template is specified: join Thai meanings
-  if (!assembledTranslation && chosenList.length > 0) {
-    assembledTranslation = chosenList.map(c => c.th || c.en).join(' ');
+  if (!assembledTranslation && orderedMatches.length > 0) {
+    assembledTranslation = orderedMatches.map(c => c.th || c.en).join(' ');
   }
 
   return {

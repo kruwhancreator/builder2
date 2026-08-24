@@ -77,6 +77,15 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
     return finalStr;
   };
 
+  const handleSlotInputChange = (key: string, parts: string[], slotIdx: number, val: string, totalSlots: number) => {
+    const cur = [...(dragSlots[key] || Array(totalSlots).fill(''))];
+    while (cur.length < totalSlots) cur.push('');
+    cur[slotIdx] = val;
+    setDragSlots(prev => ({ ...prev, [key]: cur }));
+    const sentence = reconstructSentence(parts, cur);
+    setAnswers(prev => ({ ...prev, [key]: sentence }));
+  };
+
   const handlePlaceSlotWord = (key: string, parts: string[], slotIdx: number, word: string, totalSlots: number) => {
     const cur = [...(dragSlots[key] || Array(totalSlots).fill(''))];
     cur[slotIdx] = word;
@@ -409,85 +418,32 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                     <span>ข้อที่ {idx + 1}</span>
                   </div>
 
-                  {/* 2. Word Bank in Columns (Easy to read!) */}
-                  <div className="word-bank-container bg-white border border-slate-200 rounded-xl p-4 mb-4 shadow-2xs">
-                    <div className="text-xs font-bold text-slate-600 mb-3 flex items-center justify-between border-b border-slate-100 pb-2">
-                      <span className="flex items-center gap-1.5 text-[#1e3a8a]">
-                        <span>🏷️</span>
-                        <span className="font-bold">Word Bank (แตะหรือลากคำศัพท์มาวางในประโยคด้านล่าง):</span>
-                      </span>
-                      <span className="text-[11px] font-normal text-slate-400">
-                        {visibleCategories.length} หมวดหมู่
-                      </span>
+                  {/* 2. Fill-in-the-blank Typing Sentence Builder (No Word Bank) */}
+                  <div className="sentence-builder-card bg-white border border-blue-200 rounded-2xl p-5 mb-4 shadow-2xs">
+                    <div className="text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-1.5">
+                      <span>✍️</span>
+                      <span>พิมพ์เติมคำในช่องว่าง (Fill in the blanks):</span>
                     </div>
 
-                    <div className={`grid grid-cols-1 ${visibleCategories.length === 2 ? 'sm:grid-cols-2' : visibleCategories.length >= 3 ? 'sm:grid-cols-3' : 'sm:grid-cols-1'} gap-3`}>
-                      {visibleCategories.map((cat, cIdx) => (
-                        <div key={cat.order} className="category-col-card bg-slate-50/80 border border-slate-200 rounded-xl p-3 flex flex-col justify-start">
-                          <div className="text-xs font-bold text-[#1e3a8a] mb-2.5 pb-1.5 border-b border-slate-200 flex items-center gap-1.5">
-                            <span className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0">
-                              {cat.order}
-                            </span>
-                            <span className="truncate">{cat.name}</span>
+                    <div className="flex flex-wrap items-center gap-2 text-sm sm:text-base font-bold text-slate-900 leading-loose">
+                      {promptParts.map((part: string, pIdx: number) => {
+                        const currentVal = currentSlots[pIdx] || '';
+                        return (
+                          <div key={pIdx} className="inline-flex items-center gap-2 flex-wrap">
+                            {part && <span className="font-mono text-[#1e3a8a]">{part}</span>}
+                            {pIdx < slotCount && (
+                              <input
+                                type="text"
+                                value={currentVal}
+                                onChange={(e) => handleSlotInputChange(key, promptParts, pIdx, e.target.value, slotCount)}
+                                placeholder={`... (ช่องที่ ${pIdx + 1})`}
+                                style={{ width: `${Math.max(130, (currentVal.length + 3) * 11)}px` }}
+                                className="inline-block px-3 py-1.5 rounded-xl border-2 border-dashed border-blue-400 bg-blue-50/70 focus:bg-white text-sm sm:text-base font-bold text-[#1e3a8a] text-center outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-all font-mono shadow-2xs min-w-[120px]"
+                              />
+                            )}
                           </div>
-
-                          <div className="flex flex-col gap-1.5">
-                            {cat.words.map((wObj, wIdx) => {
-                              const isSelected = currentSlots.includes(wObj.en);
-                              return (
-                                <div
-                                  key={wIdx}
-                                  draggable
-                                  onDragStart={(e) => {
-                                    e.dataTransfer.setData('text/plain', wObj.en);
-                                  }}
-                                  onClick={() => handleAutoPlaceWord(key, promptParts, wObj.en, slotCount, cIdx)}
-                                  className={`word-chip-pill px-3 py-2 rounded-lg text-xs sm:text-sm font-bold border transition-all cursor-pointer select-none flex items-center justify-between gap-1.5 ${
-                                    isSelected
-                                      ? 'bg-blue-600 text-white border-blue-700 shadow-xs opacity-90'
-                                      : 'bg-white hover:bg-blue-50 text-slate-800 border-slate-300 hover:border-blue-400 shadow-2xs hover:shadow-xs'
-                                  }`}
-                                >
-                                  <div className="flex items-center gap-1.5 min-w-0">
-                                    <GripHorizontal className={`w-3.5 h-3.5 shrink-0 ${isSelected ? 'text-white' : 'text-slate-400'}`} />
-                                    <span className="truncate">{wObj.en}</span>
-                                  </div>
-                                  {wObj.th && (
-                                    <span className={`text-[11px] font-normal shrink-0 ${isSelected ? 'text-blue-100' : 'text-slate-500'}`}>
-                                      {wObj.th}
-                                    </span>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* 3. Drag & Drop Sentence Builder Dropzone (Below Word Bank) */}
-                  <div className="sentence-builder-dropzone bg-white border-2 border-dashed border-blue-200 hover:border-blue-400 rounded-xl p-4 mb-4 transition-all shadow-2xs">
-                    <div className="text-xs font-bold text-slate-500 uppercase mb-2.5 flex items-center gap-1.5">
-                      <GripHorizontal className="w-3.5 h-3.5 text-blue-500" />
-                      <span>ประโยคที่กำลังแต่ง (Interactive Sentence):</span>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2 text-sm sm:text-base font-bold text-slate-900">
-                      {promptParts.map((part: string, pIdx: number) => (
-                        <div key={pIdx} className="inline-flex items-center gap-2 flex-wrap">
-                          {part && <span className="font-mono text-[#1e3a8a]">{part}</span>}
-                          {pIdx < slotCount && (
-                            <DropSlot
-                              slotIdx={pIdx}
-                              value={currentSlots[pIdx] || ''}
-                              categoryHint={visibleCategories[pIdx]?.name || `หมวดที่ ${pIdx + 1}`}
-                              onPlace={(word) => handlePlaceSlotWord(key, promptParts, pIdx, word, slotCount)}
-                              onRemove={() => handleRemoveSlotWord(key, promptParts, pIdx, slotCount)}
-                            />
-                          )}
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -549,39 +505,73 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                         </button>
 
                         {revealedSolutions[key] && (() => {
-                          const firstCat = ex2Categories.find(c => c.order === requiredOrders[0]);
-                          const rowCount = firstCat ? firstCat.words.length : 3;
                           const allSolutions: Array<{ en: string; th: string }> = [];
 
-                          for (let r = 0; r < rowCount; r++) {
-                            const chosenEnWords: string[] = [];
-                            const chosenThWords: Record<number, string> = {};
-
-                            for (const ord of requiredOrders) {
-                              const cat = ex2Categories.find(c => c.order === ord);
-                              const wObj = cat?.words[r];
-                              if (wObj) {
-                                chosenEnWords.push(wObj.en);
-                                chosenThWords[ord] = wObj.th || wObj.en;
-                              }
-                            }
-
-                            if (chosenEnWords.length === slotCount) {
-                              const enSentence = reconstructSentence(promptParts, chosenEnWords);
+                          const buildSolutions = (
+                            cIdx: number,
+                            currentIds: string[],
+                            chosenEn: string[],
+                            chosenTh: Record<number, string>
+                          ) => {
+                            if (cIdx >= requiredOrders.length) {
+                              const enSentence = reconstructSentence(promptParts, chosenEn);
                               let thSentence = '';
                               if (item.thai_template) {
                                 let tpl = item.thai_template;
                                 for (const ord of requiredOrders) {
-                                  if (chosenThWords[ord]) {
-                                    tpl = tpl.replace(new RegExp(`\\{${ord}\\}`, 'g'), chosenThWords[ord]);
+                                  if (chosenTh[ord]) {
+                                    tpl = tpl.replace(new RegExp(`\\{${ord}\\}`, 'g'), chosenTh[ord]);
                                   }
                                 }
                                 thSentence = tpl;
                               } else {
-                                thSentence = requiredOrders.map(ord => chosenThWords[ord] || '').filter(Boolean).join(' ');
+                                thSentence = requiredOrders.map(ord => chosenTh[ord] || '').filter(Boolean).join(' ');
                               }
                               allSolutions.push({ en: enSentence, th: thSentence });
+                              return;
                             }
+
+                            const ord = requiredOrders[cIdx];
+                            const cat = ex2Categories.find(c => c.order === ord);
+                            const words = cat?.words || [];
+
+                            if (cIdx === 0) {
+                              words.forEach((w: any, rIdx: number) => {
+                                if (!w.en) return;
+                                const wId = w.id || `${ord}${String.fromCharCode(97 + rIdx)}`;
+                                buildSolutions(
+                                  cIdx + 1,
+                                  [wId],
+                                  [w.en],
+                                  { [ord]: w.th || w.en }
+                                );
+                              });
+                            } else {
+                              const prevId = currentIds[currentIds.length - 1];
+                              const prevCat = ex2Categories.find(c => c.order === requiredOrders[cIdx - 1]);
+                              const prevWord: any = prevCat?.words?.find((w: any, rIdx: number) => (w.id || `${prevCat.order}${String.fromCharCode(97 + rIdx)}`) === prevId);
+                              const defaultNext = `${ord}${prevId.slice(1)}`;
+                              const allowedNext: string[] = prevWord && Array.isArray(prevWord.next_valid_ids) && prevWord.next_valid_ids.length > 0
+                                ? prevWord.next_valid_ids
+                                : [defaultNext];
+
+                              words.forEach((w: any, rIdx: number) => {
+                                if (!w.en) return;
+                                const wId = w.id || `${ord}${String.fromCharCode(97 + rIdx)}`;
+                                if (allowedNext.includes(wId) || allowedNext.includes(w.en) || allowedNext.includes(String(rIdx))) {
+                                  buildSolutions(
+                                    cIdx + 1,
+                                    [...currentIds, wId],
+                                    [...chosenEn, w.en],
+                                    { ...chosenTh, [ord]: w.th || w.en }
+                                  );
+                                }
+                              });
+                            }
+                          };
+
+                          if (requiredOrders.length > 0) {
+                            buildSolutions(0, [], [], {});
                           }
 
                           return (

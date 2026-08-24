@@ -411,37 +411,46 @@ export default function BackendAdminPage() {
       const normalizedCats = Array.isArray(rawCats) && rawCats.length > 0
         ? rawCats.map((c: any, cIdx: number) => ({
             order: c.order || cIdx + 1,
-            name: c.name || c.category_name || `หมวดที่ ${cIdx + 1}`,
-            words: (c.words || c.word_bank || []).map((w: any) => 
-              typeof w === 'string' ? { en: w, th: '' } : { en: w.en || '', th: w.th || '' }
-            )
+            name: c.name || c.category_name || `ช่องที่ ${c.order || cIdx + 1}`,
+            words: (c.words || c.word_bank || []).map((w: any, wIdx: number) => {
+              const defaultId = `${c.order || cIdx + 1}${String.fromCharCode(97 + wIdx)}`;
+              if (typeof w === 'string') {
+                return { id: defaultId, en: w, th: '', next_valid_ids: undefined };
+              }
+              return {
+                id: w.id || defaultId,
+                en: w.en || '',
+                th: w.th || '',
+                next_valid_ids: Array.isArray(w.next_valid_ids) ? w.next_valid_ids : undefined
+              };
+            })
           }))
         : [
             {
               order: 1,
               name: 'ทำอะไรจริง ๆ',
               words: [
-                { en: 'drink water', th: 'ดื่มน้ำ' },
-                { en: 'practise speaking', th: 'ฝึกพูด' },
-                { en: 'travel abroad', th: 'ไปเที่ยวต่างประเทศ' }
+                { id: '1a', en: 'drink water', th: 'ดื่มน้ำ', next_valid_ids: ['2a', '2b'] },
+                { id: '1b', en: 'practise speaking', th: 'ฝึกพูด', next_valid_ids: ['2b'] },
+                { id: '1c', en: 'travel abroad', th: 'ไปเที่ยวต่างประเทศ', next_valid_ids: ['2c'] }
               ]
             },
             {
               order: 2,
               name: 'เพื่ออะไร',
               words: [
-                { en: 'stay hydrated', th: 'รักษาระดับน้ำในร่างกาย' },
-                { en: 'build confidence', th: 'สร้างความมั่นใจ' },
-                { en: 'meet new people', th: 'พบปะผู้คนใหม่ ๆ' }
+                { id: '2a', en: 'stay hydrated', th: 'รักษาระดับน้ำในร่างกาย', next_valid_ids: ['3a'] },
+                { id: '2b', en: 'build confidence', th: 'สร้างความมั่นใจ', next_valid_ids: ['3b'] },
+                { id: '2c', en: 'meet new people', th: 'พบปะผู้คนใหม่ ๆ', next_valid_ids: ['3c'] }
               ]
             },
             {
               order: 3,
               name: 'แม้ว่า...',
               words: [
-                { en: 'not thirsty', th: 'ไม่กระหายน้ำ' },
-                { en: 'shy', th: 'ขี้อาย' },
-                { en: 'alone', th: 'อยู่คนเดียว' }
+                { id: '3a', en: 'not thirsty', th: 'ไม่กระหายน้ำ' },
+                { id: '3b', en: 'shy', th: 'ขี้อาย' },
+                { id: '3c', en: 'alone', th: 'อยู่คนเดียว' }
               ]
             }
           ];
@@ -454,6 +463,34 @@ export default function BackendAdminPage() {
 
   // Category & Matrix Grid manipulation handlers for guided_sentence
   const maxRowCount = Math.max(1, ...quizCategories.map(c => (c.words || []).length));
+
+  const handleToggleNextValidId = (cIdx: number, rIdx: number, targetId: string) => {
+    setQuizCategories(prev => {
+      const copy = [...prev];
+      const wordsCopy = [...(copy[cIdx].words || [])];
+      if (!wordsCopy[rIdx]) return prev;
+
+      const curWord = wordsCopy[rIdx];
+      const defaultNext = `${copy[cIdx].order + 1}${String.fromCharCode(97 + rIdx)}`;
+      const curNextIds: string[] = Array.isArray(curWord.next_valid_ids) 
+        ? [...curWord.next_valid_ids] 
+        : [defaultNext];
+
+      let nextList: string[];
+      if (curNextIds.includes(targetId)) {
+        nextList = curNextIds.filter(id => id !== targetId);
+      } else {
+        nextList = [...curNextIds, targetId];
+      }
+
+      wordsCopy[rIdx] = {
+        ...curWord,
+        next_valid_ids: nextList
+      };
+      copy[cIdx] = { ...copy[cIdx], words: wordsCopy };
+      return copy;
+    });
+  };
 
   const handleAddMatrixSet = () => {
     setQuizCategories(prev => prev.map(cat => ({
@@ -1640,7 +1677,7 @@ export default function BackendAdminPage() {
                       </thead>
                       <tbody className="divide-y divide-slate-200 text-slate-800">
                         {Array.from({ length: maxRowCount }).map((_, rIdx) => (
-                          <tr key={rIdx} className="hover:bg-blue-50/40 transition-colors">
+                          <tr key={rIdx} className="hover:bg-blue-50/30 transition-colors">
                             <td className="p-3 text-center font-extrabold text-[#1e3a8a] bg-slate-50/80 border-r border-slate-200">
                               <span className="w-6 h-6 rounded-full bg-blue-100 text-blue-800 inline-flex items-center justify-center text-xs">
                                 {rIdx + 1}
@@ -1649,9 +1686,24 @@ export default function BackendAdminPage() {
 
                             {quizCategories.map((cat, cIdx) => {
                               const w = (cat.words && cat.words[rIdx]) || { en: '', th: '' };
+                              const wordId = w.id || `${cat.order || cIdx + 1}${String.fromCharCode(97 + rIdx)}`;
+                              const hasNextSlot = cIdx < quizCategories.length - 1;
+                              const nextCat = hasNextSlot ? quizCategories[cIdx + 1] : null;
+                              const defaultNextId = `${(cat.order || cIdx + 1) + 1}${String.fromCharCode(97 + rIdx)}`;
+                              const selectedNextIds = Array.isArray(w.next_valid_ids) ? w.next_valid_ids : [defaultNextId];
+
                               return (
-                                <td key={cIdx} className="p-2.5 border-r border-slate-200 align-top">
-                                  <div className="space-y-1.5">
+                                <td key={cIdx} className="p-3 border-r border-slate-200 align-top bg-white">
+                                  <div className="space-y-2">
+                                    <div className="flex items-center justify-between">
+                                      <span className="px-2 py-0.5 rounded bg-blue-100 text-[#1e3a8a] text-[11px] font-extrabold font-mono shadow-2xs">
+                                        {wordId}
+                                      </span>
+                                      <span className="text-[10px] text-slate-400 font-medium">
+                                        คำที่ {rIdx + 1}
+                                      </span>
+                                    </div>
+
                                     <div>
                                       <input
                                         type="text"
@@ -1670,6 +1722,40 @@ export default function BackendAdminPage() {
                                         className="w-full rounded-lg bg-slate-50 border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:border-[#2563eb] focus:bg-white"
                                       />
                                     </div>
+
+                                    {/* Pairing connector selector (if next slot exists) */}
+                                    {hasNextSlot && nextCat && (
+                                      <div className="pt-2 border-t border-slate-100">
+                                        <span className="block text-[10px] font-bold text-slate-500 mb-1">
+                                          🔗 คู่กับช่องถัดไป ({nextCat.name || `ช่อง ${cIdx + 2}`}):
+                                        </span>
+                                        <div className="flex flex-wrap gap-1">
+                                          {Array.from({ length: maxRowCount }).map((_, nrIdx) => {
+                                            const nextWord = (nextCat.words && nextCat.words[nrIdx]) || { en: '', th: '' };
+                                            const nextId = nextWord.id || `${nextCat.order || cIdx + 2}${String.fromCharCode(97 + nrIdx)}`;
+                                            const isConnected = selectedNextIds.includes(nextId);
+
+                                            return (
+                                              <button
+                                                key={nrIdx}
+                                                type="button"
+                                                onClick={() => handleToggleNextValidId(cIdx, rIdx, nextId)}
+                                                className={`px-2 py-1 rounded text-[10px] font-bold border transition-all cursor-pointer flex items-center gap-1 ${
+                                                  isConnected
+                                                    ? 'bg-emerald-600 text-white border-emerald-700 shadow-2xs'
+                                                    : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
+                                                }`}
+                                                title={nextWord.en ? `${nextId}: ${nextWord.en}` : nextId}
+                                              >
+                                                <span>{isConnected ? '✓' : '+'}</span>
+                                                <span className="font-mono">{nextId}</span>
+                                                {nextWord.en && <span className="max-w-[70px] truncate">({nextWord.en})</span>}
+                                              </button>
+                                            );
+                                          })}
+                                        </div>
+                                      </div>
+                                    )}
                                   </div>
                                 </td>
                               );
@@ -1691,6 +1777,80 @@ export default function BackendAdminPage() {
                         ))}
                       </tbody>
                     </table>
+                  </div>
+
+                  {/* Dynamic Live Valid Paths Generator */}
+                  <div className="mt-4 p-4 bg-white rounded-2xl border border-blue-200 shadow-2xs text-xs">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-base">🌟</span>
+                      <span className="font-bold text-[#1e3a8a]">
+                        รายการเส้นทางคู่คำตอบที่ถูกต้องทั้งหมด (Valid Generated Compatibility Paths):
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto pr-1">
+                      {(() => {
+                        const paths: Array<{ ids: string[]; enList: string[]; thList: string[] }> = [];
+
+                        const buildPaths = (cIdx: number, currentPath: { ids: string[]; enList: string[]; thList: string[] }) => {
+                          if (cIdx >= quizCategories.length) {
+                            paths.push(currentPath);
+                            return;
+                          }
+
+                          const cat = quizCategories[cIdx];
+                          const words = cat.words || [];
+
+                          if (cIdx === 0) {
+                            words.forEach((w: any, rIdx: number) => {
+                              if (!w.en) return;
+                              const wId = w.id || `${cat.order || cIdx + 1}${String.fromCharCode(97 + rIdx)}`;
+                              buildPaths(cIdx + 1, {
+                                ids: [wId],
+                                enList: [w.en],
+                                thList: [w.th || w.en]
+                              });
+                            });
+                          } else {
+                            const prevId = currentPath.ids[currentPath.ids.length - 1];
+                            const prevCat = quizCategories[cIdx - 1];
+                            const prevWord = prevCat.words?.find((w: any, rIdx: number) => (w.id || `${prevCat.order || cIdx}${String.fromCharCode(97 + rIdx)}`) === prevId);
+                            const defaultNext = `${cat.order || cIdx + 1}${prevId.slice(1)}`;
+                            const allowedNext = prevWord && Array.isArray(prevWord.next_valid_ids) && prevWord.next_valid_ids.length > 0
+                              ? prevWord.next_valid_ids
+                              : [defaultNext];
+
+                            words.forEach((w: any, rIdx: number) => {
+                              if (!w.en) return;
+                              const wId = w.id || `${cat.order || cIdx + 1}${String.fromCharCode(97 + rIdx)}`;
+                              if (allowedNext.includes(wId)) {
+                                buildPaths(cIdx + 1, {
+                                  ids: [...currentPath.ids, wId],
+                                  enList: [...currentPath.enList, w.en],
+                                  thList: [...currentPath.thList, w.th || w.en]
+                                });
+                              }
+                            });
+                          }
+                        };
+
+                        if (quizCategories.length > 0) {
+                          buildPaths(0, { ids: [], enList: [], thList: [] });
+                        }
+
+                        if (paths.length === 0) {
+                          return <span className="text-slate-400 italic">กรอกคำศัพท์ในตารางด้านบนเพื่อแสดงชุดคู่คำตอบที่เป็นไปได้</span>;
+                        }
+
+                        return paths.map((p, pIdx) => (
+                          <div key={pIdx} className="bg-blue-50/80 border border-blue-200 rounded-xl px-3 py-1.5 text-xs text-slate-800 flex items-center gap-2">
+                            <span className="font-mono font-bold text-blue-700 bg-white px-1.5 py-0.5 rounded border border-blue-300 text-[11px]">
+                              {p.ids.join(' ➔ ')}
+                            </span>
+                            <span className="font-semibold text-[#1e3a8a]">{p.enList.join(' ... ')}</span>
+                          </div>
+                        ));
+                      })()}
+                    </div>
                   </div>
                 </div>
               )}

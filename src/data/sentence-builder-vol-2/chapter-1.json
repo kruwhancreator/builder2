@@ -58,27 +58,27 @@
           "order": 1,
           "name": "ทำอะไรจริง ๆ",
           "words": [
-            { "en": "drink water", "th": "ดื่มน้ำ" },
-            { "en": "practise speaking", "th": "ฝึกพูด" },
-            { "en": "travel abroad", "th": "ไปเที่ยวต่างประเทศ" }
+            { "id": "1a", "en": "drink water", "th": "ดื่มน้ำ", "next_valid_ids": ["2a", "2b"] },
+            { "id": "1b", "en": "practise speaking", "th": "ฝึกพูด", "next_valid_ids": ["2b"] },
+            { "id": "1c", "en": "travel abroad", "th": "ไปเที่ยวต่างประเทศ", "next_valid_ids": ["2c"] }
           ]
         },
         {
           "order": 2,
           "name": "เพื่ออะไร",
           "words": [
-            { "en": "stay hydrated", "th": "รักษาระดับน้ำในร่างกาย" },
-            { "en": "build confidence", "th": "สร้างความมั่นใจ" },
-            { "en": "meet new people", "th": "พบปะผู้คนใหม่ ๆ" }
+            { "id": "2a", "en": "stay hydrated", "th": "รักษาระดับน้ำในร่างกาย", "next_valid_ids": ["3a"] },
+            { "id": "2b", "en": "build confidence", "th": "สร้างความมั่นใจ", "next_valid_ids": ["3b"] },
+            { "id": "2c", "en": "meet new people", "th": "พบปะผู้คนใหม่ ๆ", "next_valid_ids": ["3c"] }
           ]
         },
         {
           "order": 3,
           "name": "แม้ว่า...",
           "words": [
-            { "en": "not thirsty", "th": "ไม่กระหายน้ำ" },
-            { "en": "shy", "th": "ขี้อาย" },
-            { "en": "alone", "th": "อยู่คนเดียว" }
+            { "id": "3a", "en": "not thirsty", "th": "ไม่กระหายน้ำ" },
+            { "id": "3b", "en": "shy", "th": "ขี้อาย" },
+            { "id": "3c", "en": "alone", "th": "อยู่คนเดียว" }
           ]
         }
       ],
