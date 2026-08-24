@@ -505,83 +505,49 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                         </button>
 
                         {revealedSolutions[key] && (() => {
+                          const firstCat = ex2Categories.find(c => c.order === requiredOrders[0]);
+                          const rowCount = firstCat ? firstCat.words.length : 3;
                           const allSolutions: Array<{ en: string; th: string }> = [];
 
-                          const buildSolutions = (
-                            cIdx: number,
-                            currentIds: string[],
-                            chosenEn: string[],
-                            chosenTh: Record<number, string>
-                          ) => {
-                            if (cIdx >= requiredOrders.length) {
-                              const enSentence = reconstructSentence(promptParts, chosenEn);
+                          for (let r = 0; r < rowCount; r++) {
+                            const chosenEnWords: string[] = [];
+                            const chosenThWords: Record<number, string> = {};
+
+                            for (const ord of requiredOrders) {
+                              const cat = ex2Categories.find(c => c.order === ord);
+                              const wObj = cat?.words[r];
+                              if (wObj && wObj.en) {
+                                chosenEnWords.push(wObj.en);
+                                chosenThWords[ord] = wObj.th || wObj.en;
+                              }
+                            }
+
+                            if (chosenEnWords.length === slotCount) {
+                              const enSentence = reconstructSentence(promptParts, chosenEnWords);
                               let thSentence = '';
                               if (item.thai_template) {
                                 let tpl = item.thai_template;
                                 for (const ord of requiredOrders) {
-                                  if (chosenTh[ord]) {
-                                    tpl = tpl.replace(new RegExp(`\\{${ord}\\}`, 'g'), chosenTh[ord]);
+                                  if (chosenThWords[ord]) {
+                                    tpl = tpl.replace(new RegExp(`\\{${ord}\\}`, 'g'), chosenThWords[ord]);
                                   }
                                 }
                                 thSentence = tpl;
                               } else {
-                                thSentence = requiredOrders.map(ord => chosenTh[ord] || '').filter(Boolean).join(' ');
+                                thSentence = requiredOrders.map(ord => chosenThWords[ord] || '').filter(Boolean).join(' ');
                               }
                               allSolutions.push({ en: enSentence, th: thSentence });
-                              return;
                             }
-
-                            const ord = requiredOrders[cIdx];
-                            const cat = ex2Categories.find(c => c.order === ord);
-                            const words = cat?.words || [];
-
-                            if (cIdx === 0) {
-                              words.forEach((w: any, rIdx: number) => {
-                                if (!w.en) return;
-                                const wId = w.id || `${ord}${String.fromCharCode(97 + rIdx)}`;
-                                buildSolutions(
-                                  cIdx + 1,
-                                  [wId],
-                                  [w.en],
-                                  { [ord]: w.th || w.en }
-                                );
-                              });
-                            } else {
-                              const prevId = currentIds[currentIds.length - 1];
-                              const prevCat = ex2Categories.find(c => c.order === requiredOrders[cIdx - 1]);
-                              const prevWord: any = prevCat?.words?.find((w: any, rIdx: number) => (w.id || `${prevCat.order}${String.fromCharCode(97 + rIdx)}`) === prevId);
-                              const defaultNext = `${ord}${prevId.slice(1)}`;
-                              const allowedNext: string[] = prevWord && Array.isArray(prevWord.next_valid_ids) && prevWord.next_valid_ids.length > 0
-                                ? prevWord.next_valid_ids
-                                : [defaultNext];
-
-                              words.forEach((w: any, rIdx: number) => {
-                                if (!w.en) return;
-                                const wId = w.id || `${ord}${String.fromCharCode(97 + rIdx)}`;
-                                if (allowedNext.includes(wId) || allowedNext.includes(w.en) || allowedNext.includes(String(rIdx))) {
-                                  buildSolutions(
-                                    cIdx + 1,
-                                    [...currentIds, wId],
-                                    [...chosenEn, w.en],
-                                    { ...chosenTh, [ord]: w.th || w.en }
-                                  );
-                                }
-                              });
-                            }
-                          };
-
-                          if (requiredOrders.length > 0) {
-                            buildSolutions(0, [], [], {});
                           }
 
                           return (
                             <div className="solution-actual-answer-box mt-2.5 p-4 bg-[#eff6ff] border border-[#bfdbfe] rounded-xl text-[#1e40af] text-xs sm:text-sm animate-in fade-in duration-200">
                               <div className="flex items-center justify-between gap-2 mb-2 pb-2 border-b border-blue-200/80">
                                 <span className="font-bold text-slate-800 text-xs sm:text-sm">
-                                  💡 เฉลยคำตอบที่ถูกต้อง ({allSolutions.length} รูปแบบที่เลือกแต่งได้):
+                                  💡 เฉลยคำตอบที่ถูกต้อง ({allSolutions.length} ชุดที่เลือกแต่งได้):
                                 </span>
                                 <span className="text-[11px] font-semibold text-blue-700 bg-white px-2 py-0.5 rounded border border-blue-200">
-                                  เลือกตอบแบบใดก็ได้
+                                  เลือกตอบชุดใดก็ได้
                                 </span>
                               </div>
 
@@ -589,7 +555,7 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                                 {allSolutions.map((sol, sIdx) => (
                                   <div key={sIdx} className="solution-item-card bg-white p-3 rounded-lg border border-[#bfdbfe] shadow-2xs">
                                     <div className="font-mono font-bold text-[#1e3a8a] text-sm sm:text-base">
-                                      {sIdx + 1}. {sol.en}
+                                      ชุดที่ {sIdx + 1}: {sol.en}
                                     </div>
                                     {sol.th && (
                                       <div className="text-xs sm:text-sm font-medium text-emerald-800 mt-1 flex items-center gap-1.5">
