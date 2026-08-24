@@ -329,6 +329,26 @@ export function checkGuidedSentenceExercise(
     };
   }
 
+  // 0. CAPITAL LETTER CHECK & FULL STOP CHECK (Universal grammar rules)
+  const firstChar = raw.charAt(0);
+  const isCapital = firstChar === firstChar.toUpperCase() && firstChar !== firstChar.toLowerCase();
+  if (!isCapital) {
+    return {
+      isCorrect: false,
+      message: '⚡ คำแนะนำเบื้องต้น:',
+      points: [`• ตัวแรกของประโยคต้องเป็นตัวพิมพ์ใหญ่ (Capital letter) เช่น "${firstChar.toUpperCase()}..."`]
+    };
+  }
+
+  const hasPunctuation = raw.endsWith('.') || raw.endsWith('?') || raw.endsWith('!');
+  if (!hasPunctuation) {
+    return {
+      isCorrect: false,
+      message: '⚡ คำแนะนำเบื้องต้น:',
+      points: ['• อย่าลืมใส่เครื่องหมายจุด Full Stop (.) ด้านหลังสุดของประโยคด้วยนะคะ']
+    };
+  }
+
   const normalize = (s: string) => s.trim().replace(/\s+/g, ' ').toLowerCase().replace(/[.!?,]$/, '');
   const normalizedRaw = normalize(raw);
 
@@ -336,7 +356,7 @@ export function checkGuidedSentenceExercise(
   const parsedCategories = (categories || []).map((cat, cIdx) => {
     const rawWords = Array.isArray(cat.words) ? cat.words : (cat.word_bank || []);
     const wordList = rawWords.map((w: any, idx: number) => {
-      const defaultId = `${cat.order || cIdx + 1}${String.fromCharCode(97 + idx)}`; // e.g. "1a", "1b", "1c"
+      const defaultId = `${cat.order || cIdx + 1}${String.fromCharCode(97 + idx)}`;
       if (typeof w === 'string') {
         return { id: defaultId, en: w, th: w, index: idx, next_valid_ids: undefined };
       }
@@ -409,15 +429,61 @@ export function checkGuidedSentenceExercise(
   // Sort matched words by appearance order
   matchedWords.sort((a, b) => a.position - b.position);
 
-  // Check missing categories
+  // Check missing categories & detect fuzzy spelling typos
   const foundOrders = new Set(matchedWords.map(m => m.order));
   const missingOrders = requiredOrders.filter(ord => !foundOrders.has(ord));
 
   if (missingOrders.length > 0) {
+    // Run Levenshtein Fuzzy Spell Checking to see if student typed a misspelled version
+    const cleanWord = (w: string) => w.toLowerCase().replace(/[^a-z0-9'-]/g, '');
+    const studentTokens = raw.split(/\s+/).map(cleanWord).filter(Boolean);
+    const spellingPoints: string[] = [];
+
+    // Check words in missing categories for close matches
+    for (const ord of missingOrders) {
+      const cat = parsedCategories.find(c => c.order === ord);
+      if (!cat) continue;
+
+      for (const targetWord of cat.words) {
+        if (!targetWord.en) continue;
+        const targetEn = targetWord.en.toLowerCase();
+        const targetWordsList = targetEn.split(/\s+/);
+
+        // Check single-word or multi-word phrase similarity
+        for (let i = 0; i <= studentTokens.length - targetWordsList.length; i++) {
+          const studentChunk = studentTokens.slice(i, i + targetWordsList.length).join(' ');
+          const dist = getLevenshteinDistance(studentChunk, targetEn);
+          const sim = getWordSimilarity(studentChunk, targetEn);
+
+          // E-dropping rule (e.g. makeing -> making, hesitateing -> hesitating)
+          if (studentChunk.endsWith('eing') && targetEn.endsWith('ing')) {
+            spellingPoints.push(`• สะกดคำผิด: "${studentChunk}" ควรตัด e ออกก่อนเติม -ing เป็น "${targetEn}" (${targetWord.th})`);
+            break;
+          }
+
+          if ((dist <= 2 && sim >= 0.55) || (targetEn.length <= 4 && dist <= 1)) {
+            if (studentChunk !== targetEn) {
+              spellingPoints.push(`• สะกดคำผิด: คุณพิมพ์ "${studentChunk}" คำที่ถูกต้องคือ "${targetWord.en}" (${targetWord.th})`);
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    if (spellingPoints.length > 0) {
+      return {
+        isCorrect: false,
+        message: '⚡ ตรวจพบการสะกดคำผิด:',
+        points: spellingPoints
+      };
+    }
+
     const missingNames = missingOrders.map(ord => {
       const cat = parsedCategories.find(c => c.order === ord);
       return cat ? `"${cat.name}"` : `"หมวดที่ ${ord}"`;
     });
+
     return {
       isCorrect: false,
       message: 'ยังเติมคำในช่องว่างไม่ครบถ้วน หรือสะกดคำศัพท์ไม่ถูกต้องนะคะ',
