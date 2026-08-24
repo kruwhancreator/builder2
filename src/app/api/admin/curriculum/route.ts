@@ -271,13 +271,21 @@ export async function POST(req: NextRequest) {
         }
 
         if (resolvedUnitId) {
-          // If categories are passed (for guided_sentence), update exercises.categories
+          // If categories are passed (for guided_sentence), upsert exercises.categories
           if (Array.isArray(categories)) {
-            await supabase
+            const { error: catErr } = await supabase
               .from('exercises')
-              .update({ categories })
-              .eq('unit_id', resolvedUnitId)
-              .eq('exercise_code', exercise_code);
+              .upsert({
+                unit_id: resolvedUnitId,
+                exercise_code,
+                title: 'Exercise 2: เลือกคำจากตารางมาแต่งประโยค',
+                exercise_type: 'guided_sentence',
+                categories
+              }, { onConflict: 'unit_id,exercise_code' });
+
+            if (catErr) {
+              console.error('Error saving categories into exercises table:', catErr);
+            }
           }
 
           // Delete existing items for this exercise to cleanly re-insert
