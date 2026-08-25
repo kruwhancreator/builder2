@@ -1382,7 +1382,17 @@ export default function BackendAdminPage() {
                       {/* NESTED EXERCISES LIST */}
                       <div className="unit-exercises-container p-4 sm:px-7 space-y-3">
                         {unit.exercises && unit.exercises.length > 0 ? (
-                          unit.exercises.map((exercise: any) => (
+                          [...unit.exercises]
+                            .sort((a: any, b: any) => {
+                              const numA = parseInt((a.code || '').replace(/\D/g, ''), 10) || 0;
+                              const numB = parseInt((b.code || '').replace(/\D/g, ''), 10) || 0;
+                              if (numA !== numB) return numA - numB;
+                              const titleA = parseInt((a.title || '').replace(/^[^\d]*/, ''), 10) || 0;
+                              const titleB = parseInt((b.title || '').replace(/^[^\d]*/, ''), 10) || 0;
+                              if (titleA !== titleB) return titleA - titleB;
+                              return (a.code || '').localeCompare(b.code || '');
+                            })
+                            .map((exercise: any) => (
                             <div
                               key={exercise.code}
                               className="exercise-item-row bg-white border border-slate-200/80 rounded-2xl p-4 flex items-center justify-between gap-4 hover:border-blue-300 hover:shadow-2xs transition-all"

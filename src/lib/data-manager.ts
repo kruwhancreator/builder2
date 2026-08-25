@@ -202,7 +202,11 @@ export async function getChapterDataFromDb(slugOrId: string = 'sentence-builder-
             .order('item_number', { ascending: true })
         ]);
 
-        const exercisesConfig = exercisesConfigRes.data;
+        const exercisesConfig = (exercisesConfigRes.data || []).sort((a, b) => {
+          const numA = parseInt((a.exercise_code || '').replace(/\D/g, ''), 10) || 0;
+          const numB = parseInt((b.exercise_code || '').replace(/\D/g, ''), 10) || 0;
+          return numA - numB;
+        });
         const itemsData = itemsDataRes.data;
         const exercisesObj: Record<string, any> = {};
 

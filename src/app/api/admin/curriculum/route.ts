@@ -83,6 +83,17 @@ export async function GET(req: NextRequest) {
             };
           });
 
+          // Sort exercises naturally by number (ex-1, ex-2, ex-3)
+          exercises.sort((a, b) => {
+            const numA = parseInt((a.code || '').replace(/\D/g, ''), 10) || 0;
+            const numB = parseInt((b.code || '').replace(/\D/g, ''), 10) || 0;
+            if (numA !== numB) return numA - numB;
+            const titleA = parseInt((a.title || '').replace(/^[^\d]*/, ''), 10) || 0;
+            const titleB = parseInt((b.title || '').replace(/^[^\d]*/, ''), 10) || 0;
+            if (titleA !== titleB) return titleA - titleB;
+            return (a.code || '').localeCompare(b.code || '');
+          });
+
           // Fallback to default 3 exercises ONLY for Unit 1 if nothing is configured yet in Supabase
           if (exercises.length === 0 && unit.unit_number === 1) {
             const ex1Items = unitItems.filter(i => i.exercise_code === 'ex-1');
