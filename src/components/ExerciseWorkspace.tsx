@@ -719,12 +719,6 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                       <div className="font-mono font-bold bg-white px-3 py-2 rounded-lg border border-[#bfdbfe] text-[#1e3a8a] text-sm sm:text-base">
                         {item.model_answer}
                       </div>
-                      {(item.image_description || item.context_hint) && (
-                        <div className="text-xs sm:text-sm font-medium text-emerald-800 mt-2 flex items-center gap-1.5 bg-emerald-50 px-2.5 py-1.5 rounded-lg border border-emerald-200">
-                          <span className="font-bold text-emerald-950">📖 บริบทภาพ/คำแปล:</span>
-                          <span>"{item.image_description || item.context_hint}"</span>
-                        </div>
-                      )}
                     </div>
                   )}
                 </div>
