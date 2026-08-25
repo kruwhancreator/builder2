@@ -1,20 +1,66 @@
 @import "tailwindcss";
 @import url('https://cdn.jsdelivr.net/gh/lazywasabi/thai-web-fonts@main/fonts/LINESeedSansTH/LINESeedSansTH.css');
 
+/* Direct @font-face fallback definitions for LINE Seed Sans TH */
+@font-face {
+  font-family: 'LINESeedSansTH';
+  src: url('https://cdn.jsdelivr.net/gh/lazywasabi/thai-web-fonts@main/fonts/LINESeedSansTH/LINESeedSansTH_W_Th.woff2') format('woff2');
+  font-weight: 100 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'LINESeedSansTH';
+  src: url('https://cdn.jsdelivr.net/gh/lazywasabi/thai-web-fonts@main/fonts/LINESeedSansTH/LINESeedSansTH_W_Rg.woff2') format('woff2');
+  font-weight: 400 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'LINESeedSansTH';
+  src: url('https://cdn.jsdelivr.net/gh/lazywasabi/thai-web-fonts@main/fonts/LINESeedSansTH/LINESeedSansTH_W_Bd.woff2') format('woff2');
+  font-weight: 600 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'LINESeedSansTH';
+  src: url('https://cdn.jsdelivr.net/gh/lazywasabi/thai-web-fonts@main/fonts/LINESeedSansTH/LINESeedSansTH_W_XBd.woff2') format('woff2');
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'LINESeedSansTH';
+  src: url('https://cdn.jsdelivr.net/gh/lazywasabi/thai-web-fonts@main/fonts/LINESeedSansTH/LINESeedSansTH_W_He.woff2') format('woff2');
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@theme {
+  --font-sans: 'LINESeedSansTH', 'LINE Seed Sans TH', system-ui, -apple-system, sans-serif;
+  --font-heading: 'LINESeedSansTH', 'LINE Seed Sans TH', system-ui, -apple-system, sans-serif;
+}
+
 @layer base {
   :root {
-    --font-sans: 'LINE Seed Sans TH', 'LINESeedSansTH', 'LINESeed', system-ui, -apple-system, sans-serif;
-    --font-heading: 'LINE Seed Sans TH', 'LINESeedSansTH', 'LINESeed', system-ui, -apple-system, sans-serif;
+    --font-sans: 'LINESeedSansTH', 'LINE Seed Sans TH', system-ui, -apple-system, sans-serif;
+    --font-heading: 'LINESeedSansTH', 'LINE Seed Sans TH', system-ui, -apple-system, sans-serif;
     --primary: #1374bc;
     --secondary: #de3030;
   }
 
-  * {
-    font-family: 'LINE Seed Sans TH', 'LINESeedSansTH', 'LINESeed', system-ui, -apple-system, sans-serif;
+  *, *::before, *::after {
+    font-family: 'LINESeedSansTH', 'LINE Seed Sans TH', system-ui, -apple-system, sans-serif !important;
   }
 
   html {
-    font-family: 'LINE Seed Sans TH', 'LINESeedSansTH', 'LINESeed', system-ui, -apple-system, sans-serif;
+    font-family: 'LINESeedSansTH', 'LINE Seed Sans TH', system-ui, -apple-system, sans-serif !important;
     font-size: 17px;
     -webkit-text-size-adjust: 100%;
   }
@@ -27,17 +73,17 @@
     background-size: 24px 24px;
     color: #1e293b;
     min-height: 100vh;
-    font-family: 'LINE Seed Sans TH', 'LINESeedSansTH', 'LINESeed', system-ui, -apple-system, sans-serif;
+    font-family: 'LINESeedSansTH', 'LINE Seed Sans TH', system-ui, -apple-system, sans-serif !important;
     font-size: 1rem;
     line-height: 1.6;
   }
 
-  input, button, select, textarea {
-    font-family: 'LINE Seed Sans TH', 'LINESeedSansTH', 'LINESeed', system-ui, -apple-system, sans-serif;
+  input, button, select, textarea, p, span, h1, h2, h3, h4, h5, h6, a, div, li, label {
+    font-family: 'LINESeedSansTH', 'LINE Seed Sans TH', system-ui, -apple-system, sans-serif !important;
   }
 
   .font-sans, .font-heading {
-    font-family: 'LINE Seed Sans TH', 'LINESeedSansTH', 'LINESeed', system-ui, -apple-system, sans-serif !important;
+    font-family: 'LINESeedSansTH', 'LINE Seed Sans TH', system-ui, -apple-system, sans-serif !important;
   }
 }
 
