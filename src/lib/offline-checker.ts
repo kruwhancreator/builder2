@@ -275,13 +275,21 @@ export function checkOfflineGrammarAndSpelling(
       const dist = getLevenshteinDistance(sWord, tWord);
       const sim = getWordSimilarity(sWord, tWord);
 
+      // Handle character elongation (e.g. "waterssssss" -> "water", "cooooook" -> "cook")
+      const sCompressed = sWord.replace(/(.)\1{2,}/g, '$1');
+      const isElongatedTypo = sWord.length > tWord.length && (
+        sWord.startsWith(tWord) || 
+        sCompressed === tWord || 
+        getLevenshteinDistance(sCompressed, tWord) <= 1
+      );
+
       // Handle small words like 'd' -> 'do', 'to', 'up', 'am' (distance <= 1)
       const isShortWordFuzzy = (tWord.length <= 3 && dist <= 1);
       // Handle longer words (distance <= 2 or similarity >= 0.55)
       const isLongWordFuzzy = (dist <= 2 && sim >= 0.55);
 
-      if (isShortWordFuzzy || isLongWordFuzzy) {
-        if (dist < bestDist || (dist === bestDist && sim > bestSim)) {
+      if (isShortWordFuzzy || isLongWordFuzzy || isElongatedTypo) {
+        if (dist < bestDist || (dist === bestDist && sim > bestSim) || isElongatedTypo) {
           bestDist = dist;
           bestSim = sim;
           bestMatchWord = tWord;
@@ -321,8 +329,10 @@ export function checkOfflineGrammarAndSpelling(
       allTargetWordsSet.forEach((tW: string) => {
         const dist = getLevenshteinDistance(sWord, tW);
         const sim = getWordSimilarity(sWord, tW);
-        if ((dist <= 2 && sim >= 0.55) || (tW.length <= 3 && dist <= 1)) {
-          if (dist < globalBestDist) {
+        const sCompressed = sWord.replace(/(.)\1{2,}/g, '$1');
+        const isElongated = sWord.startsWith(tW) || sCompressed === tW;
+        if ((dist <= 2 && sim >= 0.55) || (tW.length <= 3 && dist <= 1) || isElongated) {
+          if (dist < globalBestDist || isElongated) {
             globalBestDist = dist;
             globalBestWord = tW;
           }
@@ -449,8 +459,9 @@ export function checkGuidedSentenceExercise(
     };
   }
 
-  const normalize = (s: string) => normalizeTypography(s).trim().replace(/\s+/g, ' ').toLowerCase().replace(/[.!?,]$/, '');
-  const normalizedRaw = normalize(raw);
+  const cleanWord = (w: string) => normalizeTypography(w).toLowerCase().replace(/[^a-z0-9'-]/g, '');
+  const studentTokens = raw.split(/\s+/).map(cleanWord).filter(Boolean);
+  const normalizedRaw = studentTokens.join(' ');
 
   // 1. NORMALIZE CATEGORIES & WORD CHOICES (with id, next_valid_ids, and row index)
   const parsedCategories = (categories || []).map((cat, cIdx) => {
@@ -481,17 +492,7 @@ export function checkGuidedSentenceExercise(
     ? item.required_orders 
     : parsedCategories.map(c => c.order);
 
-  // Check acceptable answers first if explicitly defined
-  const acceptableList: string[] = item.acceptable_answers || (item.model_answer ? [item.model_answer] : []);
-  if (acceptableList.some(ans => normalize(ans) === normalizedRaw)) {
-    return {
-      isCorrect: true,
-      message: '🎉 ยอดเยี่ยมมากค่ะ! ตอบได้ถูกต้องตามเฉลยสมบูรณ์แบบ 👏',
-      points: ['• โครงสร้างประโยคถูกต้อง', '• ความหมายสอดคล้องสมบูรณ์']
-    };
-  }
-
-  // 2. MATCH WORDS IN EACH REQUIRED SLOT
+  // 2. EXACT WORD-TOKEN MATCHING (Strict whole words, NO loose substring matching)
   interface MatchedSlotWord {
     id: string;
     en: string;
@@ -504,26 +505,31 @@ export function checkGuidedSentenceExercise(
   }
 
   const matchedWords: MatchedSlotWord[] = [];
+  const matchedTokenIndices = new Set<number>();
 
   for (const cat of parsedCategories) {
     for (const w of cat.words) {
       if (!w.en) continue;
-      const normKey = normalize(w.en);
-      let searchPos = 0;
-      while (searchPos < normalizedRaw.length) {
-        const foundPos = normalizedRaw.indexOf(normKey, searchPos);
-        if (foundPos === -1) break;
-        matchedWords.push({
-          id: w.id,
-          en: w.en,
-          th: w.th,
-          order: cat.order,
-          catName: cat.name,
-          index: w.index,
-          next_valid_ids: w.next_valid_ids,
-          position: foundPos
-        });
-        searchPos = foundPos + normKey.length;
+      const wTokens = w.en.split(/\s+/).map(cleanWord).filter(Boolean);
+      if (wTokens.length === 0) continue;
+
+      for (let i = 0; i <= studentTokens.length - wTokens.length; i++) {
+        const slice = studentTokens.slice(i, i + wTokens.length);
+        if (slice.every((tok, idx) => tok === wTokens[idx])) {
+          matchedWords.push({
+            id: w.id,
+            en: w.en,
+            th: w.th,
+            order: cat.order,
+            catName: cat.name,
+            index: w.index,
+            next_valid_ids: w.next_valid_ids,
+            position: i
+          });
+          for (let j = 0; j < wTokens.length; j++) {
+            matchedTokenIndices.add(i + j);
+          }
+        }
       }
     }
   }
@@ -536,10 +542,6 @@ export function checkGuidedSentenceExercise(
   const missingOrders = requiredOrders.filter(ord => !foundOrders.has(ord));
 
   if (missingOrders.length > 0) {
-    // Run Advanced Grammar Inflection & Fuzzy Spell Checking
-    const cleanWord = (w: string) => w.toLowerCase().replace(/[^a-z0-9'-]/g, '');
-    const studentTokens = raw.split(/\s+/).map(cleanWord).filter(Boolean);
-    // Check words in missing categories for grammar inflections or close typos
     let hasGrammarMismatch = false;
     const spellingPoints: string[] = [];
 
@@ -550,10 +552,10 @@ export function checkGuidedSentenceExercise(
       for (const targetWord of cat.words) {
         if (!targetWord.en) continue;
         const targetEn = targetWord.en.toLowerCase();
-        const targetWordsList = targetEn.split(/\s+/);
+        const targetWordsList = targetEn.split(/\s+/).map(cleanWord).filter(Boolean);
         const tFirst = targetWordsList[0];
 
-        // Check single-word or multi-word phrase
+        // Check single-word or multi-word phrase against student tokens
         for (let i = 0; i <= studentTokens.length - targetWordsList.length; i++) {
           const studentChunk = studentTokens.slice(i, i + targetWordsList.length).join(' ');
           const sWords = studentChunk.split(/\s+/);
@@ -567,8 +569,7 @@ export function checkGuidedSentenceExercise(
           if (isRestMatching) {
             const sLemma = nlp(sFirst).verbs().toInfinitive().text() || '';
             const isRelatedVerb = sLemma === tFirst ||
-                                  sFirst.replace(/(ing|ed|es|s)$/, '') === tFirst.replace(/(ing|ed|es|s)$/, '') ||
-                                  sFirst.startsWith(tFirst);
+                                  sFirst.replace(/(ing|ed|es|s)$/, '') === tFirst.replace(/(ing|ed|es|s)$/, '');
 
             if (isRelatedVerb && sFirst !== tFirst) {
               hasGrammarMismatch = true;
@@ -582,11 +583,17 @@ export function checkGuidedSentenceExercise(
             break;
           }
 
-          // 3. TYPO / LEVENSHTEIN SPELL CHECK (Real misspellings like drnk, wate, travl)
+          // 3. TYPO / ELONGATION / LEVENSHTEIN (e.g. waterssssss -> water, drnk -> drink)
           const dist = getLevenshteinDistance(studentChunk, targetEn);
           const sim = getWordSimilarity(studentChunk, targetEn);
+          const sCompressed = studentChunk.replace(/(.)\1{2,}/g, '$1');
+          const isElongated = studentChunk.length > targetEn.length && (
+            studentChunk.startsWith(targetEn) ||
+            sCompressed === targetEn ||
+            getLevenshteinDistance(sCompressed, targetEn) <= 1
+          );
 
-          if ((dist <= 2 && sim >= 0.55) || (targetEn.length <= 4 && dist <= 1)) {
+          if ((dist <= 2 && sim >= 0.55) || (targetEn.length <= 4 && dist <= 1) || isElongated) {
             if (studentChunk !== targetEn) {
               spellingPoints.push(`• สะกดคำผิด: คุณพิมพ์ "${studentChunk}" คำที่ถูกต้องคือ "${targetWord.en}" (${targetWord.th})`);
               break;
@@ -696,6 +703,58 @@ export function checkGuidedSentenceExercise(
         ]
       };
     }
+  }
+
+  // 5. UNRECOGNIZED & MISSPELLED TOKEN VALIDATION (e.g. waterssssss)
+  const allowedSkeletonTokens = new Set([
+    'i', 'do', 'does', 'did', 'am', 'is', 'are', 'to', 'for', 'even', 'when', "i'm", 'im', 
+    'because', 'although', 'at', 'in', 'on', 'my', 'the', 'a', 'an', 'that', 'so'
+  ]);
+
+  const unrecognizedTokens: string[] = [];
+  for (let idx = 0; idx < studentTokens.length; idx++) {
+    if (!matchedTokenIndices.has(idx) && !allowedSkeletonTokens.has(studentTokens[idx])) {
+      unrecognizedTokens.push(studentTokens[idx]);
+    }
+  }
+
+  if (unrecognizedTokens.length > 0) {
+    const typoErrors: string[] = [];
+    for (const unrec of unrecognizedTokens) {
+      let bestCorrection = '';
+      for (const cat of parsedCategories) {
+        for (const w of cat.words) {
+          if (!w.en) continue;
+          const targetEn = w.en.toLowerCase();
+          const sCompressed = unrec.replace(/(.)\1{2,}/g, '$1');
+          const dist = getLevenshteinDistance(unrec, targetEn);
+          const sim = getWordSimilarity(unrec, targetEn);
+          const isElongated = unrec.length > targetEn.length && (
+            unrec.startsWith(targetEn) || 
+            sCompressed === targetEn || 
+            getLevenshteinDistance(sCompressed, targetEn) <= 1
+          );
+
+          if (isElongated || dist <= 2 || sim >= 0.55) {
+            bestCorrection = w.en;
+            break;
+          }
+        }
+        if (bestCorrection) break;
+      }
+
+      if (bestCorrection) {
+        typoErrors.push(`• สะกดคำผิด: คุณพิมพ์ "${unrec}" คำที่ถูกต้องคือ "${bestCorrection}"`);
+      } else {
+        typoErrors.push(`• มีคำศัพท์ที่ไม่ตรงตามหนังสือ: "${unrec}"`);
+      }
+    }
+
+    return {
+      isCorrect: false,
+      message: 'ยังไม่ถูกต้องตามโครงสร้างหนังสือนะคะ ลองใหม่อีกครั้งค่ะ',
+      points: typoErrors
+    };
   }
 
   // 5. ASSEMBLE THAI TRANSLATION FROM TEMPLATE
