@@ -22,6 +22,47 @@ export interface EvaluationResult {
 }
 
 export async function evaluateAnswer(req: EvaluationRequest): Promise<EvaluationResult> {
+  const normalize = (s: string) => 
+    (s || '')
+      .replace(/[\u2018\u2019`]/g, "'")
+      .replace(/[\u201C\u201D]/g, '"')
+      .trim()
+      .toLowerCase()
+      .replace(/[.!?,]$/, '')
+      .replace(/\s+/g, ' ');
+
+  const normalizedStudent = normalize(req.studentAnswer);
+  const modelAnswer = req.item.model_answer || '';
+  const normalizedModel = normalize(modelAnswer);
+  const acceptableList = (req.item.acceptable_answers || []).map(normalize);
+
+  // Fast path: If student matches model answer or acceptable answer exactly
+  const isExactModelMatch = normalizedStudent && (
+    normalizedStudent === normalizedModel || 
+    acceptableList.includes(normalizedStudent)
+  );
+
+  const startsCapital = (req.studentAnswer || '').trim().charAt(0) === (req.studentAnswer || '').trim().charAt(0).toUpperCase();
+  const endsPeriod = (req.studentAnswer || '').trim().endsWith('.');
+
+  if (isExactModelMatch && startsCapital && endsPeriod) {
+    const defaultTranslation = req.item.image_description || req.item.thai || req.item.prompt || '';
+    return {
+      isCorrect: true,
+      statusText: "ถูกต้องเลยค่ะ เก่งมากเลย 👏",
+      studentTranslation: req.exerciseType === 'picture_description'
+        ? (req.item.context_hint || "ฉันทำสิ่งนี้ตามโครงสร้างประโยคที่ถูกต้องสมบูรณ์")
+        : defaultTranslation,
+      correctedSentence: modelAnswer,
+      feedbackPoints: [
+        "• โครงสร้างประโยคถูกต้องสมบูรณ์แบบ ไวยากรณ์และการใช้คำศัพท์สอดคล้องกับบริบทเป็นอย่างดีเลยค่ะ"
+      ],
+      breakdown: { core: true, context: true, connect: true },
+      isLiveGemini: false,
+      modelUsed: 'exact-model-match'
+    };
+  }
+
   const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 
   // 1. If AI check is disabled for this exercise (useAiCheck === false), bypass AI completely!
@@ -49,7 +90,7 @@ async function evaluateWithGemini(apiKey: string, req: EvaluationRequest): Promi
 
   const systemInstruction = `You are Kru Whan (ครูหวาน) - an expert, warm, and encouraging English Language Teacher & Master AI Exercise Advisor for Thai students using English sentence construction courses (Sentence Builder).
 You will evaluate thousands of different quizzes across various books, units, and grammar formulas.
-Your mission is to provide accurate, pedagogical, and insightful feedback in Thai tailored strictly to the SPECIFIC grammar rules, formulas, and visual context provided in each individual quiz prompt.
+Your mission is to provide accurate, pedagogical, and encouraging feedback in Thai tailored strictly to the SPECIFIC grammar rules, formulas, and visual context provided in each individual quiz prompt.
 
 TONE & POLITE PARTICLES (STRICT):
 - ALWAYS speak as Kru Whan (female teacher persona).
@@ -62,23 +103,23 @@ UNIVERSAL PEDAGOGICAL EVALUATION FRAMEWORK (APPLIES TO ALL 1,000+ QUIZZES):
    - Strictly check the student's answer against the specific "Teacher Pattern & Structure Rules" given for this quiz.
    - Verify that each required slot/component in the formula is present and uses the correct grammatical form (e.g. Base Verb, V.ing, Adjective, Past Verb, etc.).
 
-2. GRAMMAR, PARTS OF SPEECH (POS) & SYNTAX VALIDATION:
+2. BROAD SEMANTIC ACCEPTANCE & VISUAL RELEVANCE:
+   - BE GENEROUS AND OPEN TO VALID VARIATIONS: An image of a student sitting at a desk with an open book, lamp, and coffee can legitimately be described with many related verbs: 'read / read books / study / review lessons / learn / do homework / take notes'. ALL of these are 100% valid actions matching the scene!
+   - NEVER reject 'read books' or 'read a book' by claiming the image only depicts 'study'!
+   - If the student's sentence is grammatically correct, follows the required formula, and makes logical sense with the picture context, YOU MUST SET "isCorrect": true!
+   - Only flag image relevance if the action completely contradicts the image (e.g. cooking in kitchen, playing football, driving a car when the image is studying in a room).
+
+3. GRAMMAR, PARTS OF SPEECH (POS) & SYNTAX VALIDATION:
    - Parts of Speech: Ensure words used in each slot belong to the required POS (e.g. if the formula requires an Adjective, flag if the student uses a Noun or Verb such as using 'sleep' instead of 'sleepy/tired', 'anger' instead of 'angry', 'success' instead of 'successful').
    - Auxiliary & Be Verbs: Detect any double/redundant auxiliary verbs (e.g. 'I'm am', 'do are', 'is be').
-   - Countable Noun Determiners: Only comment on determiners if a singular countable noun is literally placed alone without any article or possessive (e.g., 'read book' or 'review lesson'). If the student ALREADY included 'a', 'an', 'the', 'my', 'your', or plural '-s' (e.g., 'the lesson', 'a book', 'my books'), it is 100% grammatically correct and you MUST NOT claim it lacks a determiner!
-   - Natural English Collocations (Gentle tips): When describing general actions/habits, mention natural preferences (e.g. 'read books' vs 'read a book') as an enriching tip, without penalizing if grammatically valid.
-
-3. VISUAL / SCENE RELEVANCE (FOR PICTURE QUIZZES):
-   - Cross-check the student's vocabulary (subjects, actions, feelings, objects) with the provided "Picture Description & Scene Context".
-   - If the student's answer fits the scene well, encourage them!
-   - If the action completely contradicts the image (e.g. cooking when the scene shows studying), guide them politely on what the image actually depicts.
+   - Countable Noun Determiners: Only comment on determiners if a singular countable noun is literally placed alone without any article or possessive (e.g., 'read book' or 'review lesson'). If the student ALREADY included 'a', 'an', 'the', 'my', 'your', or plural '-s' (e.g., 'the lesson', 'a book', 'books', 'my notes'), it is 100% grammatically correct and you MUST NOT claim it lacks a determiner!
 
 4. THAI TRANSLATION & RECOMMENDED SENTENCE:
    - "studentTranslation": Provide an accurate, natural Thai translation of what the student literally typed in their answer.
    - "correctedSentence": Provide a natural, native-level sentence that perfectly follows the target formula for this quiz.
 
 5. ACCURACY & EVALUATION RESULT:
-   - "isCorrect": true ONLY if the sentence is 100% grammatically correct, matches the target structure, has zero typos, begins with a capital letter, and ends with a period '.' or punctuation.
+   - "isCorrect": true whenever the sentence is grammatically correct, follows the formula, matches the image plausibly, begins with a capital letter, and ends with a period '.'.
    - "statusText": "ถูกต้องเลยค่ะ เก่งมากเลย 👏" if isCorrect is true, otherwise "💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ".
 
 CRITICAL RESPONSE FORMAT: Respond ONLY with valid raw JSON matching this schema:
