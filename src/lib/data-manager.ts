@@ -205,8 +205,8 @@ export async function getChapterDataFromDb(slugOrId: string = 'sentence-builder-
               use_ai_check: ex.use_ai_check !== false,
               instruction: ex.instruction,
               guidance: ex.guidance,
-              categories: ex.categories || (chapter1Fallback.exercises['ex-2'] as any)?.categories,
-              word_bank: ex.word_bank || (chapter1Fallback.exercises['ex-2'] as any)?.word_bank,
+              categories: ex.categories || (unitNumber === 1 ? (chapter1Fallback.exercises['ex-2'] as any)?.categories : null),
+              word_bank: ex.word_bank || (unitNumber === 1 ? (chapter1Fallback.exercises['ex-2'] as any)?.word_bank : null),
               items: exItems.map(i => ({
                 id: i.item_number,
                 thai: i.thai_prompt,
@@ -248,8 +248,8 @@ export async function getChapterDataFromDb(slugOrId: string = 'sentence-builder-
             title: 'Exercise 2: เลือกคำจากตารางมาแต่งประโยค',
             type: 'guided_sentence',
             use_ai_check: true,
-            categories: (chapter1Fallback.exercises['ex-2'] as any)?.categories,
-            word_bank: (chapter1Fallback.exercises['ex-2'] as any)?.word_bank,
+            categories: unitNumber === 1 ? (chapter1Fallback.exercises['ex-2'] as any)?.categories : null,
+            word_bank: unitNumber === 1 ? (chapter1Fallback.exercises['ex-2'] as any)?.word_bank : null,
             items: ex2Items.map(i => ({
               id: i.item_number,
               prompt: i.prompt,

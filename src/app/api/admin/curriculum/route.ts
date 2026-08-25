@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
               use_ai_check: ex.use_ai_check !== false,
               instruction: ex.instruction || '',
               guidance: ex.guidance || '',
-              categories: ex.categories || (ex.exercise_code === 'ex-2' ? (chapter1Fallback.exercises['ex-2'] as any)?.categories : null),
+              categories: ex.categories || (ex.exercise_code === 'ex-2' && unit.unit_number === 1 ? (chapter1Fallback.exercises['ex-2'] as any)?.categories : null),
               word_bank: ex.word_bank || null,
               itemCount: exItems.length,
               items: exItems.map(i => ({
@@ -69,8 +69,8 @@ export async function GET(req: NextRequest) {
             };
           });
 
-          // Fallback to default 3 exercises if none configured yet for this unit
-          if (exercises.length === 0) {
+          // Fallback to default 3 exercises ONLY for Unit 1 if nothing is configured yet in Supabase
+          if (exercises.length === 0 && unit.unit_number === 1) {
             const ex1Items = unitItems.filter(i => i.exercise_code === 'ex-1');
             const ex2Items = unitItems.filter(i => i.exercise_code === 'ex-2');
             const ex3Items = unitItems.filter(i => i.exercise_code === 'ex-3');
