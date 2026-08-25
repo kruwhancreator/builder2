@@ -198,9 +198,63 @@ export function checkOfflineGrammarAndSpelling(
     unmatchedStudentWords.push({ word: sWord, index: sIdx, rawToken: studentTokens[sIdx] || sWord });
   });
 
-  // Match unmatched student words against remaining target words for typos
+  // Match unmatched student words against remaining target words for grammar substitutions or typos
   unmatchedStudentWords.forEach(({ word: sWord, rawToken }) => {
-    // Morphological rule: -ing dropping e (e.g. makeing -> making, hesitateing -> hesitating)
+    // 1. Check for Contraction vs Base Pronoun/Auxiliary Grammar Substitutions (e.g. "I'm" vs "I", "don't" vs "do")
+    for (let tIdx = 0; tIdx < targetWords.length; tIdx++) {
+      if (usedTargetIndices.has(tIdx)) continue;
+      const tWord = targetWords[tIdx];
+      const tRaw = rawTargetTokens[tIdx] || tWord;
+
+      // Case A: Student wrote "I'm" / "im" when target is "I"
+      if ((sWord === "i'm" || sWord === "im") && tWord === "i") {
+        usedTargetIndices.add(tIdx);
+        isValid = false;
+        points.push(`• ไวยากรณ์ไม่ถูกต้อง: โครงสร้างนี้ใช้ "${tRaw}" (เช่น "${tRaw} do...") ไม่ใช้ "${rawToken.replace(/[.!?,]$/, '')}" นะคะ`);
+        return;
+      }
+
+      // Case B: Student wrote "I" when target is "I'm"
+      if (sWord === "i" && (tWord === "i'm" || tWord === "im")) {
+        usedTargetIndices.add(tIdx);
+        isValid = false;
+        points.push(`• ไวยากรณ์ไม่ถูกต้อง: โครงสร้างนี้ต้องใช้ "${tRaw}" (เช่น "even when ${tRaw}...") นะคะ`);
+        return;
+      }
+
+      // Case C: Student wrote "don't" when target is "do"
+      if ((sWord === "don't" || sWord === "dont") && tWord === "do") {
+        usedTargetIndices.add(tIdx);
+        isValid = false;
+        points.push(`• ไวยากรณ์ไม่ถูกต้อง: โครงสร้างนี้ใช้รูปบอกเล่า "${tRaw}" ไม่ใช่รูปปฏิเสธ "${rawToken.replace(/[.!?,]$/, '')}" นะคะ`);
+        return;
+      }
+
+      // Case D: Other pronoun contractions (you're vs you, we're vs we, etc.)
+      const contractionsMap: Record<string, string> = {
+        "you're": "you",
+        "we're": "we",
+        "they're": "they",
+        "he's": "he",
+        "she's": "she",
+        "it's": "it"
+      };
+
+      if (contractionsMap[sWord] === tWord) {
+        usedTargetIndices.add(tIdx);
+        isValid = false;
+        points.push(`• ไวยากรณ์ไม่ถูกต้อง: โครงสร้างนี้ใช้ "${tRaw}" ไม่ใช้ "${rawToken.replace(/[.!?,]$/, '')}" นะคะ`);
+        return;
+      }
+      if (contractionsMap[tWord] === sWord) {
+        usedTargetIndices.add(tIdx);
+        isValid = false;
+        points.push(`• ไวยากรณ์ไม่ถูกต้อง: โครงสร้างนี้ต้องใช้รูปย่อ "${tRaw}" นะคะ`);
+        return;
+      }
+    }
+
+    // 2. Morphological rule: -ing dropping e (e.g. makeing -> making, hesitateing -> hesitating)
     if (sWord.endsWith('eing') && sWord.length >= 5) {
       const correction = sWord.slice(0, -4) + 'ing';
       spellingErrors.push({ typed: sWord, correction });
