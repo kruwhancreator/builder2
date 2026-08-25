@@ -1,14 +1,21 @@
 @import "tailwindcss";
+@import url('https://cdn.jsdelivr.net/gh/lazywasabi/thai-web-fonts@main/fonts/LINESeedSansTH/LINESeedSansTH.css');
 
 @layer base {
   :root {
-    --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+    --font-sans: 'LINE Seed Sans TH', 'LINESeedSansTH', 'LINESeed', system-ui, -apple-system, sans-serif;
+    --font-heading: 'LINE Seed Sans TH', 'LINESeedSansTH', 'LINESeed', system-ui, -apple-system, sans-serif;
     --primary: #1374bc;
     --secondary: #de3030;
   }
 
+  * {
+    font-family: 'LINE Seed Sans TH', 'LINESeedSansTH', 'LINESeed', system-ui, -apple-system, sans-serif;
+  }
+
   html {
-    font-size: 17.5px;
+    font-family: 'LINE Seed Sans TH', 'LINESeedSansTH', 'LINESeed', system-ui, -apple-system, sans-serif;
+    font-size: 17px;
     -webkit-text-size-adjust: 100%;
   }
 
@@ -20,13 +27,17 @@
     background-size: 24px 24px;
     color: #1e293b;
     min-height: 100vh;
-    font-family: var(--font-sans);
+    font-family: 'LINE Seed Sans TH', 'LINESeedSansTH', 'LINESeed', system-ui, -apple-system, sans-serif;
     font-size: 1rem;
     line-height: 1.6;
   }
 
   input, button, select, textarea {
-    font-family: inherit;
+    font-family: 'LINE Seed Sans TH', 'LINESeedSansTH', 'LINESeed', system-ui, -apple-system, sans-serif;
+  }
+
+  .font-sans, .font-heading {
+    font-family: 'LINE Seed Sans TH', 'LINESeedSansTH', 'LINESeed', system-ui, -apple-system, sans-serif !important;
   }
 }
 
