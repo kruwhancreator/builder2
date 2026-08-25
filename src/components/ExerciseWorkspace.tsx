@@ -697,12 +697,16 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                       )}
 
                       {fb.points && fb.points.length > 0 && (
-                        <ul className="feedback-points-list space-y-1 mt-1.5 pl-1">
-                          {fb.points.map((pt, pIdx) => (
-                            <li key={pIdx} className="feedback-point-item font-medium text-xs sm:text-sm leading-relaxed">
-                              {pt}
-                            </li>
-                          ))}
+                        <ul className="feedback-points-list space-y-1.5 mt-2 pl-0.5">
+                          {fb.points.map((pt, pIdx) => {
+                            const cleanPt = pt.replace(/^[\s•\-\*]+/, '').trim();
+                            return (
+                              <li key={pIdx} className="feedback-point-item font-medium text-xs sm:text-sm leading-relaxed flex items-start gap-2">
+                                <span className="text-blue-600 font-bold shrink-0">•</span>
+                                <span>{cleanPt}</span>
+                              </li>
+                            );
+                          })}
                         </ul>
                       )}
                     </div>
