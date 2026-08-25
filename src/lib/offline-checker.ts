@@ -90,7 +90,6 @@ export function checkOfflineGrammarAndSpelling(
   }
 
   const points: string[] = [];
-  const spellingErrors: Array<{ typed: string; correction: string }> = [];
   let isValid = true;
 
   // -------------------------------------------------------------
@@ -100,7 +99,7 @@ export function checkOfflineGrammarAndSpelling(
   const isCapital = firstChar === firstChar.toUpperCase() && firstChar !== firstChar.toLowerCase();
   if (!isCapital) {
     isValid = false;
-    const targetUpper = item.model_answer ? item.model_answer.charAt(0) : 'I';
+    const targetUpper = item.model_answer ? item.model_answer.charAt(0).toUpperCase() : 'I';
     points.push(`• ตัวแรกของประโยคต้องเป็นตัวพิมพ์ใหญ่ (Capital letter) เช่น "${targetUpper}..."`);
   }
 
@@ -124,34 +123,6 @@ export function checkOfflineGrammarAndSpelling(
   const acceptableAnswers: string[] = (item.acceptable_answers || [modelAnswer]).map(normalizeTypography);
   const allTargetSentences = [modelAnswer, ...acceptableAnswers].filter(Boolean);
 
-  // Find the closest target sentence to the student's input
-  let bestTargetSentence = modelAnswer;
-  let bestTargetScore = -1;
-
-  allTargetSentences.forEach((targetStr: string) => {
-    const tWords = targetStr.split(/\s+/).map(cleanWord).filter(Boolean);
-    let matchCount = 0;
-    studentWords.forEach((sW: string) => {
-      if (tWords.some((tW: string) => tW === sW || getWordSimilarity(sW, tW) >= 0.6)) {
-        matchCount++;
-      }
-    });
-    if (matchCount > bestTargetScore) {
-      bestTargetScore = matchCount;
-      bestTargetSentence = targetStr;
-    }
-  });
-
-  // Preserve raw target tokens with original casing and punctuation stripped
-  const rawTargetTokens = bestTargetSentence.split(/\s+/).map(w => w.replace(/[.!?,]$/, ''));
-  const targetWords = rawTargetTokens.map(cleanWord).filter(Boolean);
-
-  // Collect all valid words from all acceptable answers to prevent false positives
-  const allTargetWordsSet = new Set<string>();
-  allTargetSentences.forEach((s: string) => {
-    s.split(/\s+/).map(cleanWord).filter(Boolean).forEach((w: string) => allTargetWordsSet.add(w));
-  });
-
   // -------------------------------------------------------------
   // 4. PRONOUN "I" and "I'm" CAPITALIZATION & APOSTROPHE CHECK
   // -------------------------------------------------------------
@@ -163,218 +134,14 @@ export function checkOfflineGrammarAndSpelling(
     } else if (cleanTok === "i'm" || cleanTok === 'i’m') {
       isValid = false;
       points.push('• คำว่า "I\'m" ตัว "I" ต้องเป็นตัวพิมพ์ใหญ่เสมอนะคะ (เขียนเป็น "I\'m")');
-    } else if (cleanTok.toLowerCase() === 'im' && targetWords.includes("i'm")) {
+    } else if (cleanTok.toLowerCase() === 'im') {
       isValid = false;
       points.push('• คำว่า "I\'m" ต้องใส่เครื่องหมาย Apostrophe (\') ด้วยนะคะ (เขียนเป็น "I\'m")');
     }
   });
 
   // -------------------------------------------------------------
-  // 5. DYNAMIC WORD-BY-WORD DIFF & SPELLING DETECTION
-  // -------------------------------------------------------------
-  const usedTargetIndices = new Set<number>();
-  const unmatchedStudentWords: Array<{ word: string; index: number; rawToken: string }> = [];
-
-  studentWords.forEach((sWord: string, sIdx: number) => {
-    // 1. Exact match against target sequence
-    let matchedIdx = -1;
-    for (let tIdx = 0; tIdx < targetWords.length; tIdx++) {
-      if (!usedTargetIndices.has(tIdx) && targetWords[tIdx] === sWord) {
-        matchedIdx = tIdx;
-        break;
-      }
-    }
-
-    if (matchedIdx !== -1) {
-      usedTargetIndices.add(matchedIdx);
-      return;
-    }
-
-    // 2. Exact match in any acceptable answers
-    if (allTargetWordsSet.has(sWord)) {
-      return;
-    }
-
-    unmatchedStudentWords.push({ word: sWord, index: sIdx, rawToken: studentTokens[sIdx] || sWord });
-  });
-
-  // Match unmatched student words against remaining target words for grammar substitutions or typos
-  unmatchedStudentWords.forEach(({ word: sWord, rawToken }) => {
-    // 1. Check for Contraction vs Base Pronoun/Auxiliary Grammar Substitutions (e.g. "I'm" vs "I", "don't" vs "do")
-    for (let tIdx = 0; tIdx < targetWords.length; tIdx++) {
-      if (usedTargetIndices.has(tIdx)) continue;
-      const tWord = targetWords[tIdx];
-      const tRaw = rawTargetTokens[tIdx] || tWord;
-
-      // Case A: Student wrote "I'm" / "im" when target is "I"
-      if ((sWord === "i'm" || sWord === "im") && tWord === "i") {
-        usedTargetIndices.add(tIdx);
-        isValid = false;
-        points.push(`• ไวยากรณ์ไม่ถูกต้อง: โครงสร้างนี้ใช้ "${tRaw}" (เช่น "${tRaw} do...") ไม่ใช้ "${rawToken.replace(/[.!?,]$/, '')}" นะคะ`);
-        return;
-      }
-
-      // Case B: Student wrote "I" when target is "I'm"
-      if (sWord === "i" && (tWord === "i'm" || tWord === "im")) {
-        usedTargetIndices.add(tIdx);
-        isValid = false;
-        points.push(`• ไวยากรณ์ไม่ถูกต้อง: โครงสร้างนี้ต้องใช้ "${tRaw}" (เช่น "even when ${tRaw}...") นะคะ`);
-        return;
-      }
-
-      // Case C: Student wrote "don't" when target is "do"
-      if ((sWord === "don't" || sWord === "dont") && tWord === "do") {
-        usedTargetIndices.add(tIdx);
-        isValid = false;
-        points.push(`• ไวยากรณ์ไม่ถูกต้อง: โครงสร้างนี้ใช้รูปบอกเล่า "${tRaw}" ไม่ใช่รูปปฏิเสธ "${rawToken.replace(/[.!?,]$/, '')}" นะคะ`);
-        return;
-      }
-
-      // Case D: Other pronoun contractions (you're vs you, we're vs we, etc.)
-      const contractionsMap: Record<string, string> = {
-        "you're": "you",
-        "we're": "we",
-        "they're": "they",
-        "he's": "he",
-        "she's": "she",
-        "it's": "it"
-      };
-
-      if (contractionsMap[sWord] === tWord) {
-        usedTargetIndices.add(tIdx);
-        isValid = false;
-        points.push(`• ไวยากรณ์ไม่ถูกต้อง: โครงสร้างนี้ใช้ "${tRaw}" ไม่ใช้ "${rawToken.replace(/[.!?,]$/, '')}" นะคะ`);
-        return;
-      }
-      if (contractionsMap[tWord] === sWord) {
-        usedTargetIndices.add(tIdx);
-        isValid = false;
-        points.push(`• ไวยากรณ์ไม่ถูกต้อง: โครงสร้างนี้ต้องใช้รูปย่อ "${tRaw}" นะคะ`);
-        return;
-      }
-    }
-
-    // 2. Morphological rule: -ing dropping e (e.g. makeing -> making, hesitateing -> hesitating)
-    if (sWord.endsWith('eing') && sWord.length >= 5) {
-      const correction = sWord.slice(0, -4) + 'ing';
-      spellingErrors.push({ typed: sWord, correction });
-      points.push(`• สะกดคำผิด: "${sWord}" ควรตัด e ออกก่อนเติม -ing เป็น "${correction}"`);
-      isValid = false;
-      return;
-    }
-
-    let bestMatchWord = '';
-    let bestMatchRaw = '';
-    let bestMatchIdx = -1;
-    let bestDist = Infinity;
-    let bestSim = 0;
-
-    targetWords.forEach((tWord: string, tIdx: number) => {
-      if (usedTargetIndices.has(tIdx)) return;
-
-      const dist = getLevenshteinDistance(sWord, tWord);
-      const sim = getWordSimilarity(sWord, tWord);
-
-      // Handle character elongation (e.g. "waterssssss" -> "water", "cooooook" -> "cook")
-      const sCompressed = sWord.replace(/(.)\1{2,}/g, '$1');
-      const isElongatedTypo = sWord.length > tWord.length && (
-        sWord.startsWith(tWord) || 
-        sCompressed === tWord || 
-        getLevenshteinDistance(sCompressed, tWord) <= 1
-      );
-
-      // Handle small words like 'd' -> 'do', 'to', 'up', 'am' (distance <= 1)
-      const isShortWordFuzzy = (tWord.length <= 3 && dist <= 1);
-      // Handle longer words (distance <= 2 or similarity >= 0.55)
-      const isLongWordFuzzy = (dist <= 2 && sim >= 0.55);
-
-      if (isShortWordFuzzy || isLongWordFuzzy || isElongatedTypo) {
-        if (dist < bestDist || (dist === bestDist && sim > bestSim) || isElongatedTypo) {
-          bestDist = dist;
-          bestSim = sim;
-          bestMatchWord = tWord;
-          bestMatchRaw = rawTargetTokens[tIdx] || tWord;
-          bestMatchIdx = tIdx;
-        }
-      }
-    });
-
-    // If a fuzzy match is found
-    if (bestMatchWord && bestMatchIdx !== -1) {
-      usedTargetIndices.add(bestMatchIdx);
-
-      // Check if next target word is a phrasal verb particle (e.g. wake + up, clean + up, look + for)
-      let finalCorrection = bestMatchRaw;
-      const nextTargetWord = targetWords[bestMatchIdx + 1];
-      if (
-        nextTargetWord && 
-        PHRASAL_PARTICLES.has(nextTargetWord) && 
-        !usedTargetIndices.has(bestMatchIdx + 1) &&
-        !studentWords.includes(nextTargetWord)
-      ) {
-        finalCorrection = `${bestMatchRaw} ${rawTargetTokens[bestMatchIdx + 1] || nextTargetWord}`;
-        usedTargetIndices.add(bestMatchIdx + 1);
-      }
-
-      // Avoid false positive if only casing differed (handled by pronoun rule)
-      if (sWord !== bestMatchWord) {
-        spellingErrors.push({ typed: rawToken.replace(/[.!?,]$/, ''), correction: finalCorrection });
-        points.push(`• สะกดคำผิด: คุณพิมพ์ "${rawToken.replace(/[.!?,]$/, '')}" คำที่ถูกต้องคือ "${finalCorrection}"`);
-        isValid = false;
-      }
-    } else {
-      // Global search across acceptable answers
-      let globalBestWord = '';
-      let globalBestDist = Infinity;
-      allTargetWordsSet.forEach((tW: string) => {
-        const dist = getLevenshteinDistance(sWord, tW);
-        const sim = getWordSimilarity(sWord, tW);
-        const sCompressed = sWord.replace(/(.)\1{2,}/g, '$1');
-        const isElongated = sWord.startsWith(tW) || sCompressed === tW;
-        if ((dist <= 2 && sim >= 0.55) || (tW.length <= 3 && dist <= 1) || isElongated) {
-          if (dist < globalBestDist || isElongated) {
-            globalBestDist = dist;
-            globalBestWord = tW;
-          }
-        }
-      });
-
-      if (globalBestWord && sWord !== globalBestWord) {
-        spellingErrors.push({ typed: rawToken.replace(/[.!?,]$/, ''), correction: globalBestWord });
-        points.push(`• สะกดคำผิด: คุณพิมพ์ "${rawToken.replace(/[.!?,]$/, '')}" คำที่ถูกต้องคือ "${globalBestWord}"`);
-        isValid = false;
-      }
-    }
-  });
-
-  // -------------------------------------------------------------
-  // 6. MISSING WORDS DETECTION
-  // -------------------------------------------------------------
-  const missingWords: string[] = [];
-  for (let tIdx = 0; tIdx < targetWords.length; tIdx++) {
-    if (!usedTargetIndices.has(tIdx)) {
-      const current = rawTargetTokens[tIdx] || targetWords[tIdx];
-      const next = targetWords[tIdx + 1];
-      if (next && PHRASAL_PARTICLES.has(next) && !usedTargetIndices.has(tIdx + 1)) {
-        missingWords.push(`${current} ${rawTargetTokens[tIdx + 1] || next}`);
-        tIdx++;
-      } else {
-        missingWords.push(current);
-      }
-    }
-  }
-
-  if (missingWords.length > 0) {
-    isValid = false;
-    if (missingWords.length === 1) {
-      points.push(`• คำตกหล่น: ในประโยคยังขาดคำว่า "${missingWords[0]}"`);
-    } else if (missingWords.length <= 3) {
-      points.push(`• คำตกหล่น: ในประโยคยังขาดคำว่า "${missingWords.join('", "')}"`);
-    }
-  }
-
-  // -------------------------------------------------------------
-  // 7. FIXED ANSWER KEY NORMALIZATION & MATCHING
+  // 5. FIXED ANSWER KEY NORMALIZATION & MATCHING
   // -------------------------------------------------------------
   const normalizeForMatch = (str: string) => 
     normalizeTypography(str)
@@ -388,15 +155,14 @@ export function checkOfflineGrammarAndSpelling(
 
   const matchesFixedAnswer = allTargetSentences.some((target: string) => normalizeForMatch(target) === normalizedStudent);
 
-  if (!matchesFixedAnswer && points.length === 0) {
+  if (!matchesFixedAnswer) {
     isValid = false;
-    points.push(`• คำตอบยังไม่ตรงตามโครงสร้างเฉลย (เฉลยหลัก: "${modelAnswer}")`);
   }
 
   // -------------------------------------------------------------
-  // 8. FINAL RESULT ASSEMBLY
+  // 6. FINAL RESULT ASSEMBLY FOR EXERCISE 1
   // -------------------------------------------------------------
-  if (isValid && matchesFixedAnswer && hasFullStop && isCapital && spellingErrors.length === 0) {
+  if (isValid && matchesFixedAnswer && hasFullStop && isCapital) {
     return {
       isCorrect: true,
       message: 'ถูกต้องเลยค่ะ เก่งมากเลย 👏',
@@ -407,11 +173,15 @@ export function checkOfflineGrammarAndSpelling(
     };
   }
 
+  // Always include standard reminder for incorrect answer without leaking exact words
+  const feedbackPoints = [...points];
+  feedbackPoints.push('• เช็ค คำในหนังสือ / การสะกดคำ / วรรคตอน / full stop นะคะ');
+
   return {
     isCorrect: false,
-    message: 'ยังไม่ถูกต้องตามโครงสร้างหนังสือนะคะ ลองใหม่อีกครั้งค่ะ',
-    points: points.length > 0 ? points : [`• คำตอบยังไม่ตรงตามเฉลย (เฉลยหลัก: "${modelAnswer}")`],
-    spellingErrors,
+    message: 'ประโยคยังไม่สมบูรณ์ตามโครงสร้างในหนังสือนะคะ ลองใหม่อีกครั้งค่ะ',
+    points: feedbackPoints,
+    spellingErrors: [],
     normalizedStudent,
     normalizedModel
   };
@@ -445,8 +215,11 @@ export function checkGuidedSentenceExercise(
   if (!isCapital) {
     return {
       isCorrect: false,
-      message: '⚡ คำแนะนำเบื้องต้น:',
-      points: [`• ตัวแรกของประโยคต้องเป็นตัวพิมพ์ใหญ่ (Capital letter) เช่น "${firstChar.toUpperCase()}..."`]
+      message: 'ประโยคยังไม่สมบูรณ์ตามโครงสร้างในหนังสือนะคะ ลองใหม่อีกครั้งค่ะ',
+      points: [
+        `• ตัวแรกของประโยคต้องเป็นตัวพิมพ์ใหญ่ (Capital letter) เช่น "${firstChar.toUpperCase()}..."`,
+        '• เช็ค คำในหนังสือ / การสะกดคำ / วรรคตอน / full stop / ความสอดคล้องของความหมาย นะคะ'
+      ]
     };
   }
 
@@ -454,8 +227,11 @@ export function checkGuidedSentenceExercise(
   if (!hasPunctuation) {
     return {
       isCorrect: false,
-      message: '⚡ คำแนะนำเบื้องต้น:',
-      points: ['• อย่าลืมใส่เครื่องหมายจุด Full Stop (.) ด้านหลังสุดของประโยคด้วยนะคะ']
+      message: 'ประโยคยังไม่สมบูรณ์ตามโครงสร้างในหนังสือนะคะ ลองใหม่อีกครั้งค่ะ',
+      points: [
+        '• อย่าลืมใส่เครื่องหมายจุด Full Stop (.) ด้านหลังสุดของประโยคด้วยนะคะ',
+        '• เช็ค คำในหนังสือ / การสะกดคำ / วรรคตอน / full stop / ความสอดคล้องของความหมาย นะคะ'
+      ]
     };
   }
 
@@ -537,101 +313,16 @@ export function checkGuidedSentenceExercise(
   // Sort matched words by appearance order
   matchedWords.sort((a, b) => a.position - b.position);
 
-  // Check missing categories & detect fuzzy spelling typos
+  // Check missing categories
   const foundOrders = new Set(matchedWords.map(m => m.order));
   const missingOrders = requiredOrders.filter(ord => !foundOrders.has(ord));
 
   if (missingOrders.length > 0) {
-    let hasGrammarMismatch = false;
-    const spellingPoints: string[] = [];
-
-    for (const ord of missingOrders) {
-      const cat = parsedCategories.find(c => c.order === ord);
-      if (!cat) continue;
-
-      for (const targetWord of cat.words) {
-        if (!targetWord.en) continue;
-        const targetEn = targetWord.en.toLowerCase();
-        const targetWordsList = targetEn.split(/\s+/).map(cleanWord).filter(Boolean);
-        const tFirst = targetWordsList[0];
-
-        // Check single-word or multi-word phrase against student tokens
-        for (let i = 0; i <= studentTokens.length - targetWordsList.length; i++) {
-          const studentChunk = studentTokens.slice(i, i + targetWordsList.length).join(' ');
-          const sWords = studentChunk.split(/\s+/);
-          const sFirst = sWords[0];
-          const sRest = sWords.slice(1).join(' ');
-          const tRest = targetWordsList.slice(1).join(' ');
-
-          const isRestMatching = sRest === tRest || getLevenshteinDistance(sRest, tRest) <= 1;
-
-          // 1. GRAMMATICAL INFLECTION (Real word variants like drinking, drinks, drank, drinked vs drink)
-          if (isRestMatching) {
-            const sLemma = nlp(sFirst).verbs().toInfinitive().text() || '';
-            const isRelatedVerb = sLemma === tFirst ||
-                                  sFirst.replace(/(ing|ed|es|s)$/, '') === tFirst.replace(/(ing|ed|es|s)$/, '');
-
-            if (isRelatedVerb && sFirst !== tFirst) {
-              hasGrammarMismatch = true;
-              break;
-            }
-          }
-
-          // 2. MORPHOLOGICAL SPELLING: E-dropping rule (e.g. makeing -> making, hesitateing -> hesitating)
-          if (studentChunk.endsWith('eing') && targetEn.endsWith('ing')) {
-            spellingPoints.push(`• สะกดคำผิด: "${studentChunk}" ควรตัด e ออกก่อนเติม -ing เป็น "${targetEn}" (${targetWord.th})`);
-            break;
-          }
-
-          // 3. TYPO / ELONGATION / LEVENSHTEIN (e.g. waterssssss -> water, drnk -> drink)
-          const dist = getLevenshteinDistance(studentChunk, targetEn);
-          const sim = getWordSimilarity(studentChunk, targetEn);
-          const sCompressed = studentChunk.replace(/(.)\1{2,}/g, '$1');
-          const isElongated = studentChunk.length > targetEn.length && (
-            studentChunk.startsWith(targetEn) ||
-            sCompressed === targetEn ||
-            getLevenshteinDistance(sCompressed, targetEn) <= 1
-          );
-
-          if ((dist <= 2 && sim >= 0.55) || (targetEn.length <= 4 && dist <= 1) || isElongated) {
-            if (studentChunk !== targetEn) {
-              spellingPoints.push(`• สะกดคำผิด: คุณพิมพ์ "${studentChunk}" คำที่ถูกต้องคือ "${targetWord.en}" (${targetWord.th})`);
-              break;
-            }
-          }
-        }
-        if (hasGrammarMismatch) break;
-      }
-      if (hasGrammarMismatch) break;
-    }
-
-    if (hasGrammarMismatch) {
-      return {
-        isCorrect: false,
-        message: 'ยังไม่ถูกต้องตามโครงสร้างหนังสือนะคะ ลองใหม่อีกครั้งค่ะ',
-        points: ['• โครงสร้างประโยคยังไม่ถูกต้องตามหนังสือนะคะ ให้นักเรียนใช้โครงสร้างคำศัพท์ตามหนังสือแล้วลองใหม่อีกครั้งค่ะ']
-      };
-    }
-
-    if (spellingPoints.length > 0) {
-      return {
-        isCorrect: false,
-        message: '⚡ ตรวจพบการสะกดคำผิด:',
-        points: spellingPoints
-      };
-    }
-
-    const missingNames = missingOrders.map(ord => {
-      const cat = parsedCategories.find(c => c.order === ord);
-      return cat ? `"${cat.name}"` : `"หมวดที่ ${ord}"`;
-    });
-
     return {
       isCorrect: false,
-      message: 'ยังเติมคำในช่องว่างไม่ครบถ้วน หรือสะกดคำศัพท์ไม่ถูกต้องนะคะ',
+      message: 'ประโยคยังไม่สมบูรณ์ตามโครงสร้างในหนังสือนะคะ ลองใหม่อีกครั้งค่ะ',
       points: [
-        `• ยังขาดคำศัพท์ใน ${missingNames.join(', ')} ค่ะ`,
-        `• กรุณาพิมพ์เติมคำในช่องว่างให้ครบทุกช่องนะคะ`
+        '• เช็ค คำในหนังสือ / การสะกดคำ / วรรคตอน / full stop / ความสอดคล้องของความหมาย นะคะ'
       ]
     };
   }
@@ -651,14 +342,12 @@ export function checkGuidedSentenceExercise(
   const isOrderCorrect = requiredOrders.every((reqOrd, idx) => actualOrderSequence[idx] === reqOrd);
 
   if (!isOrderCorrect) {
-    const expectedCat1 = parsedCategories.find(c => c.order === requiredOrders[0])?.name || `ช่องที่ 1`;
-    const expectedCat2 = parsedCategories.find(c => c.order === requiredOrders[1])?.name || `ช่องที่ 2`;
     return {
       isCorrect: false,
-      message: 'โครงสร้างประโยคไม่ถูกต้องค่ะ ลำดับคำศัพท์สลับตำแหน่งกันนะคะ',
+      message: 'ประโยคยังไม่สมบูรณ์ตามโครงสร้างในหนังสือนะคะ ลองใหม่อีกครั้งค่ะ',
       points: [
-        `• ลำดับคำศัพท์ในแต่ละช่องสลับตำแหน่งกันค่ะ`,
-        `• กรุณาเติมคำจาก "${expectedCat1}" ในช่องแรก และตามด้วยคำจาก "${expectedCat2}" ตามลำดับนะคะ`
+        '• ลำดับโครงสร้างของประโยคสลับตำแหน่งกันค่ะ',
+        '• เช็ค คำในหนังสือ / การสะกดคำ / วรรคตอน / full stop / ความสอดคล้องของความหมาย นะคะ'
       ]
     };
   }
@@ -699,7 +388,8 @@ export function checkGuidedSentenceExercise(
           `• การเลือก "${currentWord.en}" (${currentWord.th}) ไม่สอดคล้องกับ "${nextWord.en}" (${nextWord.th}) ในบริบทนี้ค่ะ`,
           allowedNames.length > 0 
             ? `• คำว่า "${currentWord.en}" สามารถจับคู่กับ: ${allowedNames.join(' หรือ ')} ได้ค่ะ`
-            : `• ลองทบทวนการจับคู่ความหมายระหว่างคำศัพท์ดูอีกครั้งนะคะ`
+            : `• ลองทบทวนการจับคู่ความหมายระหว่างคำศัพท์ดูอีกครั้งนะคะ`,
+          '• เช็ค คำในหนังสือ / การสะกดคำ / วรรคตอน / full stop / ความสอดคล้องของความหมาย นะคะ'
         ]
       };
     }
@@ -719,41 +409,12 @@ export function checkGuidedSentenceExercise(
   }
 
   if (unrecognizedTokens.length > 0) {
-    const typoErrors: string[] = [];
-    for (const unrec of unrecognizedTokens) {
-      let bestCorrection = '';
-      for (const cat of parsedCategories) {
-        for (const w of cat.words) {
-          if (!w.en) continue;
-          const targetEn = w.en.toLowerCase();
-          const sCompressed = unrec.replace(/(.)\1{2,}/g, '$1');
-          const dist = getLevenshteinDistance(unrec, targetEn);
-          const sim = getWordSimilarity(unrec, targetEn);
-          const isElongated = unrec.length > targetEn.length && (
-            unrec.startsWith(targetEn) || 
-            sCompressed === targetEn || 
-            getLevenshteinDistance(sCompressed, targetEn) <= 1
-          );
-
-          if (isElongated || dist <= 2 || sim >= 0.55) {
-            bestCorrection = w.en;
-            break;
-          }
-        }
-        if (bestCorrection) break;
-      }
-
-      if (bestCorrection) {
-        typoErrors.push(`• สะกดคำผิด: คุณพิมพ์ "${unrec}" คำที่ถูกต้องคือ "${bestCorrection}"`);
-      } else {
-        typoErrors.push(`• มีคำศัพท์ที่ไม่ตรงตามหนังสือ: "${unrec}"`);
-      }
-    }
-
     return {
       isCorrect: false,
-      message: 'ยังไม่ถูกต้องตามโครงสร้างหนังสือนะคะ ลองใหม่อีกครั้งค่ะ',
-      points: typoErrors
+      message: 'ประโยคยังไม่สมบูรณ์ตามโครงสร้างในหนังสือนะคะ ลองใหม่อีกครั้งค่ะ',
+      points: [
+        '• เช็ค คำในหนังสือ / การสะกดคำ / วรรคตอน / full stop / ความสอดคล้องของความหมาย นะคะ'
+      ]
     };
   }
 
