@@ -615,14 +615,14 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
               const isLoading = aiLoading[key];
 
               return (
-                <div key={key} className="quiz-item-card bg-[#f8fafc] border border-slate-200 rounded-xl p-5 shadow-2xs">
+                <div key={key} className="quiz-item-card flex flex-col bg-[#f8fafc] border border-slate-200 rounded-xl p-5 shadow-2xs">
                   <div className="quiz-question-prompt text-base sm:text-lg font-bold text-[#1e3a8a] mb-3 font-heading">
                     ภาพที่ {idx + 1} :
                   </div>
 
                   {/* Render uploaded image if available */}
                   {item.image_url && (
-                    <div className="quiz-image-preview mb-4 overflow-hidden rounded-xl border border-slate-200 bg-white p-2 shadow-2xs max-w-md">
+                    <div className="quiz-image-preview self-center w-full mb-4 overflow-hidden rounded-xl border border-slate-200 bg-white p-2 shadow-2xs max-w-md">
                       <img
                         src={item.image_url}
                         alt={`ภาพที่ ${idx + 1}`}
