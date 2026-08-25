@@ -9,6 +9,20 @@ export async function GET(req: NextRequest) {
   if (isSupabaseConfigured() && supabase) {
     try {
       const client = supabase;
+
+      // 0. Fetch Book metadata from 'books' table
+      const { data: bookRow } = await client
+        .from('books')
+        .select('*')
+        .or(`id.eq.${bookName},slug.eq.${bookName}`)
+        .maybeSingle();
+
+      const bookInfo = {
+        id: bookRow?.id || bookName,
+        title: bookRow?.title || 'Sentence Builder Vol. 2',
+        subtitle: bookRow?.subtitle || 'แบบฝึกหัดแต่งประโยคและขยายประโยค Vol. 2 (Core + Context + Connect)'
+      };
+
       // 1. Fetch all units for this book
       const { data: unitsData, error: unitErr } = await client
         .from('units')
@@ -127,7 +141,7 @@ export async function GET(req: NextRequest) {
           };
         });
 
-        return NextResponse.json({ book: bookName, units: formattedUnits });
+        return NextResponse.json({ book: bookName, bookInfo, units: formattedUnits });
       }
     } catch (err) {
       console.warn('Error fetching curriculum from Supabase:', err);

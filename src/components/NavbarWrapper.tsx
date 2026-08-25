@@ -16,6 +16,10 @@ export function HeaderWrapper() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [units, setUnits] = useState<UnitItem[]>([]);
+  const [bookInfo, setBookInfo] = useState<{ title: string; subtitle?: string }>({
+    title: 'Sentence Builder Vol. 2',
+    subtitle: 'แบบฝึกหัดแต่งประโยคและขยายประโยค Vol. 2 (Core + Context + Connect)'
+  });
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Parse bookSlug and currentUnit from URL: /[bookSlug]/chapter-[N] or /[bookSlug]
@@ -24,7 +28,7 @@ export function HeaderWrapper() {
   const chapterSegment = pathSegments[1] || 'chapter-1';
   const currentUnitNumber = Number(chapterSegment.replace(/^(chapter|unit)-/, '')) || 1;
 
-  // Fetch all units available for this book
+  // Fetch book metadata and all units available for this book
   useEffect(() => {
     if (pathname?.startsWith('/backend-admin')) return;
 
@@ -33,6 +37,9 @@ export function HeaderWrapper() {
         const res = await fetch(`/api/admin/curriculum?book=${bookSlug}`);
         if (res.ok) {
           const data = await res.json();
+          if (data.bookInfo) {
+            setBookInfo(data.bookInfo);
+          }
           if (data.units && data.units.length > 0) {
             setUnits(data.units);
           } else {
@@ -77,12 +84,16 @@ export function HeaderWrapper() {
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 py-3.5 shadow-xs">
       <div className="max-w-5xl mx-auto flex items-center justify-between gap-4">
-        {/* LEFT COLUMN: Book Title & Subtitle without Icon */}
+        {/* LEFT COLUMN: Dynamic Book Title & Subtitle without Icon */}
         <Link href={`/${bookSlug}/chapter-1`} className="flex flex-col group min-w-0">
-          <h1 className="text-base sm:text-lg font-bold text-[#1e3a8a] tracking-wide flex items-center gap-2 font-heading truncate">
-            Sentence Builder <span className="text-xs sm:text-sm px-2.5 py-0.5 rounded-full bg-[#3b82f6]/10 text-[#2563eb] font-semibold border border-[#3b82f6]/20 shrink-0">Vol. 2</span>
+          <h1 className="text-base sm:text-lg font-bold text-[#1e3a8a] tracking-wide font-heading truncate">
+            {bookInfo.title}
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 truncate">เฉลยและตรวจแบบฝึกหัด โดย ครูหวาน</p>
+          {bookInfo.subtitle && (
+            <p className="text-xs sm:text-sm text-slate-500 truncate">
+              {bookInfo.subtitle}
+            </p>
+          )}
         </Link>
 
         {/* RIGHT COLUMN: Curriculum of Units Navigation Dropdown */}
