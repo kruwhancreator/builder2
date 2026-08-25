@@ -16,10 +16,8 @@ export function HeaderWrapper() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [units, setUnits] = useState<UnitItem[]>([]);
-  const [bookInfo, setBookInfo] = useState<{ title: string; subtitle?: string }>({
-    title: 'Sentence Builder Vol. 2',
-    subtitle: 'แบบฝึกหัดแต่งประโยคและขยายประโยค Vol. 2 (Core + Context + Connect)'
-  });
+  const [bookInfo, setBookInfo] = useState<{ title: string; subtitle?: string } | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Parse bookSlug and currentUnit from URL: /[bookSlug]/chapter-[N] or /[bookSlug]
@@ -32,31 +30,46 @@ export function HeaderWrapper() {
   useEffect(() => {
     if (pathname?.startsWith('/backend-admin')) return;
 
+    let isMounted = true;
+    setIsLoading(true);
+
     async function loadCurriculum() {
       try {
         const res = await fetch(`/api/admin/curriculum?book=${bookSlug}`);
-        if (res.ok) {
+        if (res.ok && isMounted) {
           const data = await res.json();
           if (data.bookInfo) {
             setBookInfo(data.bookInfo);
+          } else {
+            setBookInfo({
+              title: bookSlug,
+              subtitle: 'ระบบเฉลยและตรวจแบบฝึกหัด'
+            });
           }
           if (data.units && data.units.length > 0) {
             setUnits(data.units);
           } else {
-            setUnits([
-              { unit_number: 1, title: 'Present Continuous & Sentence Expansion', subtitle: 'บทที่ 1 : ฉันกำลัง… [ I + am + กริยาเติม -ing ]' }
-            ]);
+            setUnits([]);
           }
         }
       } catch (err) {
         console.error('Failed to load curriculum:', err);
-        setUnits([
-          { unit_number: 1, title: 'Present Continuous & Sentence Expansion', subtitle: 'บทที่ 1 : ฉันกำลัง… [ I + am + กริยาเติม -ing ]' }
-        ]);
+        if (isMounted) {
+          setBookInfo({
+            title: bookSlug,
+            subtitle: 'ระบบเฉลยและตรวจแบบฝึกหัด'
+          });
+          setUnits([]);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     }
 
     loadCurriculum();
+    return () => { isMounted = false; };
   }, [bookSlug, pathname]);
 
   // Click outside to close dropdown
@@ -84,29 +97,39 @@ export function HeaderWrapper() {
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 py-3.5 shadow-xs">
       <div className="max-w-5xl mx-auto flex items-center justify-between gap-4">
-        {/* LEFT COLUMN: Dynamic Book Title & Subtitle without Icon */}
-        <Link href={`/${bookSlug}`} className="flex flex-col group min-w-0 hover:opacity-90 transition-opacity">
-          <h1 className="text-base sm:text-lg font-bold text-[#1e3a8a] tracking-wide font-heading truncate">
-            {bookInfo.title}
-          </h1>
-          {bookInfo.subtitle && (
-            <p className="text-xs sm:text-sm text-slate-500 truncate">
-              {bookInfo.subtitle}
-            </p>
-          )}
-        </Link>
+        {/* LEFT COLUMN: Dynamic Book Title & Subtitle or Shimmer Loading */}
+        {isLoading || !bookInfo ? (
+          <div className="flex flex-col gap-1.5 min-w-[180px] sm:min-w-[260px] animate-pulse py-1">
+            <div className="h-5 w-44 sm:w-56 bg-slate-200/80 rounded-md"></div>
+            <div className="h-3.5 w-56 sm:w-72 bg-slate-100 rounded-md"></div>
+          </div>
+        ) : (
+          <Link href={`/${bookSlug}`} className="flex flex-col group min-w-0 hover:opacity-90 transition-opacity">
+            <h1 className="text-base sm:text-lg font-bold text-[#1e3a8a] tracking-wide font-heading truncate">
+              {bookInfo.title}
+            </h1>
+            {bookInfo.subtitle && (
+              <p className="text-xs sm:text-sm text-slate-500 truncate">
+                {bookInfo.subtitle}
+              </p>
+            )}
+          </Link>
+        )}
 
-        {/* RIGHT COLUMN: Curriculum of Units Navigation Dropdown */}
-        <div className="relative shrink-0" ref={dropdownRef}>
-          <button
-            type="button"
-            onClick={() => setIsOpen(!isOpen)}
-            className="text-xs sm:text-sm px-3.5 py-2 rounded-xl bg-[#eff6ff] hover:bg-[#dbeafe] text-[#1e40af] font-bold border border-[#bfdbfe] transition-all flex items-center gap-2 shadow-2xs cursor-pointer"
-            aria-expanded={isOpen}
-          >
-            <span>📘 แบบฝึกหัด Unit {currentUnit.unit_number}</span>
-            <ChevronDown className={`w-4 h-4 text-[#1e40af] transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
-          </button>
+        {/* RIGHT COLUMN: Curriculum of Units Navigation Dropdown or Skeleton */}
+        {isLoading ? (
+          <div className="h-9 w-32 sm:w-36 bg-slate-100 animate-pulse rounded-xl border border-slate-200/60 shrink-0"></div>
+        ) : (
+          <div className="relative shrink-0" ref={dropdownRef}>
+            <button
+              type="button"
+              onClick={() => setIsOpen(!isOpen)}
+              className="text-xs sm:text-sm px-3.5 py-2 rounded-xl bg-[#eff6ff] hover:bg-[#dbeafe] text-[#1e40af] font-bold border border-[#bfdbfe] transition-all flex items-center gap-2 shadow-2xs cursor-pointer"
+              aria-expanded={isOpen}
+            >
+              <span>📘 แบบฝึกหัด Unit {currentUnit.unit_number}</span>
+              <ChevronDown className={`w-4 h-4 text-[#1e40af] transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+            </button>
 
           {/* Dropdown Menu of All Units in this Book */}
           {isOpen && (
@@ -162,6 +185,7 @@ export function HeaderWrapper() {
             </div>
           )}
         </div>
+      )}
       </div>
     </header>
   );
