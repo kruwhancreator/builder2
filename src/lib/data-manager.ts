@@ -34,15 +34,26 @@ export async function getBookDataFromDb(slugOrId: string): Promise<any> {
 
       if (bookRow) {
         // Fetch all units for this book
+        const bookIdentifier = bookRow.id;
+        const bookSlugVal = bookRow.slug || bookRow.id;
+
         const { data: unitsData } = await supabase
           .from('units')
           .select('*, exercises(count)')
-          .eq('book_name', bookRow.id)
+          .or(`book_name.eq.${bookIdentifier},book_name.eq.${bookSlugVal}`)
           .order('unit_number', { ascending: true });
+
+        const formattedUnits = (unitsData || []).map(u => {
+          const exCount = Array.isArray(u.exercises) && u.exercises[0] ? u.exercises[0].count : 0;
+          return {
+            ...u,
+            exerciseCount: exCount
+          };
+        });
 
         const result = {
           ...bookRow,
-          units: unitsData || []
+          units: formattedUnits
         };
 
         bookCache.set(cacheKey, { data: result, timestamp: Date.now() });

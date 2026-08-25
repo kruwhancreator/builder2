@@ -85,7 +85,7 @@ export function HeaderWrapper() {
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 py-3.5 shadow-xs">
       <div className="max-w-5xl mx-auto flex items-center justify-between gap-4">
         {/* LEFT COLUMN: Dynamic Book Title & Subtitle without Icon */}
-        <Link href={`/${bookSlug}/chapter-1`} className="flex flex-col group min-w-0">
+        <Link href={`/${bookSlug}`} className="flex flex-col group min-w-0 hover:opacity-90 transition-opacity">
           <h1 className="text-base sm:text-lg font-bold text-[#1e3a8a] tracking-wide font-heading truncate">
             {bookInfo.title}
           </h1>
