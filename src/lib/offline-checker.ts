@@ -59,12 +59,28 @@ export interface OfflineCheckResult {
 /**
  * Universal NLP Grammar and Spell Checker
  */
+/**
+ * Typography Normalizer: Converts curly quotes, smart apostrophes, and unicode dashes to standard ASCII
+ */
+export function normalizeTypography(str: string): string {
+  if (!str) return '';
+  return str
+    .replace(/[\u2018\u2019\u0060\u00B4\u201B]/g, "'") // curly single quotes ’ ‘ ` ´ to '
+    .replace(/[\u201C\u201D\u00AB\u00BB]/g, '"')         // curly double quotes ” “ to "
+    .replace(/[\u2013\u2014]/g, '-')                     // en/em dashes to -
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Universal NLP Grammar and Spell Checker
+ */
 export function checkOfflineGrammarAndSpelling(
   item: any,
   studentAnswer: string,
   exerciseType: 'translation' | 'guided_sentence' | 'picture_description' = 'translation'
 ): OfflineCheckResult {
-  const raw = (studentAnswer || '').trim();
+  const raw = normalizeTypography(studentAnswer || '');
   if (!raw) {
     return {
       isCorrect: false,
@@ -78,7 +94,7 @@ export function checkOfflineGrammarAndSpelling(
   let isValid = true;
 
   // -------------------------------------------------------------
-  // 1. CAPITAL LETTER CHECK
+  // 1. CAPITAL LETTER CHECK AT START
   // -------------------------------------------------------------
   const firstChar = raw.charAt(0);
   const isCapital = firstChar === firstChar.toUpperCase() && firstChar !== firstChar.toLowerCase();
@@ -98,13 +114,14 @@ export function checkOfflineGrammarAndSpelling(
   }
 
   // -------------------------------------------------------------
-  // 3. DYNAMIC TOKENIZATION & ALIGNMENT
+  // 3. TARGET SENTENCE NORMALIZATION & ALIGNMENT
   // -------------------------------------------------------------
-  const cleanWord = (w: string) => w.toLowerCase().replace(/[^a-z0-9'-]/g, '');
-  const studentWords = raw.split(/\s+/).map(cleanWord).filter(Boolean);
+  const cleanWord = (w: string) => normalizeTypography(w).toLowerCase().replace(/[^a-z0-9'-]/g, '');
+  const studentTokens = raw.split(/\s+/);
+  const studentWords = studentTokens.map(cleanWord).filter(Boolean);
 
-  const modelAnswer = item.model_answer || '';
-  const acceptableAnswers: string[] = item.acceptable_answers || [modelAnswer];
+  const modelAnswer = normalizeTypography(item.model_answer || '');
+  const acceptableAnswers: string[] = (item.acceptable_answers || [modelAnswer]).map(normalizeTypography);
   const allTargetSentences = [modelAnswer, ...acceptableAnswers].filter(Boolean);
 
   // Find the closest target sentence to the student's input
@@ -125,7 +142,9 @@ export function checkOfflineGrammarAndSpelling(
     }
   });
 
-  const targetWords = bestTargetSentence.split(/\s+/).map(cleanWord).filter(Boolean);
+  // Preserve raw target tokens with original casing and punctuation stripped
+  const rawTargetTokens = bestTargetSentence.split(/\s+/).map(w => w.replace(/[.!?,]$/, ''));
+  const targetWords = rawTargetTokens.map(cleanWord).filter(Boolean);
 
   // Collect all valid words from all acceptable answers to prevent false positives
   const allTargetWordsSet = new Set<string>();
@@ -134,10 +153,27 @@ export function checkOfflineGrammarAndSpelling(
   });
 
   // -------------------------------------------------------------
-  // 4. DYNAMIC WORD-BY-WORD DIFF & PHRASAL VERB GROUPING
+  // 4. PRONOUN "I" and "I'm" CAPITALIZATION & APOSTROPHE CHECK
+  // -------------------------------------------------------------
+  studentTokens.forEach((tok) => {
+    const cleanTok = tok.replace(/[.!?,]$/, '');
+    if (cleanTok === 'i') {
+      isValid = false;
+      points.push('• สรรพนาม "I" (ฉัน) ต้องเขียนด้วยตัวพิมพ์ใหญ่เสมอ ไม่ใช้ตัวพิมพ์เล็ก "i" นะคะ');
+    } else if (cleanTok === "i'm" || cleanTok === 'i’m') {
+      isValid = false;
+      points.push('• คำว่า "I\'m" ตัว "I" ต้องเป็นตัวพิมพ์ใหญ่เสมอนะคะ (เขียนเป็น "I\'m")');
+    } else if (cleanTok.toLowerCase() === 'im' && targetWords.includes("i'm")) {
+      isValid = false;
+      points.push('• คำว่า "I\'m" ต้องใส่เครื่องหมาย Apostrophe (\') ด้วยนะคะ (เขียนเป็น "I\'m")');
+    }
+  });
+
+  // -------------------------------------------------------------
+  // 5. DYNAMIC WORD-BY-WORD DIFF & SPELLING DETECTION
   // -------------------------------------------------------------
   const usedTargetIndices = new Set<number>();
-  const unmatchedStudentWords: Array<{ word: string; index: number }> = [];
+  const unmatchedStudentWords: Array<{ word: string; index: number; rawToken: string }> = [];
 
   studentWords.forEach((sWord: string, sIdx: number) => {
     // 1. Exact match against target sequence
@@ -159,11 +195,11 @@ export function checkOfflineGrammarAndSpelling(
       return;
     }
 
-    unmatchedStudentWords.push({ word: sWord, index: sIdx });
+    unmatchedStudentWords.push({ word: sWord, index: sIdx, rawToken: studentTokens[sIdx] || sWord });
   });
 
   // Match unmatched student words against remaining target words for typos
-  unmatchedStudentWords.forEach(({ word: sWord }) => {
+  unmatchedStudentWords.forEach(({ word: sWord, rawToken }) => {
     // Morphological rule: -ing dropping e (e.g. makeing -> making, hesitateing -> hesitating)
     if (sWord.endsWith('eing') && sWord.length >= 5) {
       const correction = sWord.slice(0, -4) + 'ing';
@@ -174,6 +210,7 @@ export function checkOfflineGrammarAndSpelling(
     }
 
     let bestMatchWord = '';
+    let bestMatchRaw = '';
     let bestMatchIdx = -1;
     let bestDist = Infinity;
     let bestSim = 0;
@@ -184,7 +221,7 @@ export function checkOfflineGrammarAndSpelling(
       const dist = getLevenshteinDistance(sWord, tWord);
       const sim = getWordSimilarity(sWord, tWord);
 
-      // Handle small words like 'd' -> 'do', 'i' -> 'is', 'to', 'up', 'am' (distance <= 1)
+      // Handle small words like 'd' -> 'do', 'to', 'up', 'am' (distance <= 1)
       const isShortWordFuzzy = (tWord.length <= 3 && dist <= 1);
       // Handle longer words (distance <= 2 or similarity >= 0.55)
       const isLongWordFuzzy = (dist <= 2 && sim >= 0.55);
@@ -194,6 +231,7 @@ export function checkOfflineGrammarAndSpelling(
           bestDist = dist;
           bestSim = sim;
           bestMatchWord = tWord;
+          bestMatchRaw = rawTargetTokens[tIdx] || tWord;
           bestMatchIdx = tIdx;
         }
       }
@@ -204,7 +242,7 @@ export function checkOfflineGrammarAndSpelling(
       usedTargetIndices.add(bestMatchIdx);
 
       // Check if next target word is a phrasal verb particle (e.g. wake + up, clean + up, look + for)
-      let finalCorrection = bestMatchWord;
+      let finalCorrection = bestMatchRaw;
       const nextTargetWord = targetWords[bestMatchIdx + 1];
       if (
         nextTargetWord && 
@@ -212,14 +250,16 @@ export function checkOfflineGrammarAndSpelling(
         !usedTargetIndices.has(bestMatchIdx + 1) &&
         !studentWords.includes(nextTargetWord)
       ) {
-        // Merge into complete phrasal verb: "wake up"
-        finalCorrection = `${bestMatchWord} ${nextTargetWord}`;
+        finalCorrection = `${bestMatchRaw} ${rawTargetTokens[bestMatchIdx + 1] || nextTargetWord}`;
         usedTargetIndices.add(bestMatchIdx + 1);
       }
 
-      spellingErrors.push({ typed: sWord, correction: finalCorrection });
-      points.push(`• สะกดคำผิด: คุณพิมพ์ "${sWord}" คำที่ถูกต้องคือ "${finalCorrection}"`);
-      isValid = false;
+      // Avoid false positive if only casing differed (handled by pronoun rule)
+      if (sWord !== bestMatchWord) {
+        spellingErrors.push({ typed: rawToken.replace(/[.!?,]$/, ''), correction: finalCorrection });
+        points.push(`• สะกดคำผิด: คุณพิมพ์ "${rawToken.replace(/[.!?,]$/, '')}" คำที่ถูกต้องคือ "${finalCorrection}"`);
+        isValid = false;
+      }
     } else {
       // Global search across acceptable answers
       let globalBestWord = '';
@@ -235,25 +275,25 @@ export function checkOfflineGrammarAndSpelling(
         }
       });
 
-      if (globalBestWord) {
-        spellingErrors.push({ typed: sWord, correction: globalBestWord });
-        points.push(`• สะกดคำผิด: คุณพิมพ์ "${sWord}" คำที่ถูกต้องคือ "${globalBestWord}"`);
+      if (globalBestWord && sWord !== globalBestWord) {
+        spellingErrors.push({ typed: rawToken.replace(/[.!?,]$/, ''), correction: globalBestWord });
+        points.push(`• สะกดคำผิด: คุณพิมพ์ "${rawToken.replace(/[.!?,]$/, '')}" คำที่ถูกต้องคือ "${globalBestWord}"`);
         isValid = false;
       }
     }
   });
 
   // -------------------------------------------------------------
-  // 5. MISSING WORDS DETECTION (WITH PHRASAL CHUNK MERGING)
+  // 6. MISSING WORDS DETECTION
   // -------------------------------------------------------------
   const missingWords: string[] = [];
   for (let tIdx = 0; tIdx < targetWords.length; tIdx++) {
     if (!usedTargetIndices.has(tIdx)) {
-      const current = targetWords[tIdx];
+      const current = rawTargetTokens[tIdx] || targetWords[tIdx];
       const next = targetWords[tIdx + 1];
       if (next && PHRASAL_PARTICLES.has(next) && !usedTargetIndices.has(tIdx + 1)) {
-        missingWords.push(`${current} ${next}`);
-        tIdx++; // skip next since it's grouped
+        missingWords.push(`${current} ${rawTargetTokens[tIdx + 1] || next}`);
+        tIdx++;
       } else {
         missingWords.push(current);
       }
@@ -270,13 +310,19 @@ export function checkOfflineGrammarAndSpelling(
   }
 
   // -------------------------------------------------------------
-  // 6. FIXED ANSWER KEY NORMALIZATION & MATCHING
+  // 7. FIXED ANSWER KEY NORMALIZATION & MATCHING
   // -------------------------------------------------------------
-  const normalize = (str: string) => str.trim().toLowerCase().replace(/[.!?]/g, '').replace(/\s+/g, ' ');
-  const normalizedStudent = normalize(raw);
-  const normalizedModel = normalize(modelAnswer);
+  const normalizeForMatch = (str: string) => 
+    normalizeTypography(str)
+      .trim()
+      .toLowerCase()
+      .replace(/[.!?]/g, '')
+      .replace(/\s+/g, ' ');
 
-  const matchesFixedAnswer = allTargetSentences.some((target: string) => normalize(target) === normalizedStudent);
+  const normalizedStudent = normalizeForMatch(raw);
+  const normalizedModel = normalizeForMatch(modelAnswer);
+
+  const matchesFixedAnswer = allTargetSentences.some((target: string) => normalizeForMatch(target) === normalizedStudent);
 
   if (!matchesFixedAnswer && points.length === 0) {
     isValid = false;
@@ -284,7 +330,7 @@ export function checkOfflineGrammarAndSpelling(
   }
 
   // -------------------------------------------------------------
-  // 7. FINAL RESULT ASSEMBLY
+  // 8. FINAL RESULT ASSEMBLY
   // -------------------------------------------------------------
   if (isValid && matchesFixedAnswer && hasFullStop && isCapital && spellingErrors.length === 0) {
     return {
@@ -320,7 +366,7 @@ export function checkGuidedSentenceExercise(
   studentAnswer: string,
   categories: Array<{ order: number; name?: string; category_name?: string; words?: Array<string | { en: string; th?: string }>; word_bank?: Array<string | { en: string; th?: string }>; }> = []
 ): OfflineCheckResult {
-  const raw = (studentAnswer || '').trim();
+  const raw = normalizeTypography(studentAnswer || '');
   if (!raw) {
     return {
       isCorrect: false,
@@ -349,7 +395,7 @@ export function checkGuidedSentenceExercise(
     };
   }
 
-  const normalize = (s: string) => s.trim().replace(/\s+/g, ' ').toLowerCase().replace(/[.!?,]$/, '');
+  const normalize = (s: string) => normalizeTypography(s).trim().replace(/\s+/g, ' ').toLowerCase().replace(/[.!?,]$/, '');
   const normalizedRaw = normalize(raw);
 
   // 1. NORMALIZE CATEGORIES & WORD CHOICES (with id, next_valid_ids, and row index)
@@ -358,12 +404,14 @@ export function checkGuidedSentenceExercise(
     const wordList = rawWords.map((w: any, idx: number) => {
       const defaultId = `${cat.order || cIdx + 1}${String.fromCharCode(97 + idx)}`;
       if (typeof w === 'string') {
-        return { id: defaultId, en: w, th: w, index: idx, next_valid_ids: undefined };
+        const enStr = normalizeTypography(w);
+        return { id: defaultId, en: enStr, th: enStr, index: idx, next_valid_ids: undefined };
       }
+      const enStr = normalizeTypography(w.en || '');
       return {
         id: w.id || defaultId,
-        en: w.en || '',
-        th: w.th || w.en || '',
+        en: enStr,
+        th: w.th || enStr,
         index: typeof w.index === 'number' ? w.index : idx,
         next_valid_ids: Array.isArray(w.next_valid_ids) ? w.next_valid_ids : undefined
       };
