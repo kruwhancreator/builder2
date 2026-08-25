@@ -22,47 +22,6 @@ export interface EvaluationResult {
 }
 
 export async function evaluateAnswer(req: EvaluationRequest): Promise<EvaluationResult> {
-  const normalize = (s: string) => 
-    (s || '')
-      .replace(/[\u2018\u2019`]/g, "'")
-      .replace(/[\u201C\u201D]/g, '"')
-      .trim()
-      .toLowerCase()
-      .replace(/[.!?,]$/, '')
-      .replace(/\s+/g, ' ');
-
-  const normalizedStudent = normalize(req.studentAnswer);
-  const modelAnswer = req.item.model_answer || '';
-  const normalizedModel = normalize(modelAnswer);
-  const acceptableList = (req.item.acceptable_answers || []).map(normalize);
-
-  // Fast path: If student matches model answer or acceptable answer exactly
-  const isExactModelMatch = normalizedStudent && (
-    normalizedStudent === normalizedModel || 
-    acceptableList.includes(normalizedStudent)
-  );
-
-  const startsCapital = (req.studentAnswer || '').trim().charAt(0) === (req.studentAnswer || '').trim().charAt(0).toUpperCase();
-  const endsPeriod = (req.studentAnswer || '').trim().endsWith('.');
-
-  if (isExactModelMatch && startsCapital && endsPeriod) {
-    const defaultTranslation = req.item.image_description || req.item.thai || req.item.prompt || '';
-    return {
-      isCorrect: true,
-      statusText: "ถูกต้องเลยค่ะ เก่งมากเลย 👏",
-      studentTranslation: req.exerciseType === 'picture_description'
-        ? (req.item.context_hint || "ฉันทำสิ่งนี้ตามโครงสร้างประโยคที่ถูกต้องสมบูรณ์")
-        : defaultTranslation,
-      correctedSentence: modelAnswer,
-      feedbackPoints: [
-        "• โครงสร้างประโยคถูกต้องสมบูรณ์แบบ ไวยากรณ์และการใช้คำศัพท์สอดคล้องกับบริบทเป็นอย่างดีเลยค่ะ"
-      ],
-      breakdown: { core: true, context: true, connect: true },
-      isLiveGemini: false,
-      modelUsed: 'exact-model-match'
-    };
-  }
-
   const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 
   // 1. If AI check is disabled for this exercise (useAiCheck === false), bypass AI completely!
