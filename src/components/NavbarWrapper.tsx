@@ -12,12 +12,12 @@ interface UnitItem {
   subtitle?: string;
 }
 
+// Global client-side memory cache across page navigations
+const headerCache = new Map<string, { bookInfo: { title: string; subtitle?: string }; units: UnitItem[] }>();
+
 export function HeaderWrapper() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
-  const [units, setUnits] = useState<UnitItem[]>([]);
-  const [bookInfo, setBookInfo] = useState<{ title: string; subtitle?: string } | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Parse bookSlug and currentUnit from URL: /[bookSlug]/chapter-[N] or /[bookSlug]
@@ -26,9 +26,39 @@ export function HeaderWrapper() {
   const chapterSegment = pathSegments[1] || 'chapter-1';
   const currentUnitNumber = Number(chapterSegment.replace(/^(chapter|unit)-/, '')) || 1;
 
-  // Fetch book metadata and all units available for this book
+  // Initialize from cache if already fetched (0ms latency on unit switching)
+  const cachedData = headerCache.get(bookSlug);
+  const [units, setUnits] = useState<UnitItem[]>(() => cachedData?.units || []);
+  const [bookInfo, setBookInfo] = useState<{ title: string; subtitle?: string } | null>(() => cachedData?.bookInfo || null);
+  const [isLoading, setIsLoading] = useState(() => !cachedData);
+
+  // Fetch book metadata and all units ONLY when bookSlug changes (NOT on every chapter switch)
   useEffect(() => {
     if (pathname?.startsWith('/backend-admin')) return;
+
+    // Check in-memory cache first
+    const memoryCached = headerCache.get(bookSlug);
+    if (memoryCached) {
+      setBookInfo(memoryCached.bookInfo);
+      setUnits(memoryCached.units);
+      setIsLoading(false);
+      return;
+    }
+
+    // Check sessionStorage cache
+    try {
+      const stored = sessionStorage.getItem(`header_${bookSlug}`);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed?.bookInfo) {
+          headerCache.set(bookSlug, parsed);
+          setBookInfo(parsed.bookInfo);
+          setUnits(parsed.units || []);
+          setIsLoading(false);
+          return;
+        }
+      }
+    } catch {}
 
     let isMounted = true;
     setIsLoading(true);
@@ -38,27 +68,30 @@ export function HeaderWrapper() {
         const res = await fetch(`/api/admin/curriculum?book=${bookSlug}`);
         if (res.ok && isMounted) {
           const data = await res.json();
-          if (data.bookInfo) {
-            setBookInfo(data.bookInfo);
-          } else {
-            setBookInfo({
-              title: bookSlug,
-              subtitle: 'ระบบเฉลยและตรวจแบบฝึกหัด'
-            });
-          }
-          if (data.units && data.units.length > 0) {
-            setUnits(data.units);
-          } else {
-            setUnits([]);
-          }
+          const info = data.bookInfo || {
+            title: bookSlug,
+            subtitle: 'ระบบเฉลยและตรวจแบบฝึกหัด'
+          };
+          const unitList = data.units || [];
+
+          // Save to caches
+          const payload = { bookInfo: info, units: unitList };
+          headerCache.set(bookSlug, payload);
+          try {
+            sessionStorage.setItem(`header_${bookSlug}`, JSON.stringify(payload));
+          } catch {}
+
+          setBookInfo(info);
+          setUnits(unitList);
         }
       } catch (err) {
         console.error('Failed to load curriculum:', err);
         if (isMounted) {
-          setBookInfo({
+          const fallbackInfo = {
             title: bookSlug,
             subtitle: 'ระบบเฉลยและตรวจแบบฝึกหัด'
-          });
+          };
+          setBookInfo(fallbackInfo);
           setUnits([]);
         }
       } finally {
@@ -70,7 +103,7 @@ export function HeaderWrapper() {
 
     loadCurriculum();
     return () => { isMounted = false; };
-  }, [bookSlug, pathname]);
+  }, [bookSlug]);
 
   // Click outside to close dropdown
   useEffect(() => {
