@@ -346,6 +346,63 @@ export function checkGuidedSentenceExercise(
     ? item.required_orders 
     : parsedCategories.map(c => c.order);
 
+  // 1.5 DIRECT MATCH WITH PRE-CALCULATED MATRIX SOLUTIONS
+  const blankRegex = /_{2,}/g;
+  const promptParts = (item.prompt || '').split(blankRegex);
+  const maxRows = Math.max(1, ...parsedCategories.map(c => c.words.length));
+  
+  for (let r = 0; r < maxRows; r++) {
+    const rowWords: Array<{ en: string; th: string; order: number }> = [];
+    for (const ord of requiredOrders) {
+      const cat = parsedCategories.find(c => c.order === ord);
+      const wObj = cat?.words[r];
+      if (wObj && wObj.en) {
+        rowWords.push({ en: wObj.en, th: wObj.th || wObj.en, order: ord });
+      }
+    }
+
+    if (rowWords.length === requiredOrders.length) {
+      let candidateEn = '';
+      if (promptParts.length > 1) {
+        promptParts.forEach((part: string, pIdx: number) => {
+          candidateEn += part;
+          if (pIdx < rowWords.length) {
+            candidateEn += rowWords[pIdx].en;
+          }
+        });
+      } else {
+        candidateEn = rowWords.map(w => w.en).join(' ');
+      }
+
+      const normalizeSentence = (s: string) =>
+        normalizeContractions(normalizeTypography(s))
+          .trim()
+          .toLowerCase()
+          .replace(/[.!?]/g, '')
+          .replace(/\s+/g, ' ');
+
+      if (normalizeSentence(candidateEn) === normalizeSentence(raw)) {
+        let thSentence = '';
+        if (item.thai_template) {
+          let tpl = item.thai_template;
+          for (const w of rowWords) {
+            tpl = tpl.replace(new RegExp(`\\{${w.order}\\}`, 'g'), w.th);
+          }
+          thSentence = tpl;
+        } else {
+          thSentence = rowWords.map(w => w.th).filter(Boolean).join(' ');
+        }
+
+        return {
+          isCorrect: true,
+          message: 'ถูกต้องเลยค่ะ เก่งมากเลย 👏',
+          points: [],
+          translation: thSentence
+        };
+      }
+    }
+  }
+
   // 2. EXACT WORD-TOKEN MATCHING (Strict whole words, NO loose substring matching)
   interface MatchedSlotWord {
     id: string;
@@ -474,9 +531,27 @@ export function checkGuidedSentenceExercise(
   }
 
   // 5. UNRECOGNIZED & MISSPELLED TOKEN VALIDATION (e.g. waterssssss)
+  const promptSourceText = `${item.prompt || ''} ${item.model_answer || ''} ${(item.acceptable_answers || []).join(' ')}`;
+  const promptSkeletonTokens = normalizeContractions(promptSourceText.replace(/_{2,}/g, ' '))
+    .split(/\s+/)
+    .map(cleanWord)
+    .filter(Boolean);
+
+  const universalFunctionalTokens = [
+    'i', 'you', 'he', 'she', 'it', 'we', 'they',
+    'am', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
+    'do', 'does', 'did', 'done',
+    'have', 'has', 'had',
+    'will', 'would', 'shall', 'should', 'can', 'could', 'may', 'might', 'must',
+    'to', 'for', 'of', 'in', 'on', 'at', 'by', 'with', 'from', 'into', 'about', 'as', 'out', 'up', 'down',
+    'a', 'an', 'the', 'my', 'your', 'his', 'her', 'its', 'our', 'their', 'this', 'that', 'these', 'those',
+    'even', 'when', 'if', 'because', 'although', 'though', 'while', 'so', 'that', 'how', 'what', 'where', 'why',
+    'not', 'no', "n't", 'and', 'but', 'or', 'very', 'really', 'also', 'too', 'always', 'usually', 'often', 'sometimes', 'never'
+  ];
+
   const allowedSkeletonTokens = new Set([
-    'i', 'do', 'does', 'did', 'am', 'is', 'are', 'to', 'for', 'even', 'when', "i'm", 'im', 
-    'because', 'although', 'at', 'in', 'on', 'my', 'the', 'a', 'an', 'that', 'so'
+    ...promptSkeletonTokens,
+    ...universalFunctionalTokens
   ]);
 
   const unrecognizedTokens: string[] = [];
