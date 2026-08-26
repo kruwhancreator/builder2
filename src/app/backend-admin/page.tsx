@@ -432,30 +432,8 @@ export default function BackendAdminPage() {
         : [
             {
               order: 1,
-              name: 'ทำอะไรจริง ๆ',
-              words: [
-                { id: '1a', en: 'drink water', th: 'ดื่มน้ำ', next_valid_ids: ['2a', '2b'] },
-                { id: '1b', en: 'practise speaking', th: 'ฝึกพูด', next_valid_ids: ['2b'] },
-                { id: '1c', en: 'travel abroad', th: 'ไปเที่ยวต่างประเทศ', next_valid_ids: ['2c'] }
-              ]
-            },
-            {
-              order: 2,
-              name: 'เพื่ออะไร',
-              words: [
-                { id: '2a', en: 'stay hydrated', th: 'รักษาระดับน้ำในร่างกาย', next_valid_ids: ['3a'] },
-                { id: '2b', en: 'build confidence', th: 'สร้างความมั่นใจ', next_valid_ids: ['3b'] },
-                { id: '2c', en: 'meet new people', th: 'พบปะผู้คนใหม่ ๆ', next_valid_ids: ['3c'] }
-              ]
-            },
-            {
-              order: 3,
-              name: 'แม้ว่า...',
-              words: [
-                { id: '3a', en: 'not thirsty', th: 'ไม่กระหายน้ำ' },
-                { id: '3b', en: 'shy', th: 'ขี้อาย' },
-                { id: '3c', en: 'alone', th: 'อยู่คนเดียว' }
-              ]
+              name: '',
+              words: [{ id: '1a', en: '', th: '' }]
             }
           ];
       setQuizCategories(normalizedCats);
@@ -563,15 +541,17 @@ export default function BackendAdminPage() {
     };
 
     if (exType === 'translation') {
-      newItem.thai = 'พิมพ์โจทย์ภาษาไทย...';
+      newItem.thai = '';
+      newItem.model_answer = '';
     } else if (exType === 'guided_sentence') {
-      newItem.prompt = 'I am ____________________.';
-      newItem.thai_template = 'ฉัน...';
+      newItem.prompt = '____________________';
+      newItem.thai_template = '';
       newItem.required_orders = [1];
-      newItem.model_answer = 'I am doing fine.';
+      newItem.model_answer = '';
     } else if (exType === 'picture_description') {
-      newItem.image_description = 'คำบรรยายภาพ...';
-      newItem.context_hint = 'คำใบ้บริบท...';
+      newItem.image_description = '';
+      newItem.context_hint = '';
+      newItem.model_answer = '';
     }
 
     setQuizItems(prev => [...prev, newItem]);
