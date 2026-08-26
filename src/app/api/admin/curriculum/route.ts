@@ -24,10 +24,13 @@ export async function GET(req: NextRequest) {
       };
 
       // 1. Fetch all units for this book
+      const bookIds = Array.from(new Set([bookName, bookRow?.id, bookRow?.slug].filter(Boolean)));
+      const orFilter = bookIds.map(id => `book_name.eq.${id}`).join(',');
+
       const { data: unitsData, error: unitErr } = await client
         .from('units')
         .select('*')
-        .eq('book_name', bookName)
+        .or(orFilter)
         .order('unit_number', { ascending: true });
 
       if (!unitErr && unitsData && unitsData.length > 0) {
