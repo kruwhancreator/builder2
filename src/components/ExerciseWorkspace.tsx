@@ -521,6 +521,7 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                           const firstCat = ex2Categories.find(c => c.order === requiredOrders[0]);
                           const rowCount = firstCat ? firstCat.words.length : 3;
                           const allSolutions: Array<{ en: string; th: string }> = [];
+                          const seenEnSolutions = new Set<string>();
 
                           for (let r = 0; r < rowCount; r++) {
                             const chosenEnWords: string[] = [];
@@ -537,19 +538,25 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
 
                             if (chosenEnWords.length === slotCount) {
                               const enSentence = reconstructSentence(promptParts, chosenEnWords);
-                              let thSentence = '';
-                              if (item.thai_template) {
-                                let tpl = item.thai_template;
-                                for (const ord of requiredOrders) {
-                                  if (chosenThWords[ord]) {
-                                    tpl = tpl.replace(new RegExp(`\\{${ord}\\}`, 'g'), chosenThWords[ord]);
+                              const normalizedKey = enSentence.trim().toLowerCase();
+
+                              if (!seenEnSolutions.has(normalizedKey)) {
+                                seenEnSolutions.add(normalizedKey);
+
+                                let thSentence = '';
+                                if (item.thai_template) {
+                                  let tpl = item.thai_template;
+                                  for (const ord of requiredOrders) {
+                                    if (chosenThWords[ord]) {
+                                      tpl = tpl.replace(new RegExp(`\\{${ord}\\}`, 'g'), chosenThWords[ord]);
+                                    }
                                   }
+                                  thSentence = tpl;
+                                } else {
+                                  thSentence = requiredOrders.map(ord => chosenThWords[ord] || '').filter(Boolean).join(' ');
                                 }
-                                thSentence = tpl;
-                              } else {
-                                thSentence = requiredOrders.map(ord => chosenThWords[ord] || '').filter(Boolean).join(' ');
+                                allSolutions.push({ en: enSentence, th: thSentence });
                               }
-                              allSolutions.push({ en: enSentence, th: thSentence });
                             }
                           }
 
