@@ -487,7 +487,11 @@ export function checkGuidedSentenceExercise(
     };
   }
 
-  // 4. COMPATIBILITY MATRIX / PATH VALIDATION (Check consecutive pairs: 1a -> 2b -> 3b)
+  // 4. COMPATIBILITY MATRIX / PATH VALIDATION (Check consecutive pairs: 1a -> 2a -> 3any -> 4a)
+  const coreMatch = orderedMatches.find(m => m.order === 1);
+  const contextMatch = orderedMatches.find(m => m.order === 2);
+  const coreIndex = coreMatch ? coreMatch.index : (contextMatch ? contextMatch.index : -1);
+
   for (let i = 0; i < orderedMatches.length - 1; i++) {
     const currentWord = orderedMatches[i];
     const nextWord = orderedMatches[i + 1];
@@ -495,12 +499,22 @@ export function checkGuidedSentenceExercise(
     let isPairValid = false;
 
     if (currentWord.next_valid_ids && currentWord.next_valid_ids.length > 0) {
-      // Check explicit next_valid_ids (e.g. currentWord allows ["2a", "2b"])
+      // Check explicit next_valid_ids (e.g. currentWord allows ["2a", "2b"] or ["*"])
       isPairValid = currentWord.next_valid_ids.includes(nextWord.id) ||
                     currentWord.next_valid_ids.includes(nextWord.en) ||
-                    currentWord.next_valid_ids.includes(String(nextWord.index));
+                    currentWord.next_valid_ids.includes(String(nextWord.index)) ||
+                    currentWord.next_valid_ids.includes('*');
+    } else if (currentWord.order === 1 && nextWord.order === 2) {
+      // Core (Order 1) to Context (Order 2) must match coherent pair index
+      isPairValid = currentWord.index === nextWord.index;
+    } else if (nextWord.order === 3 || currentWord.order === 3) {
+      // Connect / Modifier (Order 3) is flexible and can pair with any valid Core/Context set
+      isPairValid = true;
+    } else if (nextWord.order >= 4 && coreIndex !== -1) {
+      // Order 4+ links back to the coherent Core index
+      isPairValid = nextWord.index === coreIndex || nextWord.index === currentWord.index;
     } else {
-      // Fallback: horizontal row index consistency
+      // Fallback row consistency
       isPairValid = currentWord.index === nextWord.index;
     }
 
