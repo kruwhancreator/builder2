@@ -1950,6 +1950,7 @@ export default function BackendAdminPage() {
                                   const promptParts = (q.prompt || '').split(blankRegex);
                                   const slotCount = Math.max(1, (q.prompt || '').match(blankRegex)?.length || 1);
                                   const allSolutions: Array<{ en: string; th: string }> = [];
+                                  const seenEnSolutions = new Set<string>();
 
                                   for (let r = 0; r < maxRowCount; r++) {
                                     const chosenEnWords: string[] = [];
@@ -1973,20 +1974,25 @@ export default function BackendAdminPage() {
                                         }
                                       });
 
-                                      let thSentence = '';
-                                      if (q.thai_template) {
-                                        let tpl = q.thai_template;
-                                        for (const ord of requiredOrders) {
-                                          if (chosenThWords[ord]) {
-                                            tpl = tpl.replace(new RegExp(`\\{${ord}\\}`, 'g'), chosenThWords[ord]);
-                                          }
-                                        }
-                                        thSentence = tpl;
-                                      } else {
-                                        thSentence = requiredOrders.map(ord => chosenThWords[ord] || '').filter(Boolean).join(' ');
-                                      }
+                                      const normalizedKey = enSentence.trim().toLowerCase();
+                                      if (!seenEnSolutions.has(normalizedKey)) {
+                                        seenEnSolutions.add(normalizedKey);
 
-                                      allSolutions.push({ en: enSentence, th: thSentence });
+                                        let thSentence = '';
+                                        if (q.thai_template) {
+                                          let tpl = q.thai_template;
+                                          for (const ord of requiredOrders) {
+                                            if (chosenThWords[ord]) {
+                                              tpl = tpl.replace(new RegExp(`\\{${ord}\\}`, 'g'), chosenThWords[ord]);
+                                            }
+                                          }
+                                          thSentence = tpl;
+                                        } else {
+                                          thSentence = requiredOrders.map(ord => chosenThWords[ord] || '').filter(Boolean).join(' ');
+                                        }
+
+                                        allSolutions.push({ en: enSentence, th: thSentence });
+                                      }
                                     }
                                   }
 
