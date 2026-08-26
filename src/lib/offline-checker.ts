@@ -73,6 +73,78 @@ export function normalizeTypography(str: string): string {
 }
 
 /**
+ * Normalizes English contractions to their expanded full forms
+ * Ensures that "I'm" == "I am", "I've" == "I have", "don't" == "do not", etc.
+ */
+export function normalizeContractions(text: string): string {
+  if (!text) return '';
+  let result = normalizeTypography(text);
+
+  const contractionsMap: Array<[RegExp, string]> = [
+    // Pronoun + am/are/is
+    [/\bI'm\b/gi, 'I am'],
+    [/\byou're\b/gi, 'you are'],
+    [/\bwe're\b/gi, 'we are'],
+    [/\bthey're\b/gi, 'they are'],
+    [/\bhe's\b/gi, 'he is'],
+    [/\bshe's\b/gi, 'she is'],
+    [/\bit's\b/gi, 'it is'],
+    [/\bthat's\b/gi, 'that is'],
+    [/\bthere's\b/gi, 'there is'],
+    [/\bwhat's\b/gi, 'what is'],
+    [/\bwho's\b/gi, 'who is'],
+    [/\bwhere's\b/gi, 'where is'],
+    [/\bhow's\b/gi, 'how is'],
+    [/\blet's\b/gi, 'let us'],
+
+    // Pronoun + have/has/had
+    [/\bI've\b/gi, 'I have'],
+    [/\byou've\b/gi, 'you have'],
+    [/\bwe've\b/gi, 'we have'],
+    [/\bthey've\b/gi, 'they have'],
+    [/\bI'd\b/gi, 'I would'],
+    [/\byou'd\b/gi, 'you would'],
+    [/\bhe'd\b/gi, 'he would'],
+    [/\bshe'd\b/gi, 'she would'],
+    [/\bwe'd\b/gi, 'we would'],
+    [/\bthey'd\b/gi, 'they would'],
+
+    // Pronoun + will
+    [/\bI'll\b/gi, 'I will'],
+    [/\byou'll\b/gi, 'you will'],
+    [/\bhe'll\b/gi, 'he will'],
+    [/\bshe'll\b/gi, 'she will'],
+    [/\bwe'll\b/gi, 'we will'],
+    [/\bthey'll\b/gi, 'they will'],
+    [/\bit'll\b/gi, 'it will'],
+    [/\bthat'll\b/gi, 'that will'],
+
+    // Negations
+    [/\bdon't\b/gi, 'do not'],
+    [/\bdoesn't\b/gi, 'does not'],
+    [/\bdidn't\b/gi, 'did not'],
+    [/\bcan't\b/gi, 'cannot'],
+    [/\bcouldn't\b/gi, 'could not'],
+    [/\bwon't\b/gi, 'will not'],
+    [/\bwouldn't\b/gi, 'would not'],
+    [/\bshouldn't\b/gi, 'should not'],
+    [/\bisn't\b/gi, 'is not'],
+    [/\baren't\b/gi, 'are not'],
+    [/\bwasn't\b/gi, 'was not'],
+    [/\bweren't\b/gi, 'were not'],
+    [/\bhaven't\b/gi, 'have not'],
+    [/\bhasn't\b/gi, 'has not'],
+    [/\bhadn't\b/gi, 'had not'],
+  ];
+
+  for (const [pattern, replacement] of contractionsMap) {
+    result = result.replace(pattern, replacement);
+  }
+
+  return result;
+}
+
+/**
  * Universal NLP Grammar and Spell Checker
  */
 export function checkOfflineGrammarAndSpelling(
@@ -124,7 +196,7 @@ export function checkOfflineGrammarAndSpelling(
   const allTargetSentences = [modelAnswer, ...acceptableAnswers].filter(Boolean);
 
   // -------------------------------------------------------------
-  // 4. PRONOUN "I" and "I'm" CAPITALIZATION & APOSTROPHE CHECK
+  // 4. PRONOUN "I" and "I'm" / "I've" CAPITALIZATION & APOSTROPHE CHECK
   // -------------------------------------------------------------
   studentTokens.forEach((tok) => {
     const cleanTok = tok.replace(/[.!?,]$/, '');
@@ -133,18 +205,24 @@ export function checkOfflineGrammarAndSpelling(
       points.push('• สรรพนาม "I" (ฉัน) ต้องเขียนด้วยตัวพิมพ์ใหญ่เสมอ ไม่ใช้ตัวพิมพ์เล็ก "i" นะคะ');
     } else if (cleanTok === "i'm" || cleanTok === 'i’m') {
       isValid = false;
-      points.push('• คำว่า "I\'m" ตัว "I" ต้องเป็นตัวพิมพ์ใหญ่เสมอนะคะ (เขียนเป็น "I\'m")');
+      points.push('• คำว่า "I\'m" ตัว "I" ต้องเป็นตัวพิมพ์ใหญ่เสมอนะคะ (เขียนเป็น "I\'m" หรือ "I am")');
+    } else if (cleanTok === "i've" || cleanTok === 'i’ve') {
+      isValid = false;
+      points.push('• คำว่า "I\'ve" ตัว "I" ต้องเป็นตัวพิมพ์ใหญ่เสมอนะคะ (เขียนเป็น "I\'ve" หรือ "I have")');
     } else if (cleanTok.toLowerCase() === 'im') {
       isValid = false;
-      points.push('• คำว่า "I\'m" ต้องใส่เครื่องหมาย Apostrophe (\') ด้วยนะคะ (เขียนเป็น "I\'m")');
+      points.push('• คำว่า "I\'m" ต้องใส่เครื่องหมาย Apostrophe (\') ด้วยนะคะ (เขียนเป็น "I\'m" หรือ "I am")');
+    } else if (cleanTok.toLowerCase() === 'ive') {
+      isValid = false;
+      points.push('• คำว่า "I\'ve" ต้องใส่เครื่องหมาย Apostrophe (\') ด้วยนะคะ (เขียนเป็น "I\'ve" หรือ "I have")');
     }
   });
 
   // -------------------------------------------------------------
-  // 5. FIXED ANSWER KEY NORMALIZATION & MATCHING
+  // 5. FIXED ANSWER KEY NORMALIZATION & MATCHING (WITH CONTRACTIONS)
   // -------------------------------------------------------------
   const normalizeForMatch = (str: string) => 
-    normalizeTypography(str)
+    normalizeContractions(normalizeTypography(str))
       .trim()
       .toLowerCase()
       .replace(/[.!?]/g, '')
@@ -236,7 +314,7 @@ export function checkGuidedSentenceExercise(
   }
 
   const cleanWord = (w: string) => normalizeTypography(w).toLowerCase().replace(/[^a-z0-9'-]/g, '');
-  const studentTokens = raw.split(/\s+/).map(cleanWord).filter(Boolean);
+  const studentTokens = normalizeContractions(raw).split(/\s+/).map(cleanWord).filter(Boolean);
   const normalizedRaw = studentTokens.join(' ');
 
   // 1. NORMALIZE CATEGORIES & WORD CHOICES (with id, next_valid_ids, and row index)
@@ -286,7 +364,7 @@ export function checkGuidedSentenceExercise(
   for (const cat of parsedCategories) {
     for (const w of cat.words) {
       if (!w.en) continue;
-      const wTokens = w.en.split(/\s+/).map(cleanWord).filter(Boolean);
+      const wTokens = normalizeContractions(w.en).split(/\s+/).map(cleanWord).filter(Boolean);
       if (wTokens.length === 0) continue;
 
       for (let i = 0; i <= studentTokens.length - wTokens.length; i++) {

@@ -58,28 +58,42 @@ TONE & POLITE PARTICLES (STRICT):
 - Deliver clear, friendly, and structured bullet points (2 to 4 points).
 
 UNIVERSAL PEDAGOGICAL EVALUATION FRAMEWORK:
-1. FORMULA & BLUEPRINT CONFORMANCE:
+1. CONTRACTIONS & FULL FORMS EQUIVALENCE (STRICT 100% EQUIVALENT):
+   - Treat ALL standard English contractions and their expanded full forms as 100% IDENTICAL and EQUALLY CORRECT:
+     * "I'm" <==> "I am"
+     * "I've" <==> "I have"
+     * "you're" <==> "you are", "we're" <==> "we are", "they're" <==> "they are"
+     * "he's" <==> "he is" / "he has", "she's" <==> "she is" / "she has", "it's" <==> "it is" / "it has"
+     * "I'll" <==> "I will", "you'll" <==> "you will", "we'll" <==> "we will", "they'll" <==> "they will"
+     * "I'd" <==> "I would" / "I had", "we'd" <==> "we would" / "we had"
+     * "don't" <==> "do not", "doesn't" <==> "does not", "didn't" <==> "did not"
+     * "can't" <==> "cannot" / "can not", "couldn't" <==> "could not", "won't" <==> "will not", "wouldn't" <==> "would not"
+     * "isn't" <==> "is not", "aren't" <==> "are not", "wasn't" <==> "was not", "weren't" <==> "were not"
+     * "haven't" <==> "have not", "hasn't" <==> "has not", "hadn't" <==> "had not"
+   - If the backend model answer has "I've" and student types "I have" (or vice versa), or backend has "I'm" and student types "I am" (or vice versa), it is 100% FULLY CORRECT. NEVER mark it as wrong!
+
+2. FORMULA & BLUEPRINT CONFORMANCE:
    - Carefully verify each required component in the formula (e.g. Core, Context, Connect) against the specific "Teacher Pattern & Structure Rules" for this quiz.
    - Verify that each component uses the correct grammatical form (Base Verb, V.ing, Adjective, Past Verb, etc.).
 
-2. GRAMMAR, VOCABULARY & IMAGE PROMPT ANALYSIS:
+3. GRAMMAR, VOCABULARY & IMAGE PROMPT ANALYSIS:
    - Compare the student's vocabulary (subjects, actions, feelings, objects) with the "Picture Description / Image Prompt".
    - Broad Semantic Acceptance: If the image depicts someone at a desk with books/lamp, actions like 'read', 'read books', 'study', 'review the lesson', 'learn new things', 'do homework' are ALL 100% valid and directly match the picture!
    - Parts of Speech: Ensure words in each slot match the required POS (e.g. if an Adjective is required in Connect, catch nouns/verbs like 'sleep' -> 'sleepy/tired').
    - Auxiliary Verbs: Catch redundant verbs like 'I'm am'.
    - Determiners: Do not claim determiners are missing if 'the', 'a', 'an', or 'my' is already used (e.g. 'the lesson' is correct).
 
-3. WHEN STUDENT ANSWER IS CORRECT (100% Valid & Meaningful):
+4. WHEN STUDENT ANSWER IS CORRECT (100% Valid & Meaningful):
    - Set "isCorrect": true
    - Set "statusText": "ถูกต้องเลยค่ะ เก่งมากเลย 👏"
    - In "feedbackPoints", praise the student, highlight how well their sentence fulfills the structure formula, and note how well it fits the visual scene.
 
-4. WHEN STUDENT ANSWER NEEDS IMPROVEMENT:
+5. WHEN STUDENT ANSWER NEEDS IMPROVEMENT:
    - Set "isCorrect": false
    - Set "statusText": "💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ"
    - In "feedbackPoints", clearly explain the grammar/POS/auxiliary issue with teacher guidance, provide gentle tips on natural usage, and encourage them.
 
-5. THAI TRANSLATION & RECOMMENDED SENTENCE:
+6. THAI TRANSLATION & RECOMMENDED SENTENCE:
    - "studentTranslation": Provide an accurate, natural Thai translation of what the student literally typed.
    - "correctedSentence": Provide a natural, native-level sentence that perfectly follows the target formula for this quiz.
 
@@ -241,7 +255,7 @@ function evaluateLocally(req: EvaluationRequest): EvaluationResult {
   }
 }
 
-import { checkOfflineGrammarAndSpelling } from './offline-checker';
+import { checkOfflineGrammarAndSpelling, normalizeContractions } from './offline-checker';
 
 function evaluateTranslationLocally(item: any, lower: string, original: string): EvaluationResult {
   const result = checkOfflineGrammarAndSpelling(item, original, 'translation');
@@ -258,6 +272,7 @@ function evaluateTranslationLocally(item: any, lower: string, original: string):
 function evaluateGuidedSentenceLocally(item: any, lower: string, original: string): EvaluationResult {
   const points: string[] = [];
   let isCorrect = true;
+  const normalizedLower = normalizeContractions(lower);
 
   let fixedSentence = original;
   if (/\bmakeing\b/i.test(original)) {
@@ -273,10 +288,10 @@ function evaluateGuidedSentenceLocally(item: any, lower: string, original: strin
     fixedSentence = fixedSentence + '.';
   }
 
-  const hasAction = /\b(do|am|is|are|cook|read|drink|wash|study)\b/i.test(lower);
-  const hasTime = /\b(now|right now|at the moment|currently|today)\b/i.test(lower);
-  const hasPurpose = /\b(to|for)\s+\w+/.test(lower);
-  const hasReason = lower.includes("even when") || lower.includes("because") || lower.includes("due to");
+  const hasAction = /\b(do|am|is|are|cook|read|drink|wash|study)\b/i.test(normalizedLower);
+  const hasTime = /\b(now|right now|at the moment|currently|today)\b/i.test(normalizedLower);
+  const hasPurpose = /\b(to|for)\s+\w+/.test(normalizedLower);
+  const hasReason = normalizedLower.includes("even when") || normalizedLower.includes("because") || normalizedLower.includes("due to");
 
   if (hasAction) {
     points.push('• โครงสร้างคำกริยาถูกต้องค่ะ');
@@ -309,6 +324,7 @@ function evaluateGuidedSentenceLocally(item: any, lower: string, original: strin
 function evaluatePictureDescriptionLocally(item: any, lower: string, original: string): EvaluationResult {
   const points: string[] = [];
   let isCorrect = true;
+  const normalizedLower = normalizeContractions(lower);
 
   let fixedSentence = original;
   if (/\bmakeing\b/i.test(original)) {
@@ -324,9 +340,9 @@ function evaluatePictureDescriptionLocally(item: any, lower: string, original: s
     fixedSentence = fixedSentence + '.';
   }
 
-  const hasCore = /\b(i do|i am|he does|she does)\b/i.test(lower);
-  const hasContext = /\b(to\s+\w+|at|in|on)\b/i.test(lower);
-  const hasConnect = /\b(even when|because|when|although)\b/i.test(lower);
+  const hasCore = /\b(i do|i am|he does|she does|i have|i will)\b/i.test(normalizedLower);
+  const hasContext = /\b(to\s+\w+|at|in|on)\b/i.test(normalizedLower);
+  const hasConnect = /\b(even when|because|when|although)\b/i.test(normalizedLower);
 
   if (hasCore) {
     points.push('• โครงสร้าง Core (I do...) ถูกต้องค่ะ');
@@ -346,7 +362,7 @@ function evaluatePictureDescriptionLocally(item: any, lower: string, original: s
     points.push('• โครงสร้าง Connect (even when...) ถูกต้องค่ะ');
   } else {
     isCorrect = false;
-    points.push('• ขาดโครงสร้าง Connect (เช่น even when I\'m + คุณศัพท์)');
+    points.push('• ขาดโครงสร้าง Connect (เช่น even when I\'m / I am + คุณศัพท์)');
   }
 
   const breakdown = {
