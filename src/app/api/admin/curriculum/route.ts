@@ -281,7 +281,14 @@ export async function POST(req: NextRequest) {
             payload.order_index = order_index;
           }
 
-          const { error: exErr } = await supabase.from('exercises').upsert(payload, { onConflict: 'unit_id,exercise_code' });
+          let { error: exErr } = await supabase.from('exercises').upsert(payload, { onConflict: 'unit_id,exercise_code' });
+
+          // If order_index column is not yet in Supabase schema cache, retry without order_index
+          if (exErr && exErr.message?.includes('order_index')) {
+            delete payload.order_index;
+            const retry = await supabase.from('exercises').upsert(payload, { onConflict: 'unit_id,exercise_code' });
+            exErr = retry.error;
+          }
 
           if (exErr) {
             return NextResponse.json({ error: exErr.message }, { status: 500 });
@@ -300,11 +307,15 @@ export async function POST(req: NextRequest) {
         let resolvedUnitId = unit_id;
         if (resolvedUnitId && !resolvedUnitId.startsWith('unit-')) {
           for (const item of exercise_orders) {
-            await supabase
-              .from('exercises')
-              .update({ order_index: item.order_index })
-              .eq('unit_id', resolvedUnitId)
-              .eq('exercise_code', item.exercise_code);
+            try {
+              await supabase
+                .from('exercises')
+                .update({ order_index: item.order_index })
+                .eq('unit_id', resolvedUnitId)
+                .eq('exercise_code', item.exercise_code);
+            } catch (ignoreErr) {
+              console.warn('Could not update order_index:', ignoreErr);
+            }
           }
         }
       }
