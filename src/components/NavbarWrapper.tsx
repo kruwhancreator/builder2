@@ -32,40 +32,25 @@ export function HeaderWrapper() {
   const [bookInfo, setBookInfo] = useState<{ title: string; subtitle?: string } | null>(() => cachedData?.bookInfo || null);
   const [isLoading, setIsLoading] = useState(() => !cachedData);
 
-  // Fetch book metadata and all units ONLY when bookSlug changes (NOT on every chapter switch)
+  // Fetch fresh book metadata and all units whenever bookSlug changes or mounts
   useEffect(() => {
     if (pathname?.startsWith('/backend-admin')) return;
 
-    // Check in-memory cache first
+    let isMounted = true;
+
+    // Use in-memory cache as immediate initial display, but still revalidate fresh
     const memoryCached = headerCache.get(bookSlug);
     if (memoryCached) {
       setBookInfo(memoryCached.bookInfo);
       setUnits(memoryCached.units);
       setIsLoading(false);
-      return;
+    } else {
+      setIsLoading(true);
     }
-
-    // Check sessionStorage cache
-    try {
-      const stored = sessionStorage.getItem(`header_${bookSlug}`);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed?.bookInfo) {
-          headerCache.set(bookSlug, parsed);
-          setBookInfo(parsed.bookInfo);
-          setUnits(parsed.units || []);
-          setIsLoading(false);
-          return;
-        }
-      }
-    } catch {}
-
-    let isMounted = true;
-    setIsLoading(true);
 
     async function loadCurriculum() {
       try {
-        const res = await fetch(`/api/admin/curriculum?book=${bookSlug}`);
+        const res = await fetch(`/api/admin/curriculum?book=${bookSlug}&_t=${Date.now()}`);
         if (res.ok && isMounted) {
           const data = await res.json();
           const info = data.bookInfo || {
@@ -74,19 +59,16 @@ export function HeaderWrapper() {
           };
           const unitList = data.units || [];
 
-          // Save to caches
+          // Update cache & state
           const payload = { bookInfo: info, units: unitList };
           headerCache.set(bookSlug, payload);
-          try {
-            sessionStorage.setItem(`header_${bookSlug}`, JSON.stringify(payload));
-          } catch {}
 
           setBookInfo(info);
           setUnits(unitList);
         }
       } catch (err) {
         console.error('Failed to load curriculum:', err);
-        if (isMounted) {
+        if (isMounted && !memoryCached) {
           const fallbackInfo = {
             title: bookSlug,
             subtitle: 'ระบบเฉลยและตรวจแบบฝึกหัด'
@@ -103,7 +85,7 @@ export function HeaderWrapper() {
 
     loadCurriculum();
     return () => { isMounted = false; };
-  }, [bookSlug]);
+  }, [bookSlug, pathname]);
 
   // Click outside to close dropdown
   useEffect(() => {

@@ -24,15 +24,20 @@ export async function POST(req: NextRequest) {
     const bucketName = 'exercise-images';
 
     if (supabase) {
-      // 1. Ensure bucket exists and is public
-      const { data: buckets } = await supabase.storage.listBuckets();
-      const bucketExists = buckets?.some(b => b.name === bucketName);
+      // 1. Try to ensure bucket exists without crashing on RLS policy of buckets table
+      try {
+        const { data: buckets } = await supabase.storage.listBuckets();
+        const bucketExists = buckets?.some(b => b.name === bucketName);
 
-      if (!bucketExists) {
-        await supabase.storage.createBucket(bucketName, {
-          public: true,
-          fileSizeLimit: 5242880 // 5MB
-        });
+        if (!bucketExists) {
+          await supabase.storage.createBucket(bucketName, {
+            public: true,
+            fileSizeLimit: 5242880 // 5MB
+          });
+        }
+      } catch (bucketErr) {
+        // Ignored if RLS on buckets table prevents listing/creating buckets via anon key
+        console.warn('Bucket verification warning (proceeding to direct upload):', bucketErr);
       }
 
       // 2. Upload file buffer to bucket
