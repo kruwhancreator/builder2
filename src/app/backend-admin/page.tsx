@@ -30,7 +30,9 @@ import {
   Award,
   Eye,
   ArrowUpRight,
-  Upload
+  Upload,
+  ChevronUp,
+  ChevronDown
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
@@ -100,7 +102,8 @@ export default function BackendAdminPage() {
     exercise_type: 'translation',
     use_ai_check: true,
     instruction: '',
-    guidance: ''
+    guidance: '',
+    order_index: 1
   });
   const [isSubmittingExercise, setIsSubmittingExercise] = useState(false);
 
@@ -317,11 +320,13 @@ export default function BackendAdminPage() {
 
   // Exercise Config Handlers (CRUD)
   const openAddExerciseModal = (unit: any) => {
-    const nextCode = `ex-${(unit.exercises?.length || 0) + 1}`;
+    const nextIdx = (unit.exercises?.length || 0) + 1;
+    const nextCode = `ex-${Date.now().toString().slice(-4)}`;
     setExerciseModalContext({ unit, isEditing: false });
     setExerciseFormData({
       exercise_code: nextCode,
-      title: `Exercise ${(unit.exercises?.length || 0) + 1}: แบบฝึกหัดแต่งประโยค`,
+      order_index: nextIdx,
+      title: `Exercise ${nextIdx}: แบบฝึกหัดแต่งประโยค`,
       exercise_type: 'translation',
       use_ai_check: true,
       instruction: 'แปลประโยคภาษาไทยเป็นภาษาอังกฤษโดยใช้โครงสร้างที่กำหนด',
@@ -334,6 +339,7 @@ export default function BackendAdminPage() {
     setExerciseModalContext({ unit, isEditing: true });
     setExerciseFormData({
       exercise_code: exercise.code,
+      order_index: typeof exercise.order_index === 'number' ? exercise.order_index : 1,
       title: exercise.title || '',
       exercise_type: exercise.type || 'translation',
       use_ai_check: exercise.use_ai_check !== false,
@@ -381,6 +387,56 @@ export default function BackendAdminPage() {
     }
   };
 
+  // Move exercise up or down in unit
+  const handleReorderExercise = async (unit: any, fromIndex: number, direction: 'up' | 'down') => {
+    const toIndex = direction === 'up' ? fromIndex - 1 : fromIndex + 1;
+    const sorted = [...(unit.exercises || [])].sort((a: any, b: any) => {
+      const orderA = typeof a.order_index === 'number' ? a.order_index : (parseInt((a.code || '').replace(/\D/g, ''), 10) || 99);
+      const orderB = typeof b.order_index === 'number' ? b.order_index : (parseInt((b.code || '').replace(/\D/g, ''), 10) || 99);
+      return orderA - orderB;
+    });
+
+    if (toIndex < 0 || toIndex >= sorted.length) return;
+
+    const [moved] = sorted.splice(fromIndex, 1);
+    sorted.splice(toIndex, 0, moved);
+
+    const exerciseOrders = sorted.map((ex, idx) => ({
+      exercise_code: ex.code,
+      order_index: idx + 1
+    }));
+
+    // Optimistically update curriculum state
+    setCurriculumUnits(prev => prev.map(u => {
+      if (u.id === unit.id || u.unit_number === unit.unit_number) {
+        return {
+          ...u,
+          exercises: sorted.map((ex, idx) => ({ ...ex, order_index: idx + 1 }))
+        };
+      }
+      return u;
+    }));
+
+    try {
+      const res = await fetch('/api/admin/curriculum', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'reorder_exercises',
+          bookName: selectedBook,
+          unit_id: unit.id,
+          exercise_orders: exerciseOrders
+        })
+      });
+      if (res.ok) {
+        setSaveMessage({ type: 'success', text: '🎉 บันทึกลำดับแบบฝึกหัดใหม่เรียบร้อยแล้ว!' });
+      }
+    } catch (err) {
+      console.error('Failed to reorder exercises:', err);
+      fetchCurriculum(selectedBook);
+    }
+  };
+
   const handleDeleteExercise = async (unit: any, exercise: any) => {
     if (!confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบแบบฝึกหัด "${exercise.title}"?`)) return;
 
@@ -409,8 +465,8 @@ export default function BackendAdminPage() {
       teacher_guidance: item.teacher_guidance || item.context_hint || ''
     }));
     setQuizItems(JSON.parse(JSON.stringify(rawItems)));
-    // Load and normalize categories for guided_sentence
-    if (exercise.type === 'guided_sentence' || exercise.code === 'ex-2') {
+    // Load and normalize categories strictly for guided_sentence type
+    if (exercise.type === 'guided_sentence') {
       const rawCats = exercise.categories || [];
       const normalizedCats = Array.isArray(rawCats) && rawCats.length > 0
         ? rawCats.map((c: any, cIdx: number) => ({
@@ -693,7 +749,7 @@ export default function BackendAdminPage() {
     setIsSavingQuiz(true);
 
     try {
-      const isGuided = currentQuizExercise.exercise.type === 'guided_sentence' || currentQuizExercise.exercise.code === 'ex-2';
+      const isGuided = currentQuizExercise.exercise.type === 'guided_sentence';
       const cleanedItems = quizItems.map(item => {
         const blankRegex = /_{2,}/g;
         const slotCount = Math.max(1, (item.prompt || '').match(blankRegex)?.length || 1);
@@ -1364,32 +1420,57 @@ export default function BackendAdminPage() {
                         {unit.exercises && unit.exercises.length > 0 ? (
                           [...unit.exercises]
                             .sort((a: any, b: any) => {
-                              const numA = parseInt((a.code || '').replace(/\D/g, ''), 10) || 0;
-                              const numB = parseInt((b.code || '').replace(/\D/g, ''), 10) || 0;
-                              if (numA !== numB) return numA - numB;
-                              const titleA = parseInt((a.title || '').replace(/^[^\d]*/, ''), 10) || 0;
-                              const titleB = parseInt((b.title || '').replace(/^[^\d]*/, ''), 10) || 0;
-                              if (titleA !== titleB) return titleA - titleB;
+                              const orderA = typeof a.order_index === 'number' ? a.order_index : (parseInt((a.code || '').replace(/\D/g, ''), 10) || 99);
+                              const orderB = typeof b.order_index === 'number' ? b.order_index : (parseInt((b.code || '').replace(/\D/g, ''), 10) || 99);
+                              if (orderA !== orderB) return orderA - orderB;
                               return (a.code || '').localeCompare(b.code || '');
                             })
-                            .map((exercise: any) => (
+                            .map((exercise: any, exIdx: number, allExs: any[]) => (
                             <div
-                              key={exercise.code}
+                              key={exercise.code || exIdx}
                               className="exercise-item-row bg-white border border-slate-200/80 rounded-2xl p-4 flex items-center justify-between gap-4 hover:border-blue-300 hover:shadow-2xs transition-all"
                             >
-                              <div className="exercise-main-content flex items-center gap-3.5 min-w-0">
-                                <GripVertical className="exercise-drag-handle w-4 h-4 text-slate-300 cursor-grab" />
+                              <div className="exercise-main-content flex items-center gap-3 min-w-0">
+                                {/* Move Up / Move Down Reordering Controls */}
+                                <div className="flex flex-col gap-0.5 shrink-0">
+                                  <button
+                                    type="button"
+                                    disabled={exIdx === 0}
+                                    onClick={() => handleReorderExercise(unit, exIdx, 'up')}
+                                    className="p-1 rounded hover:bg-blue-100 text-slate-400 hover:text-blue-600 disabled:opacity-20 disabled:hover:bg-transparent cursor-pointer disabled:cursor-not-allowed transition-colors"
+                                    title="เลื่อนขึ้น (Move Up)"
+                                  >
+                                    <ChevronUp className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={exIdx === allExs.length - 1}
+                                    onClick={() => handleReorderExercise(unit, exIdx, 'down')}
+                                    className="p-1 rounded hover:bg-blue-100 text-slate-400 hover:text-blue-600 disabled:opacity-20 disabled:hover:bg-transparent cursor-pointer disabled:cursor-not-allowed transition-colors"
+                                    title="เลื่อนลง (Move Down)"
+                                  >
+                                    <ChevronDown className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
                                 
-                                <div className="exercise-icon-badge w-10 h-10 rounded-xl bg-blue-50 text-[#2563eb] flex items-center justify-center font-bold shrink-0">
+                                <div className="exercise-icon-badge w-10 h-10 rounded-xl bg-blue-50 text-[#2563eb] flex items-center justify-center font-bold shrink-0 relative">
                                   {exercise.type === 'translation' && <FileText className="w-5 h-5" />}
                                   {exercise.type === 'guided_sentence' && <Sparkles className="w-5 h-5" />}
                                   {exercise.type === 'picture_description' && <ImageIcon className="w-5 h-5" />}
+                                  <span className="absolute -top-1.5 -left-1.5 w-5 h-5 bg-[#1e3a8a] text-white rounded-full text-[10px] font-extrabold flex items-center justify-center shadow-xs">
+                                    {exIdx + 1}
+                                  </span>
                                 </div>
 
                                 <div className="exercise-title-box truncate">
-                                  <span className="exercise-title-text font-bold text-slate-800 text-sm sm:text-base truncate block">
-                                    {exercise.title}
-                                  </span>
+                                  <div className="flex items-center gap-2">
+                                    <span className="exercise-title-text font-bold text-slate-800 text-sm sm:text-base truncate block">
+                                      {exercise.title}
+                                    </span>
+                                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-slate-100 text-slate-600 shrink-0">
+                                      {exercise.type === 'translation' ? '📌 Fix Answer' : exercise.type === 'guided_sentence' ? '🧩 Choose Word' : '🖼️ Describe Image'}
+                                    </span>
+                                  </div>
                                   {exercise.instruction && (
                                     <span className="exercise-instruction-preview text-xs text-slate-400 truncate block mt-0.5">
                                       {exercise.instruction}
@@ -1484,6 +1565,20 @@ export default function BackendAdminPage() {
                   value={exerciseFormData.title}
                   onChange={(e) => setExerciseFormData(prev => ({ ...prev, title: e.target.value }))}
                   placeholder="เช่น Exercise 1: แปลประโยคภาษาอังกฤษ"
+                  className="w-full rounded-2xl bg-white border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-900 focus:outline-none focus:border-[#2563eb]"
+                />
+              </div>
+
+              {/* Exercise Order Index */}
+              <div>
+                <label className="block font-bold text-slate-700 uppercase mb-1.5 text-xs sm:text-sm">
+                  ลำดับการแสดงผลใน Unit (Display Order):
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={exerciseFormData.order_index}
+                  onChange={(e) => setExerciseFormData(prev => ({ ...prev, order_index: parseInt(e.target.value, 10) || 1 }))}
                   className="w-full rounded-2xl bg-white border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-900 focus:outline-none focus:border-[#2563eb]"
                 />
               </div>
@@ -1607,7 +1702,7 @@ export default function BackendAdminPage() {
               {/* ========================================================= */}
               {/* SECTION 1: WORD BANK COHERENT SETS MATRIX (guided_sentence) */}
               {/* ========================================================= */}
-              {(currentQuizExercise.exercise.type === 'guided_sentence' || currentQuizExercise.exercise.code === 'ex-2') && (
+              {currentQuizExercise.exercise.type === 'guided_sentence' && (
                 <div className="bg-gradient-to-br from-blue-50/70 to-indigo-50/70 border border-blue-200 rounded-3xl p-5 sm:p-6 mb-8 shadow-xs">
                   <div className="flex flex-wrap items-center justify-between gap-3 mb-4 pb-3 border-b border-blue-200/80">
                     <div>
@@ -1643,35 +1738,33 @@ export default function BackendAdminPage() {
                     </div>
                   </div>
 
-                  {/* MATRIX TABLE GRID */}
-                  <div className="overflow-x-auto rounded-2xl border border-blue-200/80 bg-white shadow-2xs">
-                    <table className="w-full text-xs text-left border-collapse">
+                  {/* Word Bank Matrix Table */}
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse min-w-[600px]">
                       <thead>
-                        <tr className="bg-[#1e3a8a] text-white">
-                          <th className="p-3 w-16 text-center font-extrabold border-r border-blue-800">
-                            ชุดที่ (Set)
-                          </th>
+                        <tr className="border-b border-blue-200 bg-white/60">
+                          <th className="p-2.5 text-xs font-bold text-slate-500 w-12 text-center">ชุดที่</th>
                           {quizCategories.map((cat, cIdx) => (
-                            <th key={cat.order || cIdx} className="p-3 border-r border-blue-800 min-w-[240px]">
-                              <div className="flex items-center justify-between gap-2">
-                                <div className="flex items-center gap-1.5 flex-1">
-                                  <span className="bg-white/20 text-white text-[11px] font-bold px-2 py-0.5 rounded shrink-0">
-                                    Order {cat.order}
+                            <th key={cat.order || cIdx} className="p-2.5">
+                              <div className="flex items-center justify-between gap-1.5">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="w-6 h-6 rounded-lg bg-[#2563eb] text-white font-extrabold text-xs flex items-center justify-center">
+                                    {cat.order}
                                   </span>
                                   <input
                                     type="text"
-                                    value={cat.name || ''}
+                                    value={cat.name}
                                     onChange={(e) => handleUpdateCategoryName(cIdx, e.target.value)}
-                                    placeholder="ชื่อหมวดหมู่..."
-                                    className="w-full bg-white/10 hover:bg-white/20 text-white placeholder-white/60 font-bold px-2 py-1 rounded text-xs border border-white/30 focus:outline-none focus:bg-white focus:text-slate-900"
+                                    placeholder={`Order ${cat.order} Name`}
+                                    className="text-xs sm:text-sm font-bold text-[#1e3a8a] bg-transparent border-b border-blue-300 focus:border-blue-600 focus:outline-none px-1 py-0.5"
                                   />
                                 </div>
                                 {quizCategories.length > 1 && (
                                   <button
                                     type="button"
                                     onClick={() => handleDeleteMatrixOrder(cIdx)}
-                                    className="text-white/70 hover:text-rose-300 p-1 rounded hover:bg-white/10 transition-colors"
-                                    title="ลบ Order นี้"
+                                    className="text-slate-300 hover:text-red-500 text-xs p-1"
+                                    title={`ลบ Order ${cat.order}`}
                                   >
                                     ✕
                                   </button>
@@ -1679,62 +1772,62 @@ export default function BackendAdminPage() {
                               </div>
                             </th>
                           ))}
-                          <th className="p-3 w-14 text-center font-bold">
-                            ลบ
-                          </th>
+                          <th className="p-2.5 w-10"></th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-200 text-slate-800">
-                        {Array.from({ length: maxRowCount }).map((_, rIdx) => (
-                          <tr key={rIdx} className="hover:bg-blue-50/40 transition-colors">
-                            <td className="p-3 text-center font-extrabold text-[#1e3a8a] bg-slate-50/80 border-r border-slate-200">
-                              <span className="w-6 h-6 rounded-full bg-blue-100 text-blue-800 inline-flex items-center justify-center text-xs font-bold">
-                                {rIdx + 1}
-                              </span>
-                            </td>
-
-                            {quizCategories.map((cat, cIdx) => {
-                              const w = (cat.words && cat.words[rIdx]) || { en: '', th: '' };
-                              return (
-                                <td key={cIdx} className="p-2.5 border-r border-slate-200 align-top">
-                                  <div className="space-y-1.5">
-                                    <div>
+                      <tbody className="divide-y divide-blue-100">
+                        {Array.from({ length: maxRowCount }).map((_, rIdx) => {
+                          const setLetter = String.fromCharCode(97 + rIdx);
+                          return (
+                            <tr key={rIdx} className="hover:bg-blue-50/50 transition-colors">
+                              <td className="p-2 text-center">
+                                <span className="w-7 h-7 rounded-lg bg-white border border-blue-200 font-extrabold text-blue-800 text-xs inline-flex items-center justify-center shadow-2xs">
+                                  {setLetter}
+                                </span>
+                              </td>
+                              {quizCategories.map((cat, cIdx) => {
+                                const wordObj = cat.words && cat.words[rIdx] ? cat.words[rIdx] : { id: `${cat.order}${setLetter}`, en: '', th: '' };
+                                return (
+                                  <td key={cIdx} className="p-2">
+                                    <div className="flex flex-col gap-1 bg-white p-2 rounded-xl border border-blue-200 shadow-2xs">
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="text-[10px] font-mono font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
+                                          {wordObj.id}
+                                        </span>
+                                        <input
+                                          type="text"
+                                          value={wordObj.en || ''}
+                                          onChange={(e) => handleUpdateMatrixCell(cIdx, rIdx, 'en', e.target.value)}
+                                          placeholder="คำภาษาอังกฤษ (EN)"
+                                          className="text-xs font-bold font-mono text-slate-900 w-full focus:outline-none"
+                                        />
+                                      </div>
                                       <input
                                         type="text"
-                                        value={w.en || ''}
-                                        onChange={(e) => handleUpdateMatrixCell(cIdx, rIdx, 'en', e.target.value)}
-                                        placeholder="English (เช่น drink water)"
-                                        className="w-full rounded-lg bg-slate-50 border border-slate-300 px-2.5 py-1.5 text-xs font-bold font-mono text-slate-900 focus:outline-none focus:border-[#2563eb] focus:bg-white"
-                                      />
-                                    </div>
-                                    <div>
-                                      <input
-                                        type="text"
-                                        value={w.th || ''}
+                                        value={wordObj.th || ''}
                                         onChange={(e) => handleUpdateMatrixCell(cIdx, rIdx, 'th', e.target.value)}
-                                        placeholder="ไทย (เช่น ดื่มน้ำ)"
-                                        className="w-full rounded-lg bg-slate-50 border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:border-[#2563eb] focus:bg-white"
+                                        placeholder="คำแปลไทย (TH)"
+                                        className="text-[11px] text-slate-500 w-full focus:outline-none border-t border-slate-100 pt-1"
                                       />
                                     </div>
-                                  </div>
-                                </td>
-                              );
-                            })}
-
-                            <td className="p-3 text-center align-middle">
-                              {maxRowCount > 1 && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteMatrixSet(rIdx)}
-                                  className="text-slate-400 hover:text-rose-600 p-1.5 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                                  title="ลบชุดคำศัพท์แถวนี้"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
+                                  </td>
+                                );
+                              })}
+                              <td className="p-2 text-center">
+                                {maxRowCount > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteMatrixSet(rIdx)}
+                                    className="text-slate-300 hover:text-red-500 p-1"
+                                    title="ลบชุดคำนี้"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
@@ -1749,7 +1842,7 @@ export default function BackendAdminPage() {
                   <div className="flex items-center gap-2">
                     <span className="text-lg">📝</span>
                     <h4 className="font-extrabold text-[#1e3a8a] text-base sm:text-lg font-heading">
-                      {(currentQuizExercise.exercise.type === 'guided_sentence' || currentQuizExercise.exercise.code === 'ex-2')
+                      {currentQuizExercise.exercise.type === 'guided_sentence'
                         ? '2. รายการโจทย์ข้อสอบและโครงสร้างคำแปล (Quiz Questions & Thai Template)'
                         : `รายการข้อสอบ/คำถาม (${quizItems.length} ข้อ)`}
                     </h4>
@@ -1821,7 +1914,7 @@ export default function BackendAdminPage() {
                             )}
 
                             {/* Guided Sentence Prompt */}
-                            {(currentQuizExercise.exercise.type === 'guided_sentence' || currentQuizExercise.exercise.code === 'ex-2') && (
+                            {currentQuizExercise.exercise.type === 'guided_sentence' && (
                               <>
                                 <div>
                                   <div className="flex items-center justify-between mb-2">

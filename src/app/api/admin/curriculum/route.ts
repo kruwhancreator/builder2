@@ -59,12 +59,13 @@ export async function GET(req: NextRequest) {
             return {
               id: ex.id,
               code: ex.exercise_code,
+              order_index: typeof ex.order_index === 'number' ? ex.order_index : (parseInt((ex.exercise_code || '').replace(/\D/g, ''), 10) || 1),
               title: ex.title,
               type: ex.exercise_type || 'translation',
               use_ai_check: ex.use_ai_check !== false,
               instruction: ex.instruction || '',
               guidance: ex.guidance || '',
-              categories: ex.categories || (ex.exercise_code === 'ex-2' && unit.unit_number === 1 ? (chapter1Fallback.exercises['ex-2'] as any)?.categories : null),
+              categories: ex.categories || (ex.exercise_type === 'guided_sentence' && unit.unit_number === 1 ? (chapter1Fallback.exercises['ex-2'] as any)?.categories : null),
               word_bank: ex.word_bank || null,
               itemCount: exItems.length,
               items: exItems.map(i => ({
@@ -86,14 +87,14 @@ export async function GET(req: NextRequest) {
             };
           });
 
-          // Sort exercises naturally by number (ex-1, ex-2, ex-3)
+          // Sort exercises by order_index, falling back to code number
           exercises.sort((a, b) => {
+            if (typeof a.order_index === 'number' && typeof b.order_index === 'number') {
+              if (a.order_index !== b.order_index) return a.order_index - b.order_index;
+            }
             const numA = parseInt((a.code || '').replace(/\D/g, ''), 10) || 0;
             const numB = parseInt((b.code || '').replace(/\D/g, ''), 10) || 0;
             if (numA !== numB) return numA - numB;
-            const titleA = parseInt((a.title || '').replace(/^[^\d]*/, ''), 10) || 0;
-            const titleB = parseInt((b.title || '').replace(/^[^\d]*/, ''), 10) || 0;
-            if (titleA !== titleB) return titleA - titleB;
             return (a.code || '').localeCompare(b.code || '');
           });
 
@@ -107,6 +108,7 @@ export async function GET(req: NextRequest) {
               {
                 id: 'ex-1',
                 code: 'ex-1',
+                order_index: 1,
                 title: 'Exercise 1: แปลประโยคภาษาอังกฤษ',
                 type: 'translation',
                 use_ai_check: true,
@@ -120,6 +122,7 @@ export async function GET(req: NextRequest) {
               {
                 id: 'ex-2',
                 code: 'ex-2',
+                order_index: 2,
                 title: 'Exercise 2: เลือกคำจากตารางมาแต่งประโยค',
                 type: 'guided_sentence',
                 use_ai_check: true,
@@ -133,6 +136,7 @@ export async function GET(req: NextRequest) {
               {
                 id: 'ex-3',
                 code: 'ex-3',
+                order_index: 3,
                 title: 'Exercise 3: ดูภาพแล้วแต่งประโยค (Core + Context + Connect)',
                 type: 'picture_description',
                 use_ai_check: true,
@@ -241,7 +245,7 @@ export async function POST(req: NextRequest) {
 
     // 2. SAVE EXERCISE (CREATE / EDIT EXERCISE CONFIGURATION)
     if (action === 'save_exercise') {
-      const { unit_id, unit_number, exercise_code, title, exercise_type, use_ai_check, instruction, guidance, categories: exCats } = exerciseData;
+      const { unit_id, unit_number, exercise_code, title, exercise_type, use_ai_check, instruction, guidance, categories: exCats, order_index } = exerciseData;
 
       if (!title) {
         return NextResponse.json({ error: 'กรุณากรอกชื่อแบบฝึกหัด (Exercise Title)' }, { status: 400 });
@@ -262,7 +266,7 @@ export async function POST(req: NextRequest) {
         }
 
         if (resolvedUnitId) {
-          const { error: exErr } = await supabase.from('exercises').upsert({
+          const payload: any = {
             unit_id: resolvedUnitId,
             exercise_code: generatedCode,
             title,
@@ -271,7 +275,13 @@ export async function POST(req: NextRequest) {
             instruction: instruction || null,
             guidance: guidance || null,
             categories: exCats || null
-          }, { onConflict: 'unit_id,exercise_code' });
+          };
+
+          if (typeof order_index === 'number') {
+            payload.order_index = order_index;
+          }
+
+          const { error: exErr } = await supabase.from('exercises').upsert(payload, { onConflict: 'unit_id,exercise_code' });
 
           if (exErr) {
             return NextResponse.json({ error: exErr.message }, { status: 500 });
@@ -280,6 +290,26 @@ export async function POST(req: NextRequest) {
       }
 
       return NextResponse.json({ success: true, message: `บันทึกแบบฝึกหัด "${title}" เรียบร้อยแล้ว!` });
+    }
+
+    // 2.5 REORDER EXERCISES IN UNIT
+    if (action === 'reorder_exercises') {
+      const { unit_id, exercise_orders } = body;
+
+      if (Array.isArray(exercise_orders) && isSupabaseConfigured() && supabase) {
+        let resolvedUnitId = unit_id;
+        if (resolvedUnitId && !resolvedUnitId.startsWith('unit-')) {
+          for (const item of exercise_orders) {
+            await supabase
+              .from('exercises')
+              .update({ order_index: item.order_index })
+              .eq('unit_id', resolvedUnitId)
+              .eq('exercise_code', item.exercise_code);
+          }
+        }
+      }
+
+      return NextResponse.json({ success: true, message: 'บันทึกลำดับแบบฝึกหัดใหม่เรียบร้อยแล้ว!' });
     }
 
     // 3. SAVE QUIZ ITEMS & CATEGORIES
@@ -299,17 +329,13 @@ export async function POST(req: NextRequest) {
         }
 
         if (resolvedUnitId) {
-          // If categories are passed (for guided_sentence), upsert exercises.categories
+          // If categories are passed (for guided_sentence), update exercises.categories without overwriting title or type
           if (Array.isArray(categories)) {
             const { error: catErr } = await supabase
               .from('exercises')
-              .upsert({
-                unit_id: resolvedUnitId,
-                exercise_code,
-                title: 'Exercise 2: เลือกคำจากตารางมาแต่งประโยค',
-                exercise_type: 'guided_sentence',
-                categories
-              }, { onConflict: 'unit_id,exercise_code' });
+              .update({ categories })
+              .eq('unit_id', resolvedUnitId)
+              .eq('exercise_code', exercise_code);
 
             if (catErr) {
               console.error('Error saving categories into exercises table:', catErr);

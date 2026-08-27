@@ -203,9 +203,13 @@ export async function getChapterDataFromDb(slugOrId: string = 'sentence-builder-
         ]);
 
         const exercisesConfig = (exercisesConfigRes.data || []).sort((a, b) => {
+          if (typeof a.order_index === 'number' && typeof b.order_index === 'number') {
+            if (a.order_index !== b.order_index) return a.order_index - b.order_index;
+          }
           const numA = parseInt((a.exercise_code || '').replace(/\D/g, ''), 10) || 0;
           const numB = parseInt((b.exercise_code || '').replace(/\D/g, ''), 10) || 0;
-          return numA - numB;
+          if (numA !== numB) return numA - numB;
+          return (a.exercise_code || '').localeCompare(b.exercise_code || '');
         });
         const itemsData = itemsDataRes.data;
         const exercisesObj: Record<string, any> = {};
@@ -215,13 +219,15 @@ export async function getChapterDataFromDb(slugOrId: string = 'sentence-builder-
             const exItems = (itemsData || []).filter(i => i.exercise_code === ex.exercise_code);
             exercisesObj[ex.exercise_code] = {
               id: ex.exercise_code,
+              code: ex.exercise_code,
+              order_index: typeof ex.order_index === 'number' ? ex.order_index : (parseInt((ex.exercise_code || '').replace(/\D/g, ''), 10) || 1),
               title: ex.title,
               type: ex.exercise_type || 'translation',
               use_ai_check: ex.use_ai_check !== false,
               instruction: ex.instruction,
               guidance: ex.guidance,
-              categories: ex.categories || (unitNumber === 1 ? (chapter1Fallback.exercises['ex-2'] as any)?.categories : null),
-              word_bank: ex.word_bank || (unitNumber === 1 ? (chapter1Fallback.exercises['ex-2'] as any)?.word_bank : null),
+              categories: ex.categories || (ex.exercise_type === 'guided_sentence' && unitNumber === 1 ? (chapter1Fallback.exercises['ex-2'] as any)?.categories : null),
+              word_bank: ex.word_bank || (ex.exercise_type === 'guided_sentence' && unitNumber === 1 ? (chapter1Fallback.exercises['ex-2'] as any)?.word_bank : null),
               items: exItems.map(i => ({
                 id: i.item_number,
                 thai: i.thai_prompt,

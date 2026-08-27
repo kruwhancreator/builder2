@@ -77,6 +77,7 @@ ALTER TABLE exercises ADD COLUMN IF NOT EXISTS grammar_focus TEXT;
 ALTER TABLE exercises ADD COLUMN IF NOT EXISTS categories JSONB;
 ALTER TABLE exercises ADD COLUMN IF NOT EXISTS word_bank JSONB;
 ALTER TABLE exercises ADD COLUMN IF NOT EXISTS structure_required JSONB;
+ALTER TABLE exercises ADD COLUMN IF NOT EXISTS order_index INTEGER DEFAULT 1;
 ALTER TABLE exercises ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT now();
 
 -- --------------------------------------------------------------------
