@@ -240,7 +240,7 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
       {/* DYNAMIC EXERCISES LIST (IN CUSTOM CONFIGURED ORDER) */}
       {/* ========================================================= */}
       {exercisesList.map((exercise: any, exIdx: number) => {
-        const exType = exercise.type || 'translation';
+        const exType = exercise.type || (exercise.code === 'ex-2' || (exercise.categories && exercise.categories.length > 0) || exercise.word_bank ? 'guided_sentence' : (exercise.code === 'ex-3' ? 'picture_description' : 'translation'));
         const exKeyPrefix = exercise.code || `ex_${exIdx + 1}`;
         const exCategories = getExerciseCategories(exercise);
 

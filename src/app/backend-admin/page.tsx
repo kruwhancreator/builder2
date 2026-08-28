@@ -465,13 +465,26 @@ export default function BackendAdminPage() {
       teacher_guidance: item.teacher_guidance || item.context_hint || ''
     }));
     setQuizItems(JSON.parse(JSON.stringify(rawItems)));
-    // Load and normalize categories strictly for guided_sentence type
-    if (exercise.type === 'guided_sentence') {
-      const rawCats = exercise.categories || [];
+    // Load and normalize categories for guided_sentence type (or ex-2 / existing word_bank)
+    const isGuided = exercise.type === 'guided_sentence' || exercise.code === 'ex-2' || !!exercise.categories || !!exercise.word_bank;
+    if (isGuided) {
+      let rawCats = exercise.categories;
+      if ((!rawCats || rawCats.length === 0) && exercise.word_bank) {
+        if (Array.isArray(exercise.word_bank)) {
+          rawCats = exercise.word_bank;
+        } else if (typeof exercise.word_bank === 'object') {
+          rawCats = Object.entries(exercise.word_bank).map(([key, words]: [string, any], idx) => ({
+            order: idx + 1,
+            name: key === 'action' ? 'กำลังทำอะไร' : key === 'purpose' ? 'เพื่ออะไร (to...)' : key === 'time' ? 'เมื่อไหร่' : key === 'reason' ? 'เพราะอะไร (because...)' : key,
+            words: Array.isArray(words) ? words : []
+          }));
+        }
+      }
+
       const normalizedCats = Array.isArray(rawCats) && rawCats.length > 0
         ? rawCats.map((c: any, cIdx: number) => ({
             order: c.order || cIdx + 1,
-            name: c.name || c.category_name || `ช่องที่ ${c.order || cIdx + 1}`,
+            name: c.name || c.category_name || `หมวดที่ ${c.order || cIdx + 1}`,
             words: (c.words || c.word_bank || []).map((w: any, wIdx: number) => {
               const defaultId = `${c.order || cIdx + 1}${String.fromCharCode(97 + wIdx)}`;
               if (typeof w === 'string') {
@@ -749,7 +762,7 @@ export default function BackendAdminPage() {
     setIsSavingQuiz(true);
 
     try {
-      const isGuided = currentQuizExercise.exercise.type === 'guided_sentence';
+      const isGuided = currentQuizExercise.exercise.type === 'guided_sentence' || currentQuizExercise.exercise.code === 'ex-2' || quizCategories.length > 0;
       const cleanedItems = quizItems.map(item => {
         const blankRegex = /_{2,}/g;
         const slotCount = Math.max(1, (item.prompt || '').match(blankRegex)?.length || 1);

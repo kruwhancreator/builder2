@@ -217,17 +217,18 @@ export async function getChapterDataFromDb(slugOrId: string = 'sentence-builder-
         if (exercisesConfig && exercisesConfig.length > 0) {
           exercisesConfig.forEach(ex => {
             const exItems = (itemsData || []).filter(i => i.exercise_code === ex.exercise_code);
+            const inferredType = ex.exercise_type || (ex.exercise_code === 'ex-2' || ex.categories || ex.word_bank ? 'guided_sentence' : (ex.exercise_code === 'ex-3' ? 'picture_description' : 'translation'));
             exercisesObj[ex.exercise_code] = {
               id: ex.exercise_code,
               code: ex.exercise_code,
               order_index: typeof ex.order_index === 'number' ? ex.order_index : (parseInt((ex.exercise_code || '').replace(/\D/g, ''), 10) || 1),
               title: ex.title,
-              type: ex.exercise_type || 'translation',
+              type: inferredType,
               use_ai_check: ex.use_ai_check !== false,
               instruction: ex.instruction,
               guidance: ex.guidance,
-              categories: ex.categories || (ex.exercise_type === 'guided_sentence' && unitNumber === 1 ? (chapter1Fallback.exercises['ex-2'] as any)?.categories : null),
-              word_bank: ex.word_bank || (ex.exercise_type === 'guided_sentence' && unitNumber === 1 ? (chapter1Fallback.exercises['ex-2'] as any)?.word_bank : null),
+              categories: ex.categories || (unitNumber === 1 && (inferredType === 'guided_sentence' || ex.exercise_code === 'ex-2') ? (chapter1Fallback.exercises['ex-2'] as any)?.categories : null),
+              word_bank: ex.word_bank || (unitNumber === 1 && (inferredType === 'guided_sentence' || ex.exercise_code === 'ex-2') ? (chapter1Fallback.exercises['ex-2'] as any)?.word_bank : null),
               items: exItems.map(i => ({
                 id: i.item_number,
                 thai: i.thai_prompt,

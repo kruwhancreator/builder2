@@ -56,17 +56,18 @@ export async function GET(req: NextRequest) {
 
           let exercises = unitExercises.map(ex => {
             const exItems = unitItems.filter(i => i.exercise_code === ex.exercise_code);
+            const inferredType = ex.exercise_type || (ex.exercise_code === 'ex-2' || ex.categories || ex.word_bank ? 'guided_sentence' : (ex.exercise_code === 'ex-3' ? 'picture_description' : 'translation'));
             return {
               id: ex.id,
               code: ex.exercise_code,
               order_index: typeof ex.order_index === 'number' ? ex.order_index : (parseInt((ex.exercise_code || '').replace(/\D/g, ''), 10) || 1),
               title: ex.title,
-              type: ex.exercise_type || 'translation',
+              type: inferredType,
               use_ai_check: ex.use_ai_check !== false,
               instruction: ex.instruction || '',
               guidance: ex.guidance || '',
-              categories: ex.categories || (ex.exercise_type === 'guided_sentence' && unit.unit_number === 1 ? (chapter1Fallback.exercises['ex-2'] as any)?.categories : null),
-              word_bank: ex.word_bank || null,
+              categories: ex.categories || (unit.unit_number === 1 && (inferredType === 'guided_sentence' || ex.exercise_code === 'ex-2') ? (chapter1Fallback.exercises['ex-2'] as any)?.categories : null),
+              word_bank: ex.word_bank || (unit.unit_number === 1 && (inferredType === 'guided_sentence' || ex.exercise_code === 'ex-2') ? (chapter1Fallback.exercises['ex-2'] as any)?.word_bank : null),
               itemCount: exItems.length,
               items: exItems.map(i => ({
                 id: i.item_number,
@@ -340,16 +341,34 @@ export async function POST(req: NextRequest) {
         }
 
         if (resolvedUnitId) {
-          // If categories are passed (for guided_sentence), update exercises.categories without overwriting title or type
+          // If categories are passed (for guided_sentence), update exercises.categories or upsert if not exists
           if (Array.isArray(categories)) {
-            const { error: catErr } = await supabase
+            const { data: existingEx } = await supabase
               .from('exercises')
-              .update({ categories })
+              .select('id, title, exercise_type')
               .eq('unit_id', resolvedUnitId)
-              .eq('exercise_code', exercise_code);
+              .eq('exercise_code', exercise_code)
+              .maybeSingle();
 
-            if (catErr) {
-              console.error('Error saving categories into exercises table:', catErr);
+            if (existingEx) {
+              await supabase
+                .from('exercises')
+                .update({ 
+                  categories, 
+                  exercise_type: existingEx.exercise_type || 'guided_sentence' 
+                })
+                .eq('unit_id', resolvedUnitId)
+                .eq('exercise_code', exercise_code);
+            } else {
+              await supabase
+                .from('exercises')
+                .upsert({
+                  unit_id: resolvedUnitId,
+                  exercise_code,
+                  title: 'Exercise 2: เลือกคำจากตารางมาแต่งประโยค',
+                  exercise_type: 'guided_sentence',
+                  categories
+                }, { onConflict: 'unit_id,exercise_code' });
             }
           }
 
