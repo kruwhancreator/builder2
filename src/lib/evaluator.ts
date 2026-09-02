@@ -86,17 +86,30 @@ UNIVERSAL PEDAGOGICAL EVALUATION FRAMEWORK:
    - Auxiliary Verbs: Catch redundant verbs like 'I'm am'.
    - Determiners: Do not claim determiners are missing if 'the', 'a', 'an', or 'my' is already used (e.g. 'the lesson' is correct).
 
-4. WHEN STUDENT ANSWER IS CORRECT (100% Valid & Meaningful):
+4. CHARACTER GENDER & SEX ACCURACY IN PICTURE DESCRIPTION (STRICT):
+   - Check the sex/gender of the character depicted in the "Picture Description & Scene Context Prompt" or reference example.
+   - "I" IS ALWAYS ACCEPTABLE: If the student builds the sentence using first-person "I" / "I am" / "I'm" / "I do", this is 100% valid (first-person perspective imagining themselves as the character).
+   - THIRD-PERSON PRONOUNS MUST MATCH THE CHARACTER'S GENDER (CRITICAL):
+     * If the character in the picture is MALE (boy, man, father, brother, guy, son, male) and the student uses third-person FEMALE pronouns ("she", "her", "hers", "herself"):
+       - This MUST BE MARKED AS INCORRECT (isCorrect: false).
+       - statusText: "💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ"
+       - In feedbackPoints, strictly advise: "• ตัวละครในภาพเป็นผู้ชาย/เด็กผู้ชาย ควรใช้สรรพนาม 'he' (หรือใช้ 'I' หากแต่งประโยคจากมุมมองของตัวเอง) นะคะ ไม่ใช้ 'she' ค่ะ"
+     * If the character in the picture is FEMALE (girl, woman, mother, sister, lady, daughter, female) and the student uses third-person MALE pronouns ("he", "him", "his", "himself"):
+       - This MUST BE MARKED AS INCORRECT (isCorrect: false).
+       - statusText: "💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ"
+       - In feedbackPoints, strictly advise: "• ตัวละครในภาพเป็นผู้หญิง/เด็กผู้หญิง ควรใช้สรรพนาม 'she' (หรือใช้ 'I' หากแต่งประโยคจากมุมมองของตัวเอง) นะคะ ไม่ใช้ 'he' ค่ะ"
+
+5. WHEN STUDENT ANSWER IS CORRECT (100% Valid & Meaningful):
    - Set "isCorrect": true
    - Set "statusText": "ถูกต้องเลยค่ะ เก่งมากเลย 👏"
    - In "feedbackPoints", praise the student, highlight how well their sentence fulfills the structure formula, and note how well it fits the visual scene.
 
-5. WHEN STUDENT ANSWER NEEDS IMPROVEMENT:
+6. WHEN STUDENT ANSWER NEEDS IMPROVEMENT:
    - Set "isCorrect": false
    - Set "statusText": "💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ"
-   - In "feedbackPoints", clearly explain the grammar/POS/auxiliary issue with teacher guidance, provide gentle tips on natural usage, and encourage them.
+   - In "feedbackPoints", clearly explain the grammar/POS/gender/auxiliary issue with teacher guidance, provide gentle tips on natural usage, and encourage them.
 
-6. THAI TRANSLATION & RECOMMENDED SENTENCE:
+7. THAI TRANSLATION & RECOMMENDED SENTENCE:
    - "studentTranslation": Provide an accurate, natural Thai translation of what the student literally typed.
    - "correctedSentence": Provide a natural, native-level sentence that perfectly follows the target formula for this quiz.
 
@@ -153,11 +166,15 @@ Student Answer to Evaluate: "${req.studentAnswer}"
 
 Evaluation Steps for this Quiz:
 1. Translate what the student wrote into natural Thai and return it in "studentTranslation".
-2. Check if the sentence adheres to the specific Teacher Pattern & Structure Rules (Core + Context + Connect).
-3. Analyze grammar, vocabulary, parts of speech, and connection with the image prompt. Use the reference example sentence for guidance.
-4. If the sentence is grammatically correct and logically matches the image, set isCorrect: true, statusText: "ถูกต้องเลยค่ะ เก่งมากเลย 👏", and praise their sentence in feedbackPoints.
-5. If there are errors (e.g. double verbs like "I'm am", noun instead of adjective), explain kindly in feedbackPoints and provide the best corrected sentence in "correctedSentence".
-6. Use Kru Whan's female polite tone (ค่ะ/นะคะ/เลยค่ะ) throughout all feedbackPoints.`;
+2. STRICT CHARACTER GENDER & PRONOUN VERIFICATION:
+   - "I" / "I am" / "I'm" / "I do" is ALWAYS acceptable and correct (first-person perspective).
+   - If the character depicted in the picture/context is MALE and student wrote "she", "her", or feminine pronouns: MUST mark isCorrect: false, and advise that the character is male so should use "he" (or "I") instead of "she".
+   - If the character depicted in the picture/context is FEMALE and student wrote "he", "his", "him", or masculine pronouns: MUST mark isCorrect: false, and advise that the character is female so should use "she" (or "I") instead of "he".
+3. Check if the sentence adheres to the specific Teacher Pattern & Structure Rules (Core + Context + Connect).
+4. Analyze grammar, vocabulary, parts of speech, and connection with the image prompt. Use the reference example sentence for guidance.
+5. If the sentence is grammatically correct and logically matches the image and gender, set isCorrect: true, statusText: "ถูกต้องเลยค่ะ เก่งมากเลย 👏", and praise their sentence in feedbackPoints.
+6. If there are errors (gender mismatch, double verbs like "I'm am", noun instead of adjective), explain kindly in feedbackPoints using the term "นักเรียน" and provide the best corrected sentence in "correctedSentence".
+7. Use Kru Whan's female polite tone (ค่ะ/นะคะ/เลยค่ะ) throughout all feedbackPoints.`;
   }
 
   const modelsToTry = [
@@ -219,16 +236,44 @@ Evaluation Steps for this Quiz:
     finalCorrectedSentence = req.item.model_answer;
   }
 
-  const isCorrect = typeof parsed.isCorrect === 'boolean'
+  let isCorrect = typeof parsed.isCorrect === 'boolean'
     ? parsed.isCorrect
     : (typeof parsed.score === 'number' ? parsed.score >= 95 : !parsed.statusText?.includes('ไม่สมบูรณ์'));
 
   const rawFeedbackPoints: string[] = Array.isArray(parsed.feedbackPoints) ? parsed.feedbackPoints : [];
-  const sanitizedFeedbackPoints = rawFeedbackPoints.map(pt => sanitizeThaiStudentPronouns(pt));
+  let sanitizedFeedbackPoints = rawFeedbackPoints.map(pt => sanitizeThaiStudentPronouns(pt));
+
+  // Strict Character Gender Verification for Picture Description (Exercise 3)
+  if (req.exerciseType === 'picture_description') {
+    const contextText = `${req.item.image_description || ''} ${req.item.model_answer || ''} ${req.item.context_hint || ''} ${req.item.teacher_guidance || ''}`.toLowerCase();
+    const studentTokens = ` ${req.studentAnswer.toLowerCase()} `;
+
+    const isMaleContext = /\b(boy|man|male|he|his|him|father|brother|guy|gentleman|son|grandpa|grandfather)\b/i.test(contextText) ||
+                          /(ผู้ชาย|เด็กผู้ชาย|เด็กชาย|ชาย|คุณพ่อ|พ่อ|พี่ชาย|น้องชาย|ลูกชาย|คุณตา|คุณปู่|ตา|ปู่)/.test(contextText);
+    const isFemaleContext = /\b(girl|woman|female|she|her|hers|mother|sister|lady|daughter|grandma|grandmother)\b/i.test(contextText) ||
+                            /(ผู้หญิง|เด็กผู้หญิง|เด็กหญิง|หญิง|คุณแม่|แม่|พี่สาว|น้องสาว|ลูกสาว|คุณยาย|คุณย่า|ยาย|ย่า)/.test(contextText);
+
+    const studentUsesFemale = /\b(she|her|hers|herself)\b/i.test(studentTokens);
+    const studentUsesMale = /\b(he|him|his|himself)\b/i.test(studentTokens);
+
+    if (isMaleContext && !isFemaleContext && studentUsesFemale) {
+      isCorrect = false;
+      const genderNotice = '• ตัวละครในภาพเป็นผู้ชาย ควรใช้สรรพนาม "he" (หรือใช้ "I" หากแต่งประโยคจากมุมมองของตัวเอง) นะคะ ไม่ใช้ "she" ค่ะ';
+      if (!sanitizedFeedbackPoints.some(pt => pt.includes('ผู้ชาย') || (pt.includes('he') && pt.includes('she')))) {
+        sanitizedFeedbackPoints = [genderNotice, ...sanitizedFeedbackPoints];
+      }
+    } else if (isFemaleContext && !isMaleContext && studentUsesMale) {
+      isCorrect = false;
+      const genderNotice = '• ตัวละครในภาพเป็นผู้หญิง ควรใช้สรรพนาม "she" (หรือใช้ "I" หากแต่งประโยคจากมุมมองของตัวเอง) นะคะ ไม่ใช้ "he" ค่ะ';
+      if (!sanitizedFeedbackPoints.some(pt => pt.includes('ผู้หญิง') || (pt.includes('she') && pt.includes('he')))) {
+        sanitizedFeedbackPoints = [genderNotice, ...sanitizedFeedbackPoints];
+      }
+    }
+  }
 
   return {
     isCorrect,
-    score: isCorrect ? 100 : (typeof parsed.score === 'number' ? parsed.score : 60),
+    score: isCorrect ? 100 : (typeof parsed.score === 'number' && isCorrect ? parsed.score : 60),
     statusText: sanitizeThaiStudentPronouns(isCorrect ? 'ถูกต้องเลยค่ะ เก่งมากเลย 👏' : (parsed.statusText || '💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ')),
     studentTranslation: sanitizeThaiStudentPronouns(parsed.studentTranslation || ''),
     correctedSentence: finalCorrectedSentence,
@@ -366,7 +411,27 @@ function evaluatePictureDescriptionLocally(item: any, lower: string, original: s
     fixedSentence = fixedSentence + '.';
   }
 
-  const hasCore = /\b(i do|i am|he does|she does|i have|i will)\b/i.test(normalizedLower);
+  // Character gender check in picture context
+  const contextText = `${item.image_description || ''} ${item.model_answer || ''} ${item.context_hint || ''} ${item.teacher_guidance || ''}`.toLowerCase();
+  const studentTokens = ` ${normalizedLower} `;
+
+  const isMaleContext = /\b(boy|man|male|he|his|him|father|brother|guy|gentleman|son|grandpa|grandfather)\b/i.test(contextText) ||
+                        /(ผู้ชาย|เด็กผู้ชาย|เด็กชาย|ชาย|คุณพ่อ|พ่อ|พี่ชาย|น้องชาย|ลูกชาย|คุณตา|คุณปู่|ตา|ปู่)/.test(contextText);
+  const isFemaleContext = /\b(girl|woman|female|she|her|hers|mother|sister|lady|daughter|grandma|grandmother)\b/i.test(contextText) ||
+                          /(ผู้หญิง|เด็กผู้หญิง|เด็กหญิง|หญิง|คุณแม่|แม่|พี่สาว|น้องสาว|ลูกสาว|คุณยาย|คุณย่า|ยาย|ย่า)/.test(contextText);
+
+  const studentUsesFemale = /\b(she|her|hers|herself)\b/i.test(studentTokens);
+  const studentUsesMale = /\b(he|him|his|himself)\b/i.test(studentTokens);
+
+  if (isMaleContext && !isFemaleContext && studentUsesFemale) {
+    isCorrect = false;
+    points.push('• ตัวละครในภาพเป็นผู้ชาย ควรใช้สรรพนาม "he" (หรือใช้ "I" หากแต่งประโยคจากมุมมองของตัวเอง) นะคะ ไม่ใช้ "she" ค่ะ');
+  } else if (isFemaleContext && !isMaleContext && studentUsesMale) {
+    isCorrect = false;
+    points.push('• ตัวละครในภาพเป็นผู้หญิง ควรใช้สรรพนาม "she" (หรือใช้ "I" หากแต่งประโยคจากมุมมองของตัวเอง) นะคะ ไม่ใช้ "he" ค่ะ');
+  }
+
+  const hasCore = /\b(i do|i am|he does|she does|i have|i will|he is|she is)\b/i.test(normalizedLower);
   const hasContext = /\b(to\s+\w+|at|in|on)\b/i.test(normalizedLower);
   const hasConnect = /\b(even when|because|when|although)\b/i.test(normalizedLower);
 
@@ -374,7 +439,7 @@ function evaluatePictureDescriptionLocally(item: any, lower: string, original: s
     points.push('• โครงสร้าง Core (I do...) ถูกต้องค่ะ');
   } else {
     isCorrect = false;
-    points.push('• ขาดโครงสร้าง Core (เช่น I do + กริยาไม่ผัน)');
+    points.push('• ขาดโครงสร้าง Core (เช่น I do + กริยาไม่ผัน หรือ He does / She does)');
   }
 
   if (hasContext) {
