@@ -99,17 +99,36 @@ UNIVERSAL PEDAGOGICAL EVALUATION FRAMEWORK:
        - statusText: "💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ"
        - In feedbackPoints, strictly advise: "• ตัวละครในภาพเป็นผู้หญิง/เด็กผู้หญิง ควรใช้สรรพนาม 'she' (หรือใช้ 'I' หากแต่งประโยคจากมุมมองของตัวเอง) นะคะ ไม่ใช้ 'he' ค่ะ"
 
-5. WHEN STUDENT ANSWER IS CORRECT (100% Valid & Meaningful):
+5. ACCURACY OF IMAGE ELEMENTS, OBJECTS & ENTITIES (STRICT VISUAL MATCHING):
+   - Verify that all key subjects, objects, animals, actions, and settings mentioned by the student match what is depicted in the "Picture Description & Scene Context Prompt" or the reference visual context.
+   - If the image contains a specific entity and the student mentions an incorrect or conflicting entity (for example: image shows a DOG, but student writes "cat"; image shows COFFEE, but student writes "soup"; image shows a BICYCLE, but student writes "car"; image shows a HAIRCUT, but student writes "cooking"):
+     * MUST mark as INCORRECT (isCorrect: false).
+     * Set statusText: "💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ".
+     * In feedbackPoints, explicitly explain the visual mismatch in Thai using Kru Whan female polite tone (ค่ะ/นะคะ) and the pronoun "นักเรียน":
+       e.g., "• ในภาพเป็นสุนัข (dog) ไม่ใช่แมว (cat) นะคะ นักเรียนลองปรับคำศัพท์ให้ตรงกับสิ่งที่เกิดขึ้นในภาพดูนะคะ"
+
+6. REAL-WORLD PLAUSIBILITY & LOGICAL REALITY CHECK (CRITICAL):
+   - Even if the grammar and sentence structure formula are technically 100% correct, the sentence MUST describe a situation that is possible, natural, and realistic in real life.
+   - If an action, habit, frequency, or circumstance contradicts reality, common sense, or human nature:
+     * For example: "I have my hair cut everyday after I leave for work" -> Getting a haircut every single day is not realistic or common practice in real life!
+     * For example: Eating 30 meals a day, drinking boiling lava, walking to the moon after work, brushing teeth every minute, etc.
+     * When the sentence describes an unrealistic or impossible habit/frequency/action:
+       - MUST mark as INCORRECT (isCorrect: false).
+       - Set statusText: "💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ".
+       - In feedbackPoints, kindly explain the real-world implausibility in Thai and suggest a realistic, natural alternative:
+         e.g., "• แม้โครงสร้างประโยคจะถูกต้อง แต่การตัดผมทุกวัน (every day) อาจไม่สอดคล้องกับความเป็นจริงในชีวิตประจำวันนะคะ นักเรียนสามารถปรับความถี่หรือช่วงเวลาให้สมจริงยิ่งขึ้น เช่น 'once a month' หรือ 'every few weeks' ได้ค่ะ"
+
+7. WHEN STUDENT ANSWER IS CORRECT (100% Valid & Meaningful):
    - Set "isCorrect": true
    - Set "statusText": "ถูกต้องเลยค่ะ เก่งมากเลย 👏"
    - In "feedbackPoints", praise the student, highlight how well their sentence fulfills the structure formula, and note how well it fits the visual scene.
 
-6. WHEN STUDENT ANSWER NEEDS IMPROVEMENT:
+8. WHEN STUDENT ANSWER NEEDS IMPROVEMENT:
    - Set "isCorrect": false
    - Set "statusText": "💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ"
-   - In "feedbackPoints", clearly explain the grammar/POS/gender/auxiliary issue with teacher guidance, provide gentle tips on natural usage, and encourage them.
+   - In "feedbackPoints", clearly explain the grammar/POS/gender/entity/reality issue with teacher guidance, provide gentle tips on natural usage, and encourage them.
 
-7. THAI TRANSLATION & RECOMMENDED SENTENCE:
+9. THAI TRANSLATION & RECOMMENDED SENTENCE:
    - "studentTranslation": Provide an accurate, natural Thai translation of what the student literally typed.
    - "correctedSentence": Provide a natural, native-level sentence that perfectly follows the target formula for this quiz.
 
@@ -170,11 +189,20 @@ Evaluation Steps for this Quiz:
    - "I" / "I am" / "I'm" / "I do" is ALWAYS acceptable and correct (first-person perspective).
    - If the character depicted in the picture/context is MALE and student wrote "she", "her", or feminine pronouns: MUST mark isCorrect: false, and advise that the character is male so should use "he" (or "I") instead of "she".
    - If the character depicted in the picture/context is FEMALE and student wrote "he", "his", "him", or masculine pronouns: MUST mark isCorrect: false, and advise that the character is female so should use "she" (or "I") instead of "he".
-3. Check if the sentence adheres to the specific Teacher Pattern & Structure Rules (Core + Context + Connect).
-4. Analyze grammar, vocabulary, parts of speech, and connection with the image prompt. Use the reference example sentence for guidance.
-5. If the sentence is grammatically correct and logically matches the image and gender, set isCorrect: true, statusText: "ถูกต้องเลยค่ะ เก่งมากเลย 👏", and praise their sentence in feedbackPoints.
-6. If there are errors (gender mismatch, double verbs like "I'm am", noun instead of adjective), explain kindly in feedbackPoints using the term "นักเรียน" and provide the best corrected sentence in "correctedSentence".
-7. Use Kru Whan's female polite tone (ค่ะ/นะคะ/เลยค่ะ) throughout all feedbackPoints.`;
+3. STRICT IMAGE ELEMENT & ENTITY VERIFICATION:
+   - Check that the animals, objects, actions, and settings in the student's answer match the picture context ("${req.item.image_description || ''}").
+   - If image has a dog and student writes "cat", image has coffee and student writes "wine", image has haircut and student writes "swimming" -> MUST mark isCorrect: false, statusText: "💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ", and advise in feedbackPoints that the image shows [element in picture] not [student's word].
+4. STRICT REAL-WORLD PLAUSIBILITY & COMMON SENSE CHECK:
+   - Even if grammar is correct, the sentence MUST be reasonable, plausible, and possible in real life!
+   - If student writes an unrealistic habit or frequency (e.g. "I have my hair cut everyday...", "I wash my car every 10 minutes...", "I eat dinner 10 times a night..."):
+     * MUST mark isCorrect: false.
+     * statusText: "💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ".
+     * In feedbackPoints, explain kindly that this frequency/action is not realistic in everyday life, and suggest a plausible alternative (e.g. once a month, on weekends).
+5. Check if the sentence adheres to the specific Teacher Pattern & Structure Rules (Core + Context + Connect).
+6. Analyze grammar, vocabulary, parts of speech, and connection with the image prompt. Use the reference example sentence for guidance.
+7. If the sentence is grammatically correct, logically matches the image elements and gender, and is plausible in real life, set isCorrect: true, statusText: "ถูกต้องเลยค่ะ เก่งมากเลย 👏", and praise their sentence in feedbackPoints.
+8. If there are errors (unrealistic habit, entity mismatch, gender mismatch, double verbs like "I'm am", noun instead of adjective), explain kindly in feedbackPoints using the term "นักเรียน" and provide the best corrected sentence in "correctedSentence".
+9. Use Kru Whan's female polite tone (ค่ะ/นะคะ/เลยค่ะ) throughout all feedbackPoints.`;
   }
 
   const modelsToTry = [
@@ -429,6 +457,14 @@ function evaluatePictureDescriptionLocally(item: any, lower: string, original: s
   } else if (isFemaleContext && !isMaleContext && studentUsesMale) {
     isCorrect = false;
     points.push('• ตัวละครในภาพเป็นผู้หญิง ควรใช้สรรพนาม "she" (หรือใช้ "I" หากแต่งประโยคจากมุมมองของตัวเอง) นะคะ ไม่ใช้ "he" ค่ะ');
+  }
+
+  // Real-world plausibility check (e.g. haircut everyday)
+  const isHaircut = /\b(hair\s*cut|cut\s+.*hair)\b/i.test(normalizedLower);
+  const isEveryday = /\b(every\s*day|daily|everyday)\b/i.test(normalizedLower);
+  if (isHaircut && isEveryday) {
+    isCorrect = false;
+    points.push('• แม้โครงสร้างประโยคจะถูกต้อง แต่การตัดผมทุกวัน (every day) อาจไม่สอดคล้องกับความเป็นจริงในชีวิตประจำวันนะคะ นักเรียนสามารถปรับความถี่ให้สมจริงยิ่งขึ้น เช่น "once a month" หรือ "every few weeks" ได้ค่ะ');
   }
 
   const hasCore = /\b(i do|i am|he does|she does|i have|i will|he is|she is)\b/i.test(normalizedLower);
