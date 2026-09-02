@@ -481,7 +481,6 @@ export function checkGuidedSentenceExercise(
       isCorrect: false,
       message: 'ประโยคยังไม่สมบูรณ์ตามโครงสร้างในหนังสือนะคะ ลองใหม่อีกครั้งค่ะ',
       points: [
-        '• ลำดับโครงสร้างของประโยคสลับตำแหน่งกันค่ะ',
         '• เช็ค คำในหนังสือ / การสะกดคำ / วรรคตอน / full stop / ความสอดคล้องของความหมาย นะคะ'
       ]
     };
@@ -506,25 +505,10 @@ export function checkGuidedSentenceExercise(
     }
 
     if (!isPairValid) {
-      const nextCat = parsedCategories.find(c => c.order === nextWord.order);
-      let allowedNames: string[] = [];
-      if (currentWord.next_valid_ids && nextCat) {
-        allowedNames = nextCat.words
-          .filter(w => currentWord.next_valid_ids!.includes(w.id))
-          .map(w => `"${w.en}" (${w.th})`);
-      } else if (nextCat) {
-        const partner = nextCat.words.find(w => w.index === currentWord.index);
-        if (partner) allowedNames.push(`"${partner.en}" (${partner.th})`);
-      }
-
       return {
         isCorrect: false,
-        message: 'โครงสร้างประโยคถูกต้องแล้วค่ะ แต่ความหมายยังไม่สอดคล้องกันนะคะ',
+        message: 'ประโยคยังไม่สมบูรณ์ตามโครงสร้างในหนังสือนะคะ ลองใหม่อีกครั้งค่ะ',
         points: [
-          `• การเลือก "${currentWord.en}" (${currentWord.th}) ไม่สอดคล้องกับ "${nextWord.en}" (${nextWord.th}) ในบริบทนี้ค่ะ`,
-          allowedNames.length > 0 
-            ? `• คำว่า "${currentWord.en}" สามารถจับคู่กับ: ${allowedNames.join(' หรือ ')} ได้ค่ะ`
-            : `• ลองทบทวนการจับคู่ความหมายระหว่างคำศัพท์ดูอีกครั้งนะคะ`,
           '• เช็ค คำในหนังสือ / การสะกดคำ / วรรคตอน / full stop / ความสอดคล้องของความหมาย นะคะ'
         ]
       };
