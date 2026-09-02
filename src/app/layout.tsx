@@ -3,7 +3,7 @@ import "./globals.css";
 import { HeaderWrapper, FooterWrapper } from "@/components/NavbarWrapper";
 
 export const metadata: Metadata = {
-  title: "ระบบเฉลยและตรวจแบบฝึกหัด | Sentence Builder โดย ครูหวาน",
+  title: "เฉลยแบบฝึกหัด | ครูหวาน English On Air",
   description: "ระบบเฉลยและตรวจแบบฝึกหัดภาษาอังกฤษ Sentence Builder โดย ครูหวาน อิงลิช ออน แอร์",
   icons: {
     icon: [
