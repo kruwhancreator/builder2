@@ -452,7 +452,7 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                         {currentConstructed && (
                           <div className="constructed-preview mt-4 pt-3.5 border-t border-slate-100 flex items-center gap-2">
                             <span className="text-xs font-bold text-slate-400 uppercase shrink-0">
-                              ประโยคของคุณ:
+                              ประโยคของนักเรียน:
                             </span>
                             <span className="font-mono text-xs sm:text-sm font-bold text-[#1e3a8a] break-all bg-blue-50/60 px-3 py-1.5 rounded-xl border border-blue-200/60 flex-1">
                               {currentConstructed}
@@ -705,7 +705,7 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                           {/* 📖 คำแปลประโยคของนักเรียน */}
                           {fb.studentTranslation && (
                             <div className="feedback-student-translation my-2 p-2.5 bg-white/95 rounded-lg border border-slate-200 text-xs sm:text-sm">
-                              <span className="font-bold text-slate-800">📖 คำแปลประโยคของคุณ:</span>
+                              <span className="font-bold text-slate-800">📖 คำแปลประโยคของนักเรียน:</span>
                               <span className="ml-1.5 text-slate-700 font-medium">"{fb.studentTranslation}"</span>
                             </div>
                           )}

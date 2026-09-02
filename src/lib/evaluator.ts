@@ -51,10 +51,13 @@ async function evaluateWithGemini(apiKey: string, req: EvaluationRequest): Promi
 You will evaluate thousands of different quizzes across various books, units, and grammar formulas.
 Your mission is to provide accurate, pedagogical, encouraging, and insightful feedback in Thai tailored strictly to the SPECIFIC grammar rules, formulas, reference examples, and visual context provided in each individual quiz prompt.
 
-TONE & POLITE PARTICLES (STRICT):
+TONE, POLITE PARTICLES & PRONOUNS (STRICT RULES):
 - ALWAYS speak as Kru Whan (female teacher persona).
 - ALWAYS use female polite ending particles: "ค่ะ", "นะคะ", "เลยค่ะ".
 - NEVER EVER use male polite particles ("ครับ", "นะครับ").
+- ADDRESSING THE USER (CRITICAL):
+  * ALWAYS refer to the user/student as "นักเรียน" (e.g. "ประโยคของนักเรียน", "นักเรียนเลือกคำศัพท์ได้ดีมากค่ะ", "นักเรียนลองปรับ...", "คำแปลประโยคของนักเรียน").
+  * NEVER EVER use "น้อง", "น้องๆ", "ลูกค้า", "ท่าน", or "คุณ".
 - Deliver clear, friendly, and structured bullet points (2 to 4 points).
 
 UNIVERSAL PEDAGOGICAL EVALUATION FRAMEWORK:
@@ -220,16 +223,39 @@ Evaluation Steps for this Quiz:
     ? parsed.isCorrect
     : (typeof parsed.score === 'number' ? parsed.score >= 95 : !parsed.statusText?.includes('ไม่สมบูรณ์'));
 
+  const rawFeedbackPoints: string[] = Array.isArray(parsed.feedbackPoints) ? parsed.feedbackPoints : [];
+  const sanitizedFeedbackPoints = rawFeedbackPoints.map(pt => sanitizeThaiStudentPronouns(pt));
+
   return {
     isCorrect,
     score: isCorrect ? 100 : (typeof parsed.score === 'number' ? parsed.score : 60),
-    statusText: isCorrect ? 'ถูกต้องเลยค่ะ เก่งมากเลย 👏' : (parsed.statusText || '💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ'),
-    studentTranslation: parsed.studentTranslation || '',
+    statusText: sanitizeThaiStudentPronouns(isCorrect ? 'ถูกต้องเลยค่ะ เก่งมากเลย 👏' : (parsed.statusText || '💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ')),
+    studentTranslation: sanitizeThaiStudentPronouns(parsed.studentTranslation || ''),
     correctedSentence: finalCorrectedSentence,
-    feedbackPoints: Array.isArray(parsed.feedbackPoints) ? parsed.feedbackPoints : [],
+    feedbackPoints: sanitizedFeedbackPoints,
     breakdown: cleanBreakdown,
     modelUsed: successfulModel
   };
+}
+
+/**
+ * Sanitizes Thai pronouns to strictly use "นักเรียน" instead of "น้อง", "น้องๆ", "ลูกค้า", or "คุณ"
+ */
+function sanitizeThaiStudentPronouns(text: string): string {
+  if (!text) return '';
+  return text
+    .replace(/น้องๆ/g, 'นักเรียน')
+    .replace(/น้อง/g, 'นักเรียน')
+    .replace(/ลูกค้า/g, 'นักเรียน')
+    .replace(/ประโยคของคุณ/g, 'ประโยคของนักเรียน')
+    .replace(/คำตอบของคุณ/g, 'คำตอบของนักเรียน')
+    .replace(/ของคุณ/g, 'ของนักเรียน')
+    .replace(/กับคุณ/g, 'กับนักเรียน')
+    .replace(/ให้คุณ/g, 'ให้นักเรียน')
+    .replace(/ว่าคุณ/g, 'ว่านักเรียน')
+    .replace(/ถ้าคุณ/g, 'ถ้านักเรียน')
+    .replace(/เมื่อคุณ/g, 'เมื่อนักเรียน')
+    .replace(/คุณ/g, 'นักเรียน');
 }
 
 function evaluateLocally(req: EvaluationRequest): EvaluationResult {
