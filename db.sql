@@ -122,22 +122,36 @@ ALTER TABLE exercise_items ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAU
 ALTER TABLE exercise_items ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now();
 
 -- --------------------------------------------------------------------
--- 5. ANALYTICS TABLES (QR Scan & Unit Completion Tracking)
+-- 5. ANALYTICS TABLES (QR Scan, Unit Completion & Learning Analytics)
 -- --------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS book_analytics (
-  book_name TEXT PRIMARY KEY REFERENCES books(id) ON DELETE CASCADE,
+  book_name TEXT PRIMARY KEY,
   qr_scan_count BIGINT DEFAULT 0,
+  ai_check_count BIGINT DEFAULT 0,
+  correct_check_count BIGINT DEFAULT 0,
   last_scanned_at TIMESTAMPTZ DEFAULT now()
 );
 
+ALTER TABLE book_analytics ADD COLUMN IF NOT EXISTS qr_scan_count BIGINT DEFAULT 0;
+ALTER TABLE book_analytics ADD COLUMN IF NOT EXISTS ai_check_count BIGINT DEFAULT 0;
+ALTER TABLE book_analytics ADD COLUMN IF NOT EXISTS correct_check_count BIGINT DEFAULT 0;
+ALTER TABLE book_analytics ADD COLUMN IF NOT EXISTS last_scanned_at TIMESTAMPTZ DEFAULT now();
+
 CREATE TABLE IF NOT EXISTS unit_analytics (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  book_name TEXT NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+  book_name TEXT NOT NULL,
   unit_number INT NOT NULL,
   view_count BIGINT DEFAULT 0,
+  check_count BIGINT DEFAULT 0,
+  correct_count BIGINT DEFAULT 0,
   last_viewed_at TIMESTAMPTZ DEFAULT now(),
   CONSTRAINT unique_book_unit_analytics UNIQUE (book_name, unit_number)
 );
+
+ALTER TABLE unit_analytics ADD COLUMN IF NOT EXISTS view_count BIGINT DEFAULT 0;
+ALTER TABLE unit_analytics ADD COLUMN IF NOT EXISTS check_count BIGINT DEFAULT 0;
+ALTER TABLE unit_analytics ADD COLUMN IF NOT EXISTS correct_count BIGINT DEFAULT 0;
+ALTER TABLE unit_analytics ADD COLUMN IF NOT EXISTS last_viewed_at TIMESTAMPTZ DEFAULT now();
 
 -- --------------------------------------------------------------------
 -- 6. DISABLE RLS FOR UNRESTRICTED PUBLIC READ/WRITE API ACCESS
@@ -173,6 +187,27 @@ BEGIN
   DO UPDATE SET 
     view_count = unit_analytics.view_count + 1,
     last_viewed_at = now();
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION increment_exercise_check(target_book TEXT, target_unit INT, is_correct BOOLEAN)
+RETURNS VOID AS $$
+BEGIN
+  -- 1. Update book-level counts
+  INSERT INTO book_analytics (book_name, ai_check_count, correct_check_count, last_scanned_at)
+  VALUES (target_book, 1, CASE WHEN is_correct THEN 1 ELSE 0 END, now())
+  ON CONFLICT (book_name)
+  DO UPDATE SET
+    ai_check_count = book_analytics.ai_check_count + 1,
+    correct_check_count = book_analytics.correct_check_count + (CASE WHEN is_correct THEN 1 ELSE 0 END);
+
+  -- 2. Update unit-level counts
+  INSERT INTO unit_analytics (book_name, unit_number, check_count, correct_count, last_viewed_at)
+  VALUES (target_book, target_unit, 1, CASE WHEN is_correct THEN 1 ELSE 0 END, now())
+  ON CONFLICT (book_name, unit_number)
+  DO UPDATE SET
+    check_count = unit_analytics.check_count + 1,
+    correct_count = unit_analytics.correct_count + (CASE WHEN is_correct THEN 1 ELSE 0 END);
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 

@@ -1112,6 +1112,27 @@ export default function BackendAdminPage() {
                     </select>
                   </div>
 
+                  {/* Test Scan Button */}
+                  <button
+                    onClick={async () => {
+                      try {
+                        await fetch('/api/analytics/track', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ type: 'book', bookName: selectedBook })
+                        });
+                        fetchAnalytics(selectedBook);
+                      } catch (e) {
+                        console.error('Test scan error:', e);
+                      }
+                    }}
+                    title="จำลองการสแกน QR Code เพื่อทดสอบการนับสถิติจริง"
+                    className="p-2 px-3 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-2xl border border-purple-200 shadow-2xs transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>ทดสอบ Scan (+1)</span>
+                  </button>
+
                   {/* Refresh Button */}
                   <button
                     onClick={() => fetchAnalytics(selectedBook)}
@@ -1128,9 +1149,15 @@ export default function BackendAdminPage() {
               <div className="dashboard-header-card bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs mb-8">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div>
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-50 text-purple-700 border border-purple-100 text-xs font-extrabold mb-2">
-                      <BarChart2 className="w-3.5 h-3.5" />
-                      <span>Tracking & Learning Analytics</span>
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-50 text-purple-700 border border-purple-100 text-xs font-extrabold">
+                        <BarChart2 className="w-3.5 h-3.5" />
+                        <span>Tracking & Learning Analytics</span>
+                      </div>
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                        <span>บันทึกข้อมูลการใช้งานจริง (Live Tracking Active)</span>
+                      </div>
                     </div>
                     <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-heading">
                       {activeBookObj.title}
@@ -1152,17 +1179,17 @@ export default function BackendAdminPage() {
                 </div>
               </div>
 
-              {/* 4 KPI Metrics Grid */}
-              <div className="kpi-metrics-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+              {/* 6 KPI Metrics Grid */}
+              <div className="kpi-metrics-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
                 {/* Metric 1: Total QR Scans */}
-                <div className="kpi-card bg-white rounded-3xl p-6 border border-slate-200 shadow-xs relative overflow-hidden">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total QR Scans</span>
-                    <div className="w-10 h-10 rounded-2xl bg-blue-50 text-[#2563eb] flex items-center justify-center font-bold">
-                      <QrCode className="w-5 h-5" />
+                <div className="kpi-card bg-white rounded-3xl p-5 border border-slate-200 shadow-xs relative overflow-hidden">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total QR Scans</span>
+                    <div className="w-8 h-8 rounded-xl bg-blue-50 text-[#2563eb] flex items-center justify-center font-bold">
+                      <QrCode className="w-4 h-4" />
                     </div>
                   </div>
-                  <div className="text-3xl font-extrabold text-slate-900 font-heading">
+                  <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-heading">
                     {analyticsData?.totalQrScans?.toLocaleString() || 0}
                   </div>
                   <div className="text-xs text-slate-400 mt-1 flex items-center gap-1 font-medium">
@@ -1171,14 +1198,14 @@ export default function BackendAdminPage() {
                 </div>
 
                 {/* Metric 2: Unit 1 Readers */}
-                <div className="kpi-card bg-white rounded-3xl p-6 border border-slate-200 shadow-xs relative overflow-hidden">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Unit 1 Readers</span>
-                    <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
-                      <Users className="w-5 h-5" />
+                <div className="kpi-card bg-white rounded-3xl p-5 border border-slate-200 shadow-xs relative overflow-hidden">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Unit 1 Readers</span>
+                    <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+                      <Users className="w-4 h-4" />
                     </div>
                   </div>
-                  <div className="text-3xl font-extrabold text-slate-900 font-heading">
+                  <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-heading">
                     {analyticsData?.unit1Views?.toLocaleString() || 0}
                   </div>
                   <div className="text-xs text-slate-400 mt-1 flex items-center gap-1 font-medium">
@@ -1187,14 +1214,14 @@ export default function BackendAdminPage() {
                 </div>
 
                 {/* Metric 3: QR to Unit 1 Conversion */}
-                <div className="kpi-card bg-white rounded-3xl p-6 border border-slate-200 shadow-xs relative overflow-hidden">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">QR ➔ Unit 1</span>
-                    <div className="w-10 h-10 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold">
-                      <TrendingUp className="w-5 h-5" />
+                <div className="kpi-card bg-white rounded-3xl p-5 border border-slate-200 shadow-xs relative overflow-hidden">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">QR ➔ Unit 1</span>
+                    <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold">
+                      <TrendingUp className="w-4 h-4" />
                     </div>
                   </div>
-                  <div className="text-3xl font-extrabold text-slate-900 font-heading">
+                  <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-heading">
                     {analyticsData?.qrToUnit1Conversion || 0}%
                   </div>
                   <div className="text-xs text-slate-400 mt-1 flex items-center gap-1 font-medium">
@@ -1203,18 +1230,50 @@ export default function BackendAdminPage() {
                 </div>
 
                 {/* Metric 4: Course Completion */}
-                <div className="kpi-card bg-white rounded-3xl p-6 border border-slate-200 shadow-xs relative overflow-hidden">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Completion Rate</span>
-                    <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
-                      <Award className="w-5 h-5" />
+                <div className="kpi-card bg-white rounded-3xl p-5 border border-slate-200 shadow-xs relative overflow-hidden">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Completion Rate</span>
+                    <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
+                      <Award className="w-4 h-4" />
                     </div>
                   </div>
-                  <div className="text-3xl font-extrabold text-slate-900 font-heading">
+                  <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-heading">
                     {analyticsData?.courseCompletionRate || 0}%
                   </div>
                   <div className="text-xs text-slate-400 mt-1 flex items-center gap-1 font-medium">
-                    <span className="text-amber-600 font-bold">● สำเร็จการเรียน</span> ทำครบถึง Unit 30
+                    <span className="text-amber-600 font-bold">● สำเร็จการเรียน</span> ทำครบถึงบทสุดท้าย
+                  </div>
+                </div>
+
+                {/* Metric 5: Total AI Checks */}
+                <div className="kpi-card bg-white rounded-3xl p-5 border border-slate-200 shadow-xs relative overflow-hidden">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">AI Checks</span>
+                    <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+                      <Bot className="w-4 h-4" />
+                    </div>
+                  </div>
+                  <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-heading">
+                    {analyticsData?.totalAiChecks?.toLocaleString() || 0}
+                  </div>
+                  <div className="text-xs text-slate-400 mt-1 flex items-center gap-1 font-medium">
+                    <span className="text-indigo-600 font-bold">● ตรวจข้อสอบ</span> ส่งตรวจด้วย AI
+                  </div>
+                </div>
+
+                {/* Metric 6: Accuracy Rate */}
+                <div className="kpi-card bg-white rounded-3xl p-5 border border-slate-200 shadow-xs relative overflow-hidden">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Accuracy</span>
+                    <div className="w-8 h-8 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center font-bold">
+                      <CheckCircle2 className="w-4 h-4" />
+                    </div>
+                  </div>
+                  <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-heading">
+                    {analyticsData?.accuracyRate || 0}%
+                  </div>
+                  <div className="text-xs text-slate-400 mt-1 flex items-center gap-1 font-medium">
+                    <span className="text-teal-600 font-bold">● อัตราตอบถูก</span> โครงสร้างประโยค
                   </div>
                 </div>
               </div>

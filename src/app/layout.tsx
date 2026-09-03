@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { HeaderWrapper, FooterWrapper } from "@/components/NavbarWrapper";
+import { AnalyticsTracker } from "@/components/AnalyticsTracker";
 
 export const metadata: Metadata = {
   title: "เฉลยแบบฝึกหัด - Sentence Builder 2",
@@ -30,6 +31,7 @@ export default function RootLayout({
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/lazywasabi/thai-web-fonts@main/fonts/LINESeedSansTH/LINESeedSansTH.css" />
       </head>
       <body className="antialiased selection:bg-[#2563eb] selection:text-white text-[#1e293b] bg-[#f0f7ff]">
+        <AnalyticsTracker />
         <HeaderWrapper />
         <main>
           {children}

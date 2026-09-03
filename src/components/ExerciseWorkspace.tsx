@@ -183,6 +183,18 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
         ? 'ถูกต้องเลยค่ะ เก่งมากเลย 👏'
         : (data.statusText || '💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ');
 
+      // Asynchronously track the exercise check in real learning analytics
+      fetch('/api/analytics/track', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'check',
+          bookName: chapterData.book_name || 'sentence-builder-vol-2',
+          unitNumber,
+          isCorrect
+        })
+      }).catch(() => {});
+
       setFeedbacks(prev => ({
         ...prev,
         [key]: {
