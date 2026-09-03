@@ -6,8 +6,9 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { chapterData, passcode } = body;
 
-    // Passcode verification (default: admin123)
-    if (passcode !== 'admin123' && process.env.ADMIN_PASSCODE && passcode !== process.env.ADMIN_PASSCODE) {
+    // Passcode verification
+    const expectedPasscode = process.env.ADMIN_PASSCODE || 'KruWhanLearnerResultTeam#2026';
+    if (passcode !== expectedPasscode) {
       return NextResponse.json({ error: 'Passcode ไม่ถูกต้อง' }, { status: 401 });
     }
 

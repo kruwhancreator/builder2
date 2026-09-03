@@ -67,6 +67,7 @@ export default function BackendAdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passcode, setPasscode] = useState('');
   const [authError, setAuthError] = useState('');
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   // Navigation State
   const [activeView, setActiveView] = useState<'books_list' | 'curriculum_view' | 'analytics_dashboard'>('books_list');
@@ -158,24 +159,56 @@ export default function BackendAdminPage() {
   };
 
   useEffect(() => {
+    try {
+      if (sessionStorage.getItem('admin_authenticated') === '1') {
+        setIsAuthenticated(true);
+      }
+    } catch {}
     fetchBooksList();
   }, []);
 
   useEffect(() => {
-    if (selectedBook) {
+    if (selectedBook && isAuthenticated) {
       fetchCurriculum(selectedBook);
       fetchAnalytics(selectedBook);
     }
-  }, [selectedBook]);
+  }, [selectedBook, isAuthenticated]);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (passcode === 'KruWhanLearnerResultTeam#2026') {
-      setIsAuthenticated(true);
-      setAuthError('');
-    } else {
-      setAuthError('Passcode ไม่ถูกต้อง');
+    if (!passcode.trim()) return;
+    setIsLoggingIn(true);
+    setAuthError('');
+
+    try {
+      const res = await fetch('/api/admin/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ passcode })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setIsAuthenticated(true);
+        setAuthError('');
+        try {
+          sessionStorage.setItem('admin_authenticated', '1');
+        } catch {}
+      } else {
+        setAuthError(data.error || 'Passcode ไม่ถูกต้อง');
+      }
+    } catch {
+      setAuthError('เกิดข้อผิดพลาดในการตรวจสอบรหัสผ่าน');
+    } finally {
+      setIsLoggingIn(false);
     }
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    setPasscode('');
+    try {
+      sessionStorage.removeItem('admin_authenticated');
+    } catch {}
   };
 
   // Book Handlers
@@ -834,10 +867,20 @@ export default function BackendAdminPage() {
 
             <button
               type="submit"
-              className="login-submit-btn w-full bg-[#2563eb] hover:bg-[#1d4ed8] text-white py-3.5 rounded-2xl font-bold text-base shadow-md flex items-center justify-center gap-2 transition-colors cursor-pointer"
+              disabled={isLoggingIn}
+              className="login-submit-btn w-full bg-[#2563eb] hover:bg-[#1d4ed8] text-white py-3.5 rounded-2xl font-bold text-base shadow-md flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-60"
             >
-              <Unlock className="w-5 h-5" />
-              <span>เข้าสู่ระบบ Engonair Admin</span>
+              {isLoggingIn ? (
+                <>
+                  <RefreshCw className="w-5 h-5 animate-spin" />
+                  <span>กำลังตรวจสอบรหัสผ่าน...</span>
+                </>
+              ) : (
+                <>
+                  <Unlock className="w-5 h-5" />
+                  <span>เข้าสู่ระบบ Engonair Admin</span>
+                </>
+              )}
             </button>
           </form>
 
@@ -859,7 +902,7 @@ export default function BackendAdminPage() {
       {/* ========================================================= */}
       {/* ENGONAIR ADMIN TOP NAVBAR */}
       {/* ========================================================= */}
-      <header className="admin-top-navbar h-16 bg-white border-b border-slate-200 px-6 flex items-center sticky top-0 z-30 shadow-xs">
+      <header className="admin-top-navbar h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between sticky top-0 z-30 shadow-xs">
         <div className="navbar-brand-box flex items-center gap-3">
           <div className="navbar-logo-icon w-9 h-9 rounded-xl bg-[#2563eb] text-white flex items-center justify-center font-extrabold text-xl font-heading">
             E
@@ -868,6 +911,14 @@ export default function BackendAdminPage() {
             Engonair <span className="brand-highlight text-[#2563eb] font-bold">Admin</span>
           </span>
         </div>
+
+        <button
+          onClick={handleLogout}
+          className="px-3.5 py-1.5 rounded-xl border border-slate-200 text-slate-600 hover:text-red-600 hover:border-red-200 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer bg-slate-50 hover:bg-red-50"
+        >
+          <Lock className="w-3.5 h-3.5" />
+          <span>ออกจากระบบ</span>
+        </button>
       </header>
 
       <div className="admin-body-container flex-1 flex w-full">
