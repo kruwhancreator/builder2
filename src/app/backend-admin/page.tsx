@@ -38,28 +38,12 @@ import { supabase } from '@/lib/supabase';
 
 const INITIAL_BOOKS = [
   { 
-    id: 'sentence-builder-vol-1', 
-    slug: 'sentence-builder-vol-1',
-    title: 'Sentence Builder Vol. 1', 
-    subtitle: 'แบบฝึกหัดแต่งประโยคภาษาอังกฤษ Vol. 1 (เทคนิคปูพื้นฐาน)', 
-    total_units: 0,
-    created_at: '2026-07-22T00:00:00.000Z'
-  },
-  { 
     id: 'sentence-builder-vol-2', 
     slug: 'sentence-builder-vol-2',
     title: 'Sentence Builder Vol. 2', 
     subtitle: 'แบบฝึกหัดแต่งประโยคและขยายประโยค Vol. 2 (Core + Context + Connect)', 
     total_units: 1,
     created_at: '2026-07-20T00:00:00.000Z'
-  },
-  { 
-    id: 'sentence-builder-vol-3', 
-    slug: 'sentence-builder-vol-3',
-    title: 'Sentence Builder Vol. 3', 
-    subtitle: 'แบบฝึกหัดแต่งประโยคขั้นสูง Vol. 3 (Advanced Business & Writing)', 
-    total_units: 0,
-    created_at: '2026-07-01T00:00:00.000Z'
   },
 ];
 
@@ -124,9 +108,10 @@ export default function BackendAdminPage() {
   const fetchBooksList = () => {
     fetch('/api/admin/books')
       .then(res => res.json())
-      .then(fetchedBooks => {
-        if (Array.isArray(fetchedBooks) && fetchedBooks.length > 0) {
-          setBooksList(fetchedBooks);
+      .then(resData => {
+        const books = Array.isArray(resData) ? resData : (resData?.books || []);
+        if (Array.isArray(books) && books.length > 0) {
+          setBooksList(books);
         }
       })
       .catch(err => console.warn('Could not fetch books list:', err));

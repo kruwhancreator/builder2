@@ -3,29 +3,13 @@ import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
 const INITIAL_BOOKS = [
   { 
-    id: 'sentence-builder-vol-1', 
-    slug: 'sentence-builder-vol-1',
-    title: 'Sentence Builder Vol. 1', 
-    subtitle: 'แบบฝึกหัดแต่งประโยคภาษาอังกฤษ Vol. 1 (เทคนิคปูพื้นฐาน)', 
-    total_units: 0,
-    created_at: '2026-07-22T00:00:00.000Z'
-  },
-  { 
     id: 'sentence-builder-vol-2', 
     slug: 'sentence-builder-vol-2',
     title: 'Sentence Builder Vol. 2', 
     subtitle: 'แบบฝึกหัดแต่งประโยคและขยายประโยค Vol. 2 (Core + Context + Connect)', 
     total_units: 1,
     created_at: '2026-07-20T00:00:00.000Z'
-  },
-  { 
-    id: 'sentence-builder-vol-3', 
-    slug: 'sentence-builder-vol-3',
-    title: 'Sentence Builder Vol. 3', 
-    subtitle: 'แบบฝึกหัดแต่งประโยคขั้นสูง Vol. 3 (Advanced Business & Writing)', 
-    total_units: 0,
-    created_at: '2026-07-01T00:00:00.000Z'
-  },
+  }
 ];
 
 export async function GET() {
@@ -54,14 +38,14 @@ export async function GET() {
           })
         );
 
-        return NextResponse.json(booksWithActualUnitCounts);
+        return NextResponse.json({ books: booksWithActualUnitCounts });
       }
     } catch (err) {
       console.warn('Could not fetch books from Supabase DB:', err);
     }
   }
 
-  return NextResponse.json(INITIAL_BOOKS);
+  return NextResponse.json({ books: INITIAL_BOOKS });
 }
 
 export async function POST(req: NextRequest) {
