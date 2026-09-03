@@ -55,6 +55,10 @@ TONE, POLITE PARTICLES & PRONOUNS (STRICT RULES):
 - ALWAYS speak as Kru Whan (female teacher persona).
 - ALWAYS use female polite ending particles: "ค่ะ", "นะคะ", "เลยค่ะ".
 - NEVER EVER use male polite particles ("ครับ", "นะครับ").
+- NO EXCLAMATION MARKS IN THAI (CRITICAL):
+  * In Thai writing, we do NOT use exclamation marks ("!").
+  * NEVER put "!" in Thai feedback, encouragement, or sentence endings (e.g. NEVER write "เก่งแล้วค่ะ!", "สู้ๆ นะคะ!", "ถูกต้องเลยค่ะ!", "ลองดูนะคะ!").
+  * Always write "เก่งแล้วค่ะ", "สู้ๆ นะคะ", "ถูกต้องเลยค่ะ" without any "!" in Thai text!
 
 CRITICAL DISTINCTION: CALLING THE USER VS TRANSLATING EXERCISE CONTENT:
 1. CALLING / ADDRESSING THE USER (การเรียกตัวผู้ใช้งาน / คุยกับผู้เรียน):
@@ -402,13 +406,25 @@ Evaluation Steps for this Quiz (ACT STRICTLY LIKE A TEACHER GRADING A STUDENT'S 
   return {
     isCorrect,
     score: isCorrect ? 100 : (typeof parsed.score === 'number' && isCorrect ? parsed.score : 60),
-    statusText: sanitizeThaiStudentPronouns(isCorrect ? 'ถูกต้องเลยค่ะ เก่งมากเลย 👏' : (parsed.statusText || '💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ')),
+    statusText: stripThaiExclamationMarks(sanitizeThaiStudentPronouns(isCorrect ? 'ถูกต้องเลยค่ะ เก่งมากเลย 👏' : (parsed.statusText || '💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ'))),
     studentTranslation: cleanStudentTranslation(parsed.studentTranslation || '', req.studentAnswer),
     correctedSentence: finalCorrectedSentence,
     feedbackPoints: sanitizedFeedbackPoints,
     breakdown: cleanBreakdown,
     modelUsed: successfulModel
   };
+}
+
+/**
+ * Strips exclamation marks from Thai text (e.g. "เก่งแล้วค่ะ!" -> "เก่งแล้วค่ะ").
+ * In Thai language, exclamation marks are not used.
+ */
+function stripThaiExclamationMarks(text: string): string {
+  if (!text) return '';
+  return text
+    .replace(/([ก-๙])\s*[!！]+/g, '$1')
+    .replace(/(ค่ะ|นะคะ|เลยค่ะ|ครับ|นะครับ|จ้า|นะ)\s*[!！]+/g, '$1')
+    .replace(/([ก-๙]+)\s*[!！]+$/g, '$1');
 }
 
 /**
@@ -438,12 +454,12 @@ function cleanStudentTranslation(translation: string, studentAns: string): strin
                    .replace(/ช่วยพวกมัน/g, 'ช่วยพวกเขา');
   }
 
-  return result;
+  return stripThaiExclamationMarks(result);
 }
 
 /**
  * Sanitizes and cleans feedback points to prevent hallucinated claims
- * (such as attributing words from the reference model answer like 'bags' that the student never typed).
+ * and strip exclamation marks from Thai text.
  */
 function cleanFeedbackPoints(points: string[], studentAns: string): string[] {
   const studentLower = studentAns.toLowerCase();
@@ -472,7 +488,7 @@ function cleanFeedbackPoints(points: string[], studentAns: string): string[] {
                        .replace(/ดูแลพวกมัน/g, 'ดูแลพวกเขา');
     }
 
-    return cleaned;
+    return stripThaiExclamationMarks(cleaned);
   });
 }
 
@@ -482,7 +498,7 @@ function cleanFeedbackPoints(points: string[], studentAns: string): string[] {
  */
 function sanitizeThaiStudentPronouns(text: string): string {
   if (!text) return '';
-  return text
+  const sanitized = text
     .replace(/น้องๆ/g, 'นักเรียน')
     .replace(/น้อง/g, 'นักเรียน')
     .replace(/คุณลูกค้า/g, 'นักเรียน')
@@ -492,6 +508,7 @@ function sanitizeThaiStudentPronouns(text: string): string {
     .replace(/การบ้านของคุณ/g, 'การบ้านของนักเรียน')
     .replace(/ของตัวคุณ/g, 'ของตัวนักเรียน')
     .replace(/ตัวคุณ/g, 'ตัวนักเรียน');
+  return stripThaiExclamationMarks(sanitized);
 }
 
 function evaluateLocally(req: EvaluationRequest): EvaluationResult {
@@ -508,13 +525,20 @@ function evaluateLocally(req: EvaluationRequest): EvaluationResult {
     };
   }
 
+  let localResult: EvaluationResult;
   if (req.exerciseType === 'translation') {
-    return evaluateTranslationLocally(req.item, lowerAnswer, cleanAnswer);
+    localResult = evaluateTranslationLocally(req.item, lowerAnswer, cleanAnswer);
   } else if (req.exerciseType === 'guided_sentence') {
-    return evaluateGuidedSentenceLocally(req.item, lowerAnswer, cleanAnswer);
+    localResult = evaluateGuidedSentenceLocally(req.item, lowerAnswer, cleanAnswer);
   } else {
-    return evaluatePictureDescriptionLocally(req.item, lowerAnswer, cleanAnswer);
+    localResult = evaluatePictureDescriptionLocally(req.item, lowerAnswer, cleanAnswer);
   }
+
+  return {
+    ...localResult,
+    statusText: stripThaiExclamationMarks(localResult.statusText),
+    feedbackPoints: localResult.feedbackPoints?.map(pt => stripThaiExclamationMarks(pt)) || []
+  };
 }
 
 import { checkOfflineGrammarAndSpelling, normalizeContractions } from './offline-checker';

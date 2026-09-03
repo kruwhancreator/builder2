@@ -210,7 +210,7 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
         [key]: {
           isCorrect: points.length === 0,
           message: points.length === 0 
-            ? '🎉 ตรวจสอบเบื้องต้นถูกต้องค่ะ!' 
+            ? '🎉 ตรวจสอบเบื้องต้นถูกต้องค่ะ' 
             : '⚡ คำแนะนำเบื้องต้น:',
           points: points.length > 0 ? points : ['ประโยคมีโครงสร้างไวยากรณ์ถูกต้อง']
         }
@@ -624,7 +624,7 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                     📌 คำแนะนำจากครูหวาน:
                   </span>
                   <span className="font-medium text-rose-900">
-                    {exercise.instruction || exercise.guidance || `แบบฝึกหัดนี้ใช้จินตนาการแต่งประโยคจากภาพได้เลยนะคะ ไม่มีถูกไม่มีผิด! ลองแต่งประโยคตามโครงสร้าง 3 กล่องด้านล่างได้เลยค่ะ`}
+                    {exercise.instruction || exercise.guidance || `แบบฝึกหัดนี้ใช้จินตนาการแต่งประโยคจากภาพได้เลยนะคะ ไม่มีถูกไม่มีผิดนะคะ ลองแต่งประโยคตามโครงสร้าง 3 กล่องด้านล่างได้เลยค่ะ`}
                   </span>
                 </div>
               </div>
