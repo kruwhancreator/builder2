@@ -133,9 +133,10 @@
         },
         {
           "id": 3,
-          "image_description": "ผู้หญิงกำลังเลือกซื้อของสุขภาพในซูเปอร์มาร์เก็ต",
-          "context_hint": "ซื้อของสุขภาพ / ในซูเปอร์มาร์เก็ต / เพราะห่วงสุขภาพ",
-          "model_answer": "I am buying healthy food at the supermarket now because I care about my health."
+          "image_description": "A monochrome, black-and-white vector illustration close-up of a hand pressing a standard toggle light switch on a plain wall to turn off or on the lights. Subject: Hand pressing light switch, index finger flipping toggle switch.",
+          "context_hint": "ปิดไฟ / เพื่อประหยัดไฟฟ้า / แม้ว่าจะยุ่ง",
+          "teacher_guidance": "Core: I + do + [ V.ไม่ผัน ]\nI do cook at home.\nContext: I + do + V.ไม่ผัน + [ to + V.ไม่ผัน ]\nI do cook at home to save money.\nConnect: I + do + V.ไม่ผัน + to + V.ไม่ผัน + [ even when I’m + คำคุณศัพท์]\nI do cook at home to save money even when I am tired.",
+          "model_answer": "I do turn off the lights to save electricity even when I’m busy."
         }
       ]
     }

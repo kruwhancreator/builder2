@@ -462,6 +462,7 @@ export default function BackendAdminPage() {
     setCurrentQuizExercise({ unit, exercise });
     const rawItems = (exercise.items || []).map((item: any) => ({
       ...item,
+      image_description: item.image_description || '',
       teacher_guidance: item.teacher_guidance || item.context_hint || ''
     }));
     setQuizItems(JSON.parse(JSON.stringify(rawItems)));
@@ -2274,7 +2275,26 @@ export default function BackendAdminPage() {
                                   )}
                                 </div>
 
-                                {/* 2. Context & AI Pattern Locking Rules */}
+                                {/* 2. Detailed Image Scene Description for AI */}
+                                <div className="bg-sky-50/70 border border-sky-200 rounded-2xl p-4 space-y-2">
+                                  <div className="flex items-center justify-between">
+                                    <label className="block font-bold text-sky-950 uppercase text-xs sm:text-sm">
+                                      📝 รายละเอียดภาพ & สิ่งที่อยู่ในภาพ (IMAGE SCENE DESCRIPTION FOR AI):
+                                    </label>
+                                    <span className="text-[11px] text-sky-800 font-medium">
+                                      ระบุสิ่งที่อยู่ในภาพ การกระทำ สิ่งของ หรือ Prompt ที่ใช้วาดภาพ เพื่อให้ AI ตรวจตรงกับภาพ
+                                    </span>
+                                  </div>
+                                  <textarea
+                                    rows={4}
+                                    value={q.image_description ?? ''}
+                                    onChange={(e) => handleUpdateQuestion(idx, 'image_description', e.target.value)}
+                                    placeholder={`เช่น 'ภาพระยะใกล้ของมือคนกำลังกดสวิตช์ไฟบนผนังเพื่อปิดหรือเปิดไฟ'\nหรือ Prompt ภาษาอังกฤษ เช่น 'A monochrome vector illustration close-up of a hand pressing a standard toggle light switch on a plain wall to turn off or on the lights.'`}
+                                    className="w-full rounded-xl bg-white border border-sky-300 p-3.5 text-xs sm:text-sm font-mono text-slate-900 focus:outline-none focus:border-sky-600 leading-relaxed"
+                                  />
+                                </div>
+
+                                {/* 3. Context & AI Pattern Locking Rules */}
                                 <div className="bg-amber-50/70 border border-amber-200 rounded-2xl p-4 space-y-2">
                                   <div className="flex items-center justify-between">
                                     <label className="block font-bold text-amber-950 uppercase text-xs sm:text-sm">

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { clearDataManagerCache } from '@/lib/data-manager';
 import chapter1Fallback from '@/data/sentence-builder-vol-2/chapter-1.json';
 
 export async function GET(req: NextRequest) {
@@ -406,9 +407,15 @@ export async function POST(req: NextRequest) {
         }
       }
 
+      if (exercise_code && (chapter1Fallback.exercises as any)?.[exercise_code]) {
+        (chapter1Fallback.exercises as any)[exercise_code].items = items;
+      }
+      clearDataManagerCache();
+
       return NextResponse.json({ success: true, message: 'บันทึกรายการคำถามและเฉลยเรียบร้อยแล้ว!' });
     }
 
+    clearDataManagerCache();
     return NextResponse.json({ success: true });
   } catch (err: any) {
     console.error('Curriculum POST error:', err);

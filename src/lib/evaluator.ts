@@ -249,14 +249,30 @@ Task for Exercise 2:
     const grammarFocus = req.item.grammar_focus || '';
     const structureRequired = req.item.structure_required ? JSON.stringify(req.item.structure_required) : '';
 
-    const targetStructure = req.item.teacher_guidance || 
+    let effectiveTeacherGuidance = req.item.teacher_guidance || '';
+    let effectiveImageDescription = req.item.image_description || '';
+
+    // If teacherGuidance contains Detailed Image Generation Prompt or image description tags,
+    // smartly extract it so image context and grammar formula do not pollute each other.
+    if (effectiveTeacherGuidance.includes('Detailed Image Generation Prompt') || 
+        effectiveTeacherGuidance.includes('Key Subject & Style Tags') || 
+        /A monochrome.*illustration/i.test(effectiveTeacherGuidance)) {
+      const splitMatch = effectiveTeacherGuidance.split(/(?=Detailed Image Generation Prompt|Key Subject & Style Tags)/i);
+      if (splitMatch.length > 1) {
+        effectiveTeacherGuidance = splitMatch[0].trim();
+        const extractedImagePrompt = splitMatch.slice(1).join('\n').trim();
+        effectiveImageDescription = extractedImagePrompt;
+      }
+    }
+
+    const targetStructure = effectiveTeacherGuidance || 
                             grammarFocus || 
                             exerciseGuidance || 
                             unitSubtitle || 
                             `Core: I + do + [ V.ไม่ผัน ]\nContext: [ to + V.ไม่ผัน ]\nConnect: [ even when I'm + คำคุณศัพท์ ]`;
 
     prompt = `Exercise Type: Picture Description & Sentence Construction (Exercise 3: Free-Style Structure Building)
-${unitTitle ? `Unit Title: "${unitTitle}"\n` : ''}${unitSubtitle ? `Unit Lesson Subtitle & Pattern: "${unitSubtitle}"\n` : ''}${exerciseTitle ? `Exercise Title: "${exerciseTitle}"\n` : ''}${exerciseInstruction ? `Exercise Instructions: "${exerciseInstruction}"\n` : ''}${grammarFocus ? `Grammar Focus: "${grammarFocus}"\n` : ''}${structureRequired ? `Required Structure Blueprint: ${structureRequired}\n` : ''}${req.item.image_description ? `Picture Description & Scene Context Prompt:\n"${req.item.image_description}"\n` : ''}
+${unitTitle ? `Unit Title: "${unitTitle}"\n` : ''}${unitSubtitle ? `Unit Lesson Subtitle & Pattern: "${unitSubtitle}"\n` : ''}${exerciseTitle ? `Exercise Title: "${exerciseTitle}"\n` : ''}${exerciseInstruction ? `Exercise Instructions: "${exerciseInstruction}"\n` : ''}${grammarFocus ? `Grammar Focus: "${grammarFocus}"\n` : ''}${structureRequired ? `Required Structure Blueprint: ${structureRequired}\n` : ''}${effectiveImageDescription ? `Picture Description & Scene Context Prompt:\n"${effectiveImageDescription}"\n` : ''}
 ${modelAnswer}
 ${acceptableAnswers}
 
@@ -362,11 +378,8 @@ Evaluation Steps for this Quiz (ACT STRICTLY LIKE A TEACHER GRADING A STUDENT'S 
     if (typeof parsed.breakdown.reasonValid !== 'undefined') cleanBreakdown.reasonValid = Boolean(parsed.breakdown.reasonValid);
   }
 
-  // Force Exercise 1 to strictly use req.item.model_answer as correctedSentence
-  let finalCorrectedSentence = parsed.correctedSentence || req.studentAnswer;
-  if (req.exerciseType === 'translation' && req.item.model_answer) {
-    finalCorrectedSentence = req.item.model_answer;
-  }
+  // Always prefer the teacher's model answer as the correctedSentence if provided
+  let finalCorrectedSentence = req.item.model_answer || parsed.correctedSentence || req.studentAnswer;
 
   let isCorrect = typeof parsed.isCorrect === 'boolean'
     ? parsed.isCorrect
@@ -374,6 +387,33 @@ Evaluation Steps for this Quiz (ACT STRICTLY LIKE A TEACHER GRADING A STUDENT'S 
 
   const rawFeedbackPoints: string[] = Array.isArray(parsed.feedbackPoints) ? parsed.feedbackPoints : [];
   let sanitizedFeedbackPoints = cleanFeedbackPoints(rawFeedbackPoints, req.studentAnswer);
+
+  // CRITICAL SAFETY CHECK: Exact / Near Model Answer Match
+  // If the student writes the teacher's model answer (or acceptable answer), it is BY DEFINITION correct!
+  const normalizeForMatch = (s: string) => (s || '')
+    .trim()
+    .replace(/[.!?]+$/, '')
+    .replace(/['’]/g, "'")
+    .replace(/\s+/g, ' ')
+    .toLowerCase();
+
+  const studentNorm = normalizeForMatch(req.studentAnswer);
+  const modelNorm = normalizeForMatch(req.item.model_answer);
+  const isMatchModel = modelNorm.length > 0 && (
+    studentNorm === modelNorm ||
+    (Array.isArray(req.item.acceptable_answers) && req.item.acceptable_answers.some((ans: string) => normalizeForMatch(ans) === studentNorm))
+  );
+
+  if (isMatchModel) {
+    const hasEndingPunctuation = /[.!?]$/.test(req.studentAnswer.trim());
+    if (hasEndingPunctuation) {
+      isCorrect = true;
+      sanitizedFeedbackPoints = ['ประโยคถูกต้องตามโครงสร้างที่กำหนดและสอดคล้องกับภาพเรียบร้อยแล้วค่ะ เก่งมากเลยนะคะ'];
+    } else {
+      isCorrect = false;
+      sanitizedFeedbackPoints = ['• อย่าลืมใส่เครื่องหมายจุด Full stop (.) ท้ายประโยคด้วยนะคะ'];
+    }
+  }
 
   // Strict Character Gender Verification for Picture Description (Exercise 3)
   if (req.exerciseType === 'picture_description') {
