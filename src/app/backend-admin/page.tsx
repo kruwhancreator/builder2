@@ -462,8 +462,8 @@ export default function BackendAdminPage() {
     setCurrentQuizExercise({ unit, exercise });
     const rawItems = (exercise.items || []).map((item: any) => ({
       ...item,
-      image_description: item.image_description || '',
-      teacher_guidance: item.teacher_guidance || item.context_hint || ''
+      teacher_guidance: item.teacher_guidance || item.context_hint || item.image_description || '',
+      image_description: item.image_description || item.teacher_guidance || item.context_hint || ''
     }));
     setQuizItems(JSON.parse(JSON.stringify(rawItems)));
     // Load and normalize categories for guided_sentence type (or ex-2 / existing word_bank)
@@ -2275,47 +2275,33 @@ export default function BackendAdminPage() {
                                   )}
                                 </div>
 
-                                {/* 2. Detailed Image Scene Description for AI */}
-                                <div className="bg-sky-50/70 border border-sky-200 rounded-2xl p-4 space-y-2">
-                                  <div className="flex items-center justify-between">
-                                    <label className="block font-bold text-sky-950 uppercase text-xs sm:text-sm">
-                                      📝 รายละเอียดภาพ & สิ่งที่อยู่ในภาพ (IMAGE SCENE DESCRIPTION FOR AI):
-                                    </label>
-                                    <span className="text-[11px] text-sky-800 font-medium">
-                                      ระบุสิ่งที่อยู่ในภาพ การกระทำ สิ่งของ หรือ Prompt ที่ใช้วาดภาพ เพื่อให้ AI ตรวจตรงกับภาพ
-                                    </span>
-                                  </div>
-                                  <textarea
-                                    rows={4}
-                                    value={q.image_description ?? ''}
-                                    onChange={(e) => handleUpdateQuestion(idx, 'image_description', e.target.value)}
-                                    placeholder={`เช่น 'ภาพระยะใกล้ของมือคนกำลังกดสวิตช์ไฟบนผนังเพื่อปิดหรือเปิดไฟ'\nหรือ Prompt ภาษาอังกฤษ เช่น 'A monochrome vector illustration close-up of a hand pressing a standard toggle light switch on a plain wall to turn off or on the lights.'`}
-                                    className="w-full rounded-xl bg-white border border-sky-300 p-3.5 text-xs sm:text-sm font-mono text-slate-900 focus:outline-none focus:border-sky-600 leading-relaxed"
-                                  />
-                                </div>
-
-                                {/* 3. Context & AI Pattern Locking Rules */}
+                                {/* 2. Context & AI Pattern Locking Rules */}
                                 <div className="bg-amber-50/70 border border-amber-200 rounded-2xl p-4 space-y-2">
                                   <div className="flex items-center justify-between">
                                     <label className="block font-bold text-amber-950 uppercase text-xs sm:text-sm">
                                       🧠 บริบทและโครงสร้างที่กำหนดให้ AI ตรวจจับ (CONTEXT & AI PATTERN LOCKING):
                                     </label>
                                     <span className="text-[11px] text-amber-800 font-medium">
-                                      กำหนดสูตรและตัวอย่างประโยคเพื่อให้ AI ตรวจสอบโครงสร้างได้อย่างแม่นยำ
+                                      ระบุโครงสร้างประโยค (Core, Context, Connect) พร้อมคำอธิบายภาพ (Detailed Image Prompt) ให้ AI ใช้ตรวจจับ
                                     </span>
                                   </div>
                                   <textarea
-                                    rows={6}
+                                    rows={10}
                                     value={q.teacher_guidance ?? ''}
                                     onChange={(e) => {
                                       const val = e.target.value;
                                       setQuizItems(prev => {
                                         const copy = [...prev];
-                                        copy[idx] = { ...copy[idx], teacher_guidance: val, context_hint: val };
+                                        copy[idx] = { 
+                                          ...copy[idx], 
+                                          teacher_guidance: val, 
+                                          context_hint: val,
+                                          image_description: val
+                                        };
                                         return copy;
                                       });
                                     }}
-                                    placeholder={`Core: \tI + do + [ V.ไม่ผัน ]\nI do cook at home.\nContext: \tI + do + V.ไม่ผัน + [ to + V.ไม่ผัน ]\nI do cook at home to save money.\nConnect: \tI + do + V.ไม่ผัน + to + V.ไม่ผัน + [ even when I’m + คำคุณศัพท์]\nI do cook at home to save money even when I am tired.\nตัวอย่าง: I do read books to learn new things even when I'm sleepy.\nตัวอย่าง: I do wash my hands to stay clean even when I’m in a hurry.\nตัวอย่าง: I do turn off the lights to save electricity even when I’m busy.`}
+                                    placeholder={`Core: \tI + do + [ V.ไม่ผัน ]\nI do cook at home.\nContext: \tI + do + V.ไม่ผัน + [ to + V.ไม่ผัน ]\nI do cook at home to save money.\nConnect: \tI + do + V.ไม่ผัน + to + V.ไม่ผัน + [ even when I’m + คำคุณศัพท์]\nI do cook at home to save money even when I am tired.\n\nDetailed Image Generation Prompt\nA monochrome, black-and-white vector illustration close-up of a hand pressing a standard toggle light switch on a plain wall...\n\nKey Subject & Style Tags\nSubject: Hand pressing light switch, toggle switch`}
                                     className="w-full rounded-xl bg-white border border-amber-300 p-3.5 text-xs sm:text-sm font-mono text-slate-900 focus:outline-none focus:border-amber-600 leading-relaxed"
                                   />
                                 </div>
