@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { evaluateAnswer } from '@/lib/evaluator';
 import { getChapterDataFromDb } from '@/lib/data-manager';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { trackExerciseCheck } from '@/lib/analytics-store';
 
 export async function POST(req: NextRequest) {
   try {
@@ -64,6 +65,11 @@ export async function POST(req: NextRequest) {
       templates,
       useAiCheck: body.useAiCheck !== undefined ? body.useAiCheck : useAiCheck,
     });
+
+    // 5. Automatically track every exercise evaluation in real analytics
+    const effectiveBookName = body.bookName || currentItem?.book_name || bookName || 'sentence-builder-vol-2';
+    const effectiveUnitNumber = Number(body.chapter || currentItem?.unit_number || 1);
+    trackExerciseCheck(effectiveBookName, effectiveUnitNumber, Boolean(evaluation.isCorrect)).catch(() => {});
 
     return NextResponse.json(evaluation);
   } catch (error: any) {

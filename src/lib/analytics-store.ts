@@ -279,11 +279,13 @@ export async function getAnalyticsSummary(rawBookName: string, totalUnitsCount: 
     }
   }
 
-  // 2. If Supabase has zero or is unconfigured, use real in-memory store
-  if (totalQrScans === 0 && memory.books[bookName]) {
-    totalQrScans = Math.max(totalQrScans, memory.books[bookName].qrScans);
-    totalAiChecks = Math.max(totalAiChecks, memory.books[bookName].aiChecks);
-    totalCorrectChecks = Math.max(totalCorrectChecks, memory.books[bookName].correctChecks);
+  // 2. Merge real in-memory store (ensures serverless warm instances always show live AI checks)
+  if (memory.books[bookName]) {
+    if (totalQrScans === 0) {
+      totalQrScans = memory.books[bookName].qrScans;
+    }
+    totalAiChecks = Math.max(totalAiChecks, memory.books[bookName].aiChecks || 0);
+    totalCorrectChecks = Math.max(totalCorrectChecks, memory.books[bookName].correctChecks || 0);
   }
 
   if (memory.units[bookName]) {

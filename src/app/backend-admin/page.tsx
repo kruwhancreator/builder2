@@ -1134,6 +1134,27 @@ export default function BackendAdminPage() {
                     <span>ทดสอบ Scan (+1)</span>
                   </button>
 
+                  {/* Test AI Check Button */}
+                  <button
+                    onClick={async () => {
+                      try {
+                        await fetch('/api/analytics/track', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ type: 'check', bookName: selectedBook, unitNumber: 1, isCorrect: true })
+                        });
+                        fetchAnalytics(selectedBook);
+                      } catch (e) {
+                        console.error('Test AI check error:', e);
+                      }
+                    }}
+                    title="จำลองการส่งตรวจ AI (+1) เพื่อทดสอบสถิติ AI Checks และ Accuracy"
+                    className="p-2 px-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-2xl border border-indigo-200 shadow-2xs transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold"
+                  >
+                    <Bot className="w-3.5 h-3.5" />
+                    <span>ทดสอบ AI Check (+1)</span>
+                  </button>
+
                   {/* Refresh Button */}
                   <button
                     onClick={() => fetchAnalytics(selectedBook)}

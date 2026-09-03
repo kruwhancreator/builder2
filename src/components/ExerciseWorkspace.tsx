@@ -144,9 +144,13 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          bookName: chapterData.book || chapterData.slug || 'sentence-builder-vol-2',
+          chapter: unitNumber,
           exerciseType: exercise.type || 'picture_description',
           item: {
             ...item,
+            book_name: chapterData.book || chapterData.slug || 'sentence-builder-vol-2',
+            unit_number: unitNumber,
             image_description: item.image_description || '',
             context_hint: item.context_hint || '',
             teacher_guidance: item.teacher_guidance || item.context_hint || exercise?.guidance || exercise?.instruction || chapterData.subtitle || '',
@@ -189,7 +193,7 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: 'check',
-          bookName: chapterData.book_name || 'sentence-builder-vol-2',
+          bookName: chapterData.book || chapterData.slug || 'sentence-builder-vol-2',
           unitNumber,
           isCorrect
         })
