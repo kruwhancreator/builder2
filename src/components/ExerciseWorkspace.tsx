@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   CheckCircle2, 
   XCircle, 
@@ -9,7 +9,8 @@ import {
   RefreshCw,
   GripHorizontal,
   RotateCcw,
-  Sparkle
+  Sparkle,
+  Clock
 } from 'lucide-react';
 import { EvaluationResult } from '@/lib/evaluator';
 import { checkOfflineGrammarAndSpelling, checkGuidedSentenceExercise } from '@/lib/offline-checker';
@@ -26,6 +27,8 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
   const [revealedSolutions, setRevealedSolutions] = useState<Record<string, boolean>>({});
   const [dragSlots, setDragSlots] = useState<Record<string, string[]>>({});
   const [aiLoading, setAiLoading] = useState<Record<string, boolean>>({});
+  const [cooldowns, setCooldowns] = useState<Record<string, number>>({});
+  const [lastCheckedAnswers, setLastCheckedAnswers] = useState<Record<string, string>>({});
 
   const toggleRevealSolution = (key: string) => {
     setRevealedSolutions(prev => ({ ...prev, [key]: !prev[key] }));
@@ -122,9 +125,41 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
     }));
   };
 
+  // Cooldown countdown effect (decrement every 1 second)
+  useEffect(() => {
+    const hasActive = Object.values(cooldowns).some(c => c > 0);
+    if (!hasActive) return;
+
+    const timer = setInterval(() => {
+      setCooldowns(prev => {
+        let changed = false;
+        const next: Record<string, number> = {};
+        for (const [k, v] of Object.entries(prev)) {
+          if (v > 1) {
+            next[k] = v - 1;
+            changed = true;
+          } else if (v === 1) {
+            next[k] = 0;
+            changed = true;
+          }
+        }
+        return changed ? { ...prev, ...next } : prev;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [cooldowns]);
+
   // Handle AI Check (for picture_description or any exercise with use_ai_check)
   const handleAiCheck = async (item: any, key: string, idx: number, exercise: any) => {
+    // 1. Check if button is currently in cooldown
+    if ((cooldowns[key] || 0) > 0) {
+      return;
+    }
+
     const studentAns = answers[key] || '';
+
+    // 2. Empty input check
     if (!studentAns.trim()) {
       setFeedbacks(prev => ({
         ...prev,
@@ -137,6 +172,34 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
       return;
     }
 
+    // 3. Minimum length and word check (prevent accidental or single-letter spam)
+    if (studentAns.trim().length < 4 || !studentAns.trim().includes(' ')) {
+      setFeedbacks(prev => ({
+        ...prev,
+        [key]: {
+          isCorrect: false,
+          message: '✍️ กรุณาแต่งประโยคให้สมบูรณ์ก่อนกดตรวจค่ะ',
+          points: ['กรุณาพิมพ์ประโยคที่มีประธานและกริยา (อย่างน้อย 2 คำขึ้นไป) ก่อนกดส่งตรวจนะคะ']
+        }
+      }));
+      return;
+    }
+
+    // 4. Duplicate Answer Guard: Prevent resending the exact same answer
+    if (lastCheckedAnswers[key] && lastCheckedAnswers[key].trim().toLowerCase() === studentAns.trim().toLowerCase()) {
+      setFeedbacks(prev => ({
+        ...prev,
+        [key]: {
+          ...prev[key],
+          message: '💡 คุณได้ตรวจประโยคนี้ไปแล้วค่ะ หากต้องการตรวจใหม่ กรุณาลองปรับแก้ประโยคก่อนกดส่งตรวจนะคะ'
+        }
+      }));
+      return;
+    }
+
+    // Activate 6-second cooldown and remember this answer
+    setCooldowns(prev => ({ ...prev, [key]: 6 }));
+    setLastCheckedAnswers(prev => ({ ...prev, [key]: studentAns }));
     setAiLoading(prev => ({ ...prev, [key]: true }));
 
     try {
@@ -669,23 +732,38 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                       </div>
 
                       <div className="quiz-action-group flex flex-wrap items-center gap-2.5 mb-3">
-                        <button
-                          onClick={() => handleAiCheck(item, key, idx, exercise)}
-                          disabled={isLoading}
-                          className="btn-ai-check bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-4 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer disabled:opacity-50"
-                        >
-                          {isLoading ? (
-                            <>
-                              <RefreshCw className="w-4 h-4 animate-spin" />
-                              <span>กำลัง AI ตรวจทาน...</span>
-                            </>
-                          ) : (
-                            <>
-                              <Sparkles className="w-4 h-4" />
-                              <span>✨ ตรวจสอบประโยคของฉัน</span>
-                            </>
-                          )}
-                        </button>
+                        {(() => {
+                          const isCooldown = (cooldowns[key] || 0) > 0;
+                          const isButtonDisabled = isLoading || isCooldown;
+                          return (
+                            <button
+                              onClick={() => handleAiCheck(item, key, idx, exercise)}
+                              disabled={isButtonDisabled}
+                              className={`btn-ai-check px-4 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all shadow-2xs ${
+                                isCooldown 
+                                  ? 'bg-amber-100 text-amber-800 border border-amber-300 cursor-not-allowed opacity-90'
+                                  : 'bg-[#2563eb] hover:bg-[#1d4ed8] text-white disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer'
+                              }`}
+                            >
+                              {isLoading ? (
+                                <>
+                                  <RefreshCw className="w-4 h-4 animate-spin" />
+                                  <span>กำลัง AI ตรวจทาน...</span>
+                                </>
+                              ) : isCooldown ? (
+                                <>
+                                  <Clock className="w-4 h-4 animate-pulse text-amber-600" />
+                                  <span>⏳ รออีก {cooldowns[key]} วิ...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Sparkles className="w-4 h-4" />
+                                  <span>✨ ตรวจสอบประโยคของฉัน</span>
+                                </>
+                              )}
+                            </button>
+                          );
+                        })()}
                         {item.model_answer && (
                           <button
                             type="button"
