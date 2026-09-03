@@ -1299,8 +1299,10 @@ export default function BackendAdminPage() {
                 {/* Visual Bar Funnel */}
                 <div className="funnel-bars-container space-y-3">
                   {analyticsData?.unitViews?.map((u: any) => {
-                    const maxViews = analyticsData?.unit1Views || 1;
-                    const pct = Math.max(2, Math.min(100, Math.round((u.view_count / maxViews) * 100)));
+                    const maxViews = analyticsData?.unit1Views || 0;
+                    const pct = (maxViews > 0 && u.view_count > 0)
+                      ? Math.min(100, Math.round((u.view_count / maxViews) * 100))
+                      : 0;
                     const isUnit1 = u.unit_number === 1;
                     const isUnit15 = u.unit_number === 15;
                     const isUnit30 = u.unit_number === 30;
@@ -1323,32 +1325,34 @@ export default function BackendAdminPage() {
 
                         {/* Progress Bar Container */}
                         <div className="bar-track flex-1 h-7 bg-slate-100 rounded-xl overflow-hidden relative flex items-center p-1">
-                          <div
-                            style={{ width: `${pct}%` }}
-                            className={`bar-fill h-full rounded-lg transition-all duration-500 flex items-center justify-end pr-2 ${
-                              isUnit1 
-                                ? 'bg-gradient-to-r from-emerald-500 to-teal-500' 
-                                : isUnit30 
-                                ? 'bg-gradient-to-r from-amber-500 to-orange-500'
-                                : 'bg-gradient-to-r from-[#2563eb] to-[#3b82f6]'
-                            }`}
-                          >
-                            {pct > 15 && (
-                              <span className="text-[11px] font-extrabold text-white drop-shadow-xs">
-                                {u.view_count?.toLocaleString()}
-                              </span>
-                            )}
-                          </div>
+                          {pct > 0 && (
+                            <div
+                              style={{ width: `${pct}%` }}
+                              className={`bar-fill h-full rounded-lg transition-all duration-500 flex items-center justify-end pr-2 ${
+                                isUnit1 
+                                  ? 'bg-gradient-to-r from-emerald-500 to-teal-500' 
+                                  : isUnit30 
+                                  ? 'bg-gradient-to-r from-amber-500 to-orange-500'
+                                  : 'bg-gradient-to-r from-[#2563eb] to-[#3b82f6]'
+                              }`}
+                            >
+                              {pct > 15 && (
+                                <span className="text-[11px] font-extrabold text-white drop-shadow-xs">
+                                  {u.view_count?.toLocaleString()}
+                                </span>
+                              )}
+                            </div>
+                          )}
 
                           {pct <= 15 && (
-                            <span className="text-[11px] font-bold text-slate-600 pl-2">
+                            <span className={`text-[11px] font-bold pl-2 ${u.view_count === 0 ? 'text-slate-400' : 'text-slate-600'}`}>
                               {u.view_count?.toLocaleString()}
                             </span>
                           )}
                         </div>
 
                         {/* Retention % */}
-                        <div className="retention-pct-box w-14 sm:w-16 shrink-0 text-right font-mono font-bold text-slate-600 text-xs">
+                        <div className={`retention-pct-box w-14 sm:w-16 shrink-0 text-right font-mono font-bold text-xs ${pct === 0 ? 'text-slate-300' : 'text-slate-600'}`}>
                           {pct}%
                         </div>
 
