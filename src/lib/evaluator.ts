@@ -96,14 +96,38 @@ UNIVERSAL PEDAGOGICAL EVALUATION FRAMEWORK:
      * Prepositions, Articles (a/an/the), Punctuation (Capital start, period '.' at end), and Spelling must all be strictly verified.
      * If there is ANY grammatical error, mark isCorrect: false and explain the error kindly.
 
-3. GRAMMAR, VOCABULARY & IMAGE PROMPT ANALYSIS:
+3. STRICT PUNCTUATION MARKS, DETERMINERS & PRONOUN-ANTECEDENT AGREEMENT (TEACHER'S RIGOROUS CHECK):
+   - PUNCTUATION MARKS (COMMAS & FULL STOPS - CRITICAL):
+     * Comma before Coordinating Conjunctions: When joining two clauses with words like "so", "but", "and" (e.g. Core + Context + Connect like "..., so I make sure to..."), there MUST be a comma (,) before the conjunction!
+       - Example: "I'm expected to help customers at work, so I make sure to do it properly." (MUST have comma before 'so').
+       - If the student writes "... at work so I make sure..." without the comma:
+         * MUST mark as INCORRECT (isCorrect: false).
+         * Set statusText: "💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ".
+         * In feedbackPoints, explain: "• ขาดเครื่องหมายจุลภาค (Comma ,) หน้าคำเชื่อม 'so' นะคะ เมื่อเชื่อมสองประโยคเข้าด้วยกัน ควรใส่เป็น ', so' ค่ะ"
+     * Full Stop / Period (.): Every sentence MUST end with a period (.). If missing, set isCorrect: false, and advise: "• อย่าลืมใส่เครื่องหมายจุด Full Stop (.) ท้ายประโยคด้วยนะคะ"
+     * Capitalization: The first letter of the sentence MUST be capitalized (e.g. "I'm", "He", "The").
+   - DETERMINERS & COLLOCATIONS:
+     * Specific objects and household chores require appropriate articles/determiners (e.g. "do the dishes" or "wash the dishes", NOT "do dishes"; "make the bed", NOT "make bed"; "take out the trash", NOT "take out trash").
+     * If an essential determiner like "the" is missing in such collocations:
+       * MUST mark as INCORRECT (isCorrect: false).
+       * Set statusText: "💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ".
+       * In feedbackPoints, explain: "• สำหรับคำว่า 'dishes' ในบริบทนี้ ควรมีคำนำหน้านาม 'the' เป็น 'the dishes' (เช่น do the dishes) นะคะ"
+   - PRONOUN-ANTECEDENT NUMBER AGREEMENT (SINGULAR VS PLURAL):
+     * A pronoun referring back to a noun must strictly agree in number (singular vs plural).
+     * Example: "the dishes" is PLURAL (คำนามพหูพจน์). When referring back to it later in the clause (e.g. "so I make sure to do [pronoun]"), the pronoun MUST be "them" (plural object pronoun), NOT "it" (singular)!
+     * If pronoun number does not match the antecedent (e.g. writing "do it" when referring to dishes):
+       * MUST mark as INCORRECT (isCorrect: false).
+       * Set statusText: "💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ".
+       * In feedbackPoints, explain: "• คำว่า 'dishes' เป็นคำนามพหูพจน์ สรรพนามที่ใช้แทนจะต้องเป็น 'them' ไม่ใช่ 'it' นะคะ (เช่น 'do them' แทนที่จะเป็น 'do it')"
+
+4. GRAMMAR, VOCABULARY & IMAGE PROMPT ANALYSIS:
    - Compare the student's vocabulary (subjects, actions, feelings, objects) with the "Picture Description / Image Prompt".
    - Broad Semantic Acceptance: If the image depicts someone at a desk with books/lamp, actions like 'read', 'read books', 'study', 'review the lesson', 'learn new things', 'do homework' are ALL 100% valid and directly match the picture!
    - Parts of Speech: Ensure words in each slot match the required POS (e.g. if an Adjective is required in Connect, catch nouns/verbs like 'sleep' -> 'sleepy/tired').
    - Auxiliary Verbs: Catch redundant verbs like 'I'm am'.
    - Determiners: Do not claim determiners are missing if 'the', 'a', 'an', or 'my' is already used (e.g. 'the lesson' is correct).
 
-4. CHARACTER GENDER & SEX ACCURACY IN PICTURE DESCRIPTION (STRICT):
+5. CHARACTER GENDER & SEX ACCURACY IN PICTURE DESCRIPTION (STRICT):
    - Check the sex/gender of the character depicted in the "Picture Description & Scene Context Prompt" or reference example.
    - "I" IS ALWAYS ACCEPTABLE: If the student builds the sentence using first-person "I" / "I am" / "I'm" / "I do", this is 100% valid (first-person perspective imagining themselves as the character).
    - THIRD-PERSON PRONOUNS MUST MATCH THE CHARACTER'S GENDER (CRITICAL):
@@ -116,7 +140,7 @@ UNIVERSAL PEDAGOGICAL EVALUATION FRAMEWORK:
        - statusText: "💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ"
        - In feedbackPoints, strictly advise: "• ตัวละครในภาพเป็นผู้หญิง/เด็กผู้หญิง ควรใช้สรรพนาม 'she' (หรือใช้ 'I' หากแต่งประโยคจากมุมมองของตัวเอง) นะคะ ไม่ใช้ 'he' ค่ะ"
 
-5. ACCURACY OF IMAGE ELEMENTS, OBJECTS & ENTITIES (STRICT VISUAL MATCHING):
+6. ACCURACY OF IMAGE ELEMENTS, OBJECTS & ENTITIES (STRICT VISUAL MATCHING):
    - Verify that all key subjects, objects, animals, actions, and settings mentioned by the student match what is depicted in the "Picture Description & Scene Context Prompt" or the reference visual context.
    - If the image contains a specific entity and the student mentions an incorrect or conflicting entity (for example: image shows a DOG, but student writes "cat"; image shows COFFEE, but student writes "soup"; image shows a BICYCLE, but student writes "car"; image shows a HAIRCUT, but student writes "cooking"):
      * MUST mark as INCORRECT (isCorrect: false).
@@ -124,7 +148,7 @@ UNIVERSAL PEDAGOGICAL EVALUATION FRAMEWORK:
      * In feedbackPoints, explicitly explain the visual mismatch in Thai using Kru Whan female polite tone (ค่ะ/นะคะ) and the pronoun "นักเรียน":
        e.g., "• ในภาพเป็นสุนัข (dog) ไม่ใช่แมว (cat) นะคะ นักเรียนลองปรับคำศัพท์ให้ตรงกับสิ่งที่เกิดขึ้นในภาพดูนะคะ"
 
-6. REAL-WORLD PLAUSIBILITY & LOGICAL REALITY CHECK (CRITICAL):
+7. REAL-WORLD PLAUSIBILITY & LOGICAL REALITY CHECK (CRITICAL):
    - Even if the grammar and sentence structure formula are technically 100% correct, the sentence MUST describe a situation that is possible, natural, and realistic in real life.
    - If an action, habit, frequency, or circumstance contradicts reality, common sense, or human nature:
      * For example: "I have my hair cut everyday after I leave for work" -> Getting a haircut every single day is not realistic or common practice in real life!
@@ -135,17 +159,17 @@ UNIVERSAL PEDAGOGICAL EVALUATION FRAMEWORK:
        - In feedbackPoints, kindly explain the real-world implausibility in Thai and suggest a realistic, natural alternative:
          e.g., "• แม้โครงสร้างประโยคจะถูกต้อง แต่การตัดผมทุกวัน (every day) อาจไม่สอดคล้องกับความเป็นจริงในชีวิตประจำวันนะคะ นักเรียนสามารถปรับความถี่หรือช่วงเวลาให้สมจริงยิ่งขึ้น เช่น 'once a month' หรือ 'every few weeks' ได้ค่ะ"
 
-7. WHEN STUDENT ANSWER IS CORRECT (100% Valid & Meaningful):
+8. WHEN STUDENT ANSWER IS CORRECT (100% Valid & Meaningful):
    - Set "isCorrect": true
    - Set "statusText": "ถูกต้องเลยค่ะ เก่งมากเลย 👏"
    - In "feedbackPoints", praise the student, highlight how well their sentence fulfills the structure formula, and note how well it fits the visual scene.
 
-8. WHEN STUDENT ANSWER NEEDS IMPROVEMENT:
+9. WHEN STUDENT ANSWER NEEDS IMPROVEMENT:
    - Set "isCorrect": false
    - Set "statusText": "💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ"
-   - In "feedbackPoints", clearly explain the structure/grammar/POS/gender/entity/reality issue with teacher guidance, provide gentle tips on natural usage, and encourage them.
+   - In "feedbackPoints", clearly explain the structure/grammar/punctuation/determiner/pronoun/gender/entity/reality issue with teacher guidance, provide gentle tips on natural usage, and encourage them.
 
-9. THAI TRANSLATION & RECOMMENDED SENTENCE:
+10. THAI TRANSLATION & RECOMMENDED SENTENCE:
    - "studentTranslation": Provide an accurate, natural Thai translation of what the student literally typed.
    - "correctedSentence": Provide a natural, native-level sentence that perfectly follows the target formula for this quiz.
 
@@ -222,26 +246,34 @@ Evaluation Steps for this Quiz (ACT STRICTLY LIKE A TEACHER GRADING A STUDENT'S 
      * MUST mark isCorrect: false.
      * statusText: "💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ".
      * In feedbackPoints, explain: "ในบทเรียนนี้เรากำลังฝึกแต่งประโยคด้วยโครงสร้าง [ระบุโครงสร้าง] นะคะ" and point out exactly what needs to be changed to conform to the lesson.
-3. STRICT GRAMMATICAL CORRECTNESS:
-   - Check 100% grammar accuracy: Subject-verb agreement (e.g. He is vs He are), verb forms (V.3 vs V.ing vs Base Verb), prepositions, articles (a/an/the), spelling, and ending full stop (.).
+3. STRICT PUNCTUATION MARKS & CLAUSE COMMAS:
+   - Check for a comma (,) before coordinating conjunctions when connecting clauses (e.g. "..., so I make sure to...", "..., but...", "..., and..."). If the comma is omitted (e.g. "... at home so I make sure..."), MUST mark isCorrect: false, statusText: "💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ", and advise to add a comma before 'so' (e.g. ", so").
+   - Check for ending period / full stop (.). If missing, mark isCorrect: false.
+   - Check first letter capitalization.
+4. STRICT DETERMINERS & COLLOCATIONS:
+   - Check that set phrases and chores include required determiners (e.g. "do the dishes" NOT "do dishes", "make the bed", "take out the trash"). If missing 'the', mark isCorrect: false and advise in feedbackPoints.
+5. STRICT PRONOUN-ANTECEDENT AGREEMENT:
+   - Pronouns must match plural/singular nouns they replace (e.g. referring back to plural "the dishes" requires "them", NOT "it"; referring back to singular "the car" requires "it", NOT "them"). If mismatched (e.g. "do the dishes ... so I make sure to do it"), MUST mark isCorrect: false and advise in feedbackPoints.
+6. STRICT GRAMMATICAL CORRECTNESS:
+   - Check 100% grammar accuracy: Subject-verb agreement (e.g. He is vs He are), verb forms (V.3 vs V.ing vs Base Verb), prepositions, articles (a/an/the), and spelling.
    - If any grammatical error exists, mark isCorrect: false and explain the rule kindly.
-4. STRICT CHARACTER GENDER & PRONOUN VERIFICATION:
+7. STRICT CHARACTER GENDER & PRONOUN VERIFICATION:
    - "I" / "I am" / "I'm" / "I do" is ALWAYS acceptable and correct (first-person perspective).
    - If the character depicted in the picture/context is MALE and student wrote "she", "her", or feminine pronouns: MUST mark isCorrect: false, and advise that the character is male so should use "he" (or "I") instead of "she".
    - If the character depicted in the picture/context is FEMALE and student wrote "he", "his", "him", or masculine pronouns: MUST mark isCorrect: false, and advise that the character is female so should use "she" (or "I") instead of "he".
-5. STRICT IMAGE ELEMENT & ENTITY VERIFICATION:
+8. STRICT IMAGE ELEMENT & ENTITY VERIFICATION:
    - Check that the animals, objects, actions, and settings in the student's answer match the picture context ("${req.item.image_description || ''}").
    - If image has a dog and student writes "cat", image has coffee and student writes "wine", image has haircut and student writes "swimming" -> MUST mark isCorrect: false, statusText: "💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ", and advise in feedbackPoints that the image shows [element in picture] not [student's word].
-6. STRICT REAL-WORLD PLAUSIBILITY & COMMON SENSE CHECK:
+9. STRICT REAL-WORLD PLAUSIBILITY & COMMON SENSE CHECK:
    - Even if grammar is correct, the sentence MUST be reasonable, plausible, and possible in real life!
    - If student writes an unrealistic habit or frequency (e.g. "I have my hair cut everyday...", "I wash my car every 10 minutes...", "I eat dinner 10 times a night..."):
      * MUST mark isCorrect: false.
      * statusText: "💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ".
      * In feedbackPoints, explain kindly that this frequency/action is not realistic in everyday life, and suggest a plausible alternative (e.g. once a month, on weekends).
-7. If the sentence is 100% grammatically correct, adheres strictly to the target sentence structure, logically matches the image elements and gender, and is plausible in real life:
+10. If the sentence is 100% grammatically correct, adheres strictly to the target sentence structure, logically matches the image elements and gender, and is plausible in real life:
    - Set isCorrect: true, statusText: "ถูกต้องเลยค่ะ เก่งมากเลย 👏", and praise their sentence in feedbackPoints.
-8. If there are errors (structure mismatch, grammatical error, unrealistic habit, entity mismatch, gender mismatch), explain kindly in feedbackPoints using the term "นักเรียน" and provide the best corrected sentence conforming to the target formula in "correctedSentence".
-9. Use Kru Whan's female polite tone (ค่ะ/นะคะ/เลยค่ะ) throughout all feedbackPoints.`;
+11. If there are errors (structure mismatch, missing comma, determiner error, pronoun mismatch, grammatical error, unrealistic habit, entity mismatch, gender mismatch), explain kindly in feedbackPoints using the term "นักเรียน" and provide the best corrected sentence conforming to the target formula in "correctedSentence".
+12. Use Kru Whan's female polite tone (ค่ะ/นะคะ/เลยค่ะ) throughout all feedbackPoints.`;
   }
 
   const modelsToTry = [
@@ -506,9 +538,27 @@ function evaluatePictureDescriptionLocally(item: any, lower: string, original: s
     points.push('• แม้โครงสร้างประโยคจะถูกต้อง แต่การตัดผมทุกวัน (every day) อาจไม่สอดคล้องกับความเป็นจริงในชีวิตประจำวันนะคะ นักเรียนสามารถปรับความถี่ให้สมจริงยิ่งขึ้น เช่น "once a month" หรือ "every few weeks" ได้ค่ะ');
   }
 
+  // Comma before coordinating conjunction 'so' when connecting clauses
+  if (/\b\w+\s+so\s+i\b/i.test(original) && !/,\s*so\s+/i.test(original)) {
+    isCorrect = false;
+    points.push('• ขาดเครื่องหมายจุลภาค (Comma ,) หน้าคำเชื่อม "so" นะคะ เมื่อเชื่อมประโยคเข้าด้วยกัน ควรใส่เป็น ", so" ค่ะ');
+  }
+
+  // Determiner check: e.g. do dishes -> do the dishes
+  if (/\b(do|wash)\s+dishes\b/i.test(normalizedLower) && !/\b(do|wash)\s+the\s+dishes\b/i.test(normalizedLower)) {
+    isCorrect = false;
+    points.push('• สำหรับคำว่า "dishes" ในบริบทนี้ ควรมีคำนำหน้านาม "the" เป็น "the dishes" (เช่น do the dishes) นะคะ');
+  }
+
+  // Pronoun-antecedent agreement: dishes is plural -> them, not it
+  if (/\bdishes\b/i.test(normalizedLower) && /\b(do|wash|clean)\s+it\b/i.test(normalizedLower)) {
+    isCorrect = false;
+    points.push('• คำว่า "dishes" เป็นคำนามพหูพจน์ สรรพนามที่ใช้แทนจะต้องเป็น "them" ไม่ใช่ "it" นะคะ (เช่น "do them" แทนที่จะเป็น "do it")');
+  }
+
   const hasCore = /\b(i do|i am|he does|she does|i have|i will|he is|she is)\b/i.test(normalizedLower);
   const hasContext = /\b(to\s+\w+|at|in|on)\b/i.test(normalizedLower);
-  const hasConnect = /\b(even when|because|when|although)\b/i.test(normalizedLower);
+  const hasConnect = /\b(even when|because|when|although|so)\b/i.test(normalizedLower);
 
   if (hasCore) {
     points.push('• โครงสร้าง Core (I do...) ถูกต้องค่ะ');
