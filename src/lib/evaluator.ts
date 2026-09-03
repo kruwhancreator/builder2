@@ -186,17 +186,50 @@ UNIVERSAL PEDAGOGICAL EVALUATION FRAMEWORK:
        - In feedbackPoints, kindly explain the real-world implausibility in Thai and suggest a realistic, natural alternative:
          e.g., "• แม้โครงสร้างประโยคจะถูกต้อง แต่การตัดผมทุกวัน (every day) อาจไม่สอดคล้องกับความเป็นจริงในชีวิตประจำวันนะคะ นักเรียนสามารถปรับความถี่หรือช่วงเวลาให้สมจริงยิ่งขึ้น เช่น 'once a month' หรือ 'every few weeks' ได้ค่ะ"
 
-8. WHEN STUDENT ANSWER IS CORRECT (100% Valid & Meaningful):
+8. PRAGMATIC APPROPRIATENESS & "MORE PROPER / NATURAL" ADVICE (PEDAGOGICAL NUANCE & ADVANCED TIPS):
+   - In English, there are sentences where the grammar is strictly correct, and the student successfully applies the lesson's target formula, BUT the phrasing is slightly awkward, unnatural, or would be "MORE PROPER" if expressed differently.
+   - GOLDEN RULE FOR THESE SITUATIONS:
+     * DO NOT MARK THE SENTENCE AS INCORRECT!
+     * MUST KEEP isCorrect: true, statusText: "ถูกต้องเลยค่ะ เก่งมากเลย 👏".
+     * Provide encouraging praise in feedbackPoints for mastering the structure.
+     * THEN, add a gentle, expert Kru Whan tip (คำแนะนำเพิ่มเติมเพื่อความเป็นธรรมชาติ) explaining why an alternative phrasing is more proper or native-like!
+   
+   - SPECIAL CASE A: "be about to + V" (กำลังจะ...ในอีกไม่ช้า / กำลังจะ...เดี๋ยวนี้แล้ว):
+     * The grammatical expression "be about to + V" specifically indicates an action in the IMMEDIATE future (typically within 15 minutes, right now, or in moments).
+     * If the student uses "be about to" with a distant or broad timeframe (e.g. "I'm about to leave for work next week", "I'm about to graduate next month", "I'm about to travel tomorrow", "in two hours"):
+       - The sentence structure is grammatically valid -> MUST MARK isCorrect: true!
+       - In feedbackPoints, provide this specific guidance:
+         "• โครงสร้างประโยคของนักเรียนถูกต้องตามบทเรียนแล้วค่ะ เก่งมากเลยนะคะ"
+         "• คำแนะนำเพิ่มเติมเพื่อความเป็นธรรมชาติ: สำนวน 'be about to + V' (กำลังจะ...ในอีกไม่ช้า) ใช้บอกเหตุการณ์ที่กำลังจะเกิดขึ้นทันทีหรือในเวลาอันใกล้มาก ๆ (มักเกิดขึ้นภายในไม่เกิน 15 นาที หรือในอีกไม่กี่อึดใจ) หากเป็นเหตุการณ์ที่ห่างออกไป เช่น พรุ่งนี้ สัปดาห์หน้า หรืออีกหลายชั่วโมงข้างหน้า แนะนำให้ใช้ 'will + V' หรือ 'be going to + V' จะเหมาะสมและเป็นธรรมชาติกว่านะคะ"
+       - In "correctedSentence", provide the natural version (e.g. "I'm going to leave for work next week." or "I'm about to leave for work now.").
+
+   - SPECIAL CASE B: AWKWARD OR LESS PROPER CONSTRUCTIONS (e.g. "used to ... but now I do that"):
+     * Example: "I used to take a picture of the scenery but now I do that."
+       - Grammatically it parses, but "now I do that" is unnatural/improper repetition in English. Native speakers naturally say "now I do it regularly", "now I still do", or "now I enjoy taking photos".
+       - In such cases:
+         - MUST MARK isCorrect: true (do NOT penalize the student).
+         - In feedbackPoints:
+           "• โครงสร้างประโยคถูกต้องตามหลักไวยากรณ์แล้วค่ะ เก่งมากเลยนะคะ"
+           "• คำแนะนำเพิ่มเติมเพื่อความเป็นธรรมชาติ: ท่อนหลังที่นักเรียนเขียนว่า 'now I do that' แม้จะเข้าใจความหมายได้ แต่เพื่อให้ประโยคสละสลวยและเป็นธรรมชาติเหมือนเจ้าของภาษา แนะนำให้ปรับเป็น 'now I do it regularly' หรือ 'now I enjoy doing so' จะเหมาะสมกว่านะคะ"
+         - In "correctedSentence", provide the polished native version!
+
+   - SPECIAL CASE C: OTHER GENERAL "CORRECT BUT MORE PROPER" USAGES ACROSS ALL UNITS:
+     * Whenever a student writes a sentence that is technically correct in grammar and matches the image/context, but native speakers would phrase it more properly/idiomatically:
+       - Keep isCorrect: true.
+       - Always praise their effort first.
+       - Offer the "more proper" suggestion as a bonus enhancement tip in feedbackPoints.
+
+9. WHEN STUDENT ANSWER IS CORRECT (100% Valid & Meaningful):
    - Set "isCorrect": true
    - Set "statusText": "ถูกต้องเลยค่ะ เก่งมากเลย 👏"
    - In "feedbackPoints", praise the student, highlight how well their sentence fulfills the structure formula, and note how well it fits the visual scene.
 
-9. WHEN STUDENT ANSWER NEEDS IMPROVEMENT:
+10. WHEN STUDENT ANSWER NEEDS IMPROVEMENT:
    - Set "isCorrect": false
    - Set "statusText": "💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ"
    - In "feedbackPoints", clearly explain the structure/grammar/punctuation/determiner/pronoun/gender/entity/reality issue with teacher guidance, provide gentle tips on natural usage, and encourage them.
 
-10. THAI TRANSLATION & RECOMMENDED SENTENCE:
+11. THAI TRANSLATION & RECOMMENDED SENTENCE:
    - "studentTranslation": Provide an accurate, natural Thai translation of what the student literally typed.
    - "correctedSentence": Provide a natural, native-level sentence that perfectly follows the target formula for this quiz.
 
@@ -319,10 +352,23 @@ Evaluation Steps for this Quiz (ACT STRICTLY LIKE A TEACHER GRADING A STUDENT'S 
      * MUST mark isCorrect: false.
      * statusText: "💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ".
      * In feedbackPoints, explain kindly that this frequency/action is not realistic in everyday life, and suggest a plausible alternative (e.g. once a month, on weekends).
-10. If the sentence is 100% grammatically correct, adheres strictly to the target sentence structure, logically matches the image elements and gender, and is plausible in real life:
-   - Set isCorrect: true, statusText: "ถูกต้องเลยค่ะ เก่งมากเลย 👏", and praise their sentence in feedbackPoints.
-11. If there are errors (structure mismatch, missing comma, determiner error, pronoun mismatch, grammatical error, unrealistic habit, entity mismatch, gender mismatch), explain kindly in feedbackPoints using the term "นักเรียน" and provide the best corrected sentence conforming to the target formula in "correctedSentence".
-12. Use Kru Whan's female polite tone (ค่ะ/นะคะ/เลยค่ะ) throughout all feedbackPoints.`;
+10. PRAGMATIC APPROPRIATENESS & TIME-RANGE CHECKS (PEDAGOGICAL NUANCE & ADVANCED TIPS):
+    - For "be about to + V" (เช่น I'm about to...):
+      * Note that "be about to" indicates an immediate action (within 15 minutes / shortly).
+      * If student wrote a longer time range (e.g. tomorrow, next week, in 2 hours):
+        - KEEP isCorrect: true (do NOT penalize as long as the structure is valid)!
+        - In feedbackPoints, praise the structure, then advise kindly:
+          "• ข้อสังเกตเพิ่มเติมเพื่อความเป็นธรรมชาติ: สำนวน 'be about to + V' สื่อถึงสิ่งที่กำลังจะเกิดขึ้นในอีกไม่กี่นาทีข้างหน้า (มักเกิดขึ้นภายในไม่เกิน 15 นาที หรือในไม่ช้า) หากเป็นเหตุการณ์ที่ห่างออกไป เช่น พรุ่งนี้หรือสัปดาห์หน้า แนะนำให้ใช้ 'will' หรือ 'be going to' จะเหมาะสมและเป็นธรรมชาติกว่านะคะ"
+        - In correctedSentence, provide the natural version.
+    - For phrasing that is grammatically correct but awkward or would be "more proper" if rephrased (e.g. "I used to take a picture of the scenery but now I do that"):
+      * KEEP isCorrect: true!
+      * In feedbackPoints, praise the grammar first, then add advice:
+        "• คำแนะนำเพิ่มเติมเพื่อความเป็นธรรมชาติ: ท่อนหลังที่ว่า 'now I do that' แนะนำให้ปรับเป็น 'now I do it regularly' หรือ 'now I enjoy doing so' จะสละสลวยกว่านะคะ"
+      * In correctedSentence, provide the polished phrasing.
+11. If the sentence is 100% grammatically correct, adheres strictly to the target sentence structure, logically matches the image elements and gender, and is plausible in real life:
+    - Set isCorrect: true, statusText: "ถูกต้องเลยค่ะ เก่งมากเลย 👏", and praise their sentence in feedbackPoints.
+12. If there are errors (structure mismatch, missing comma, determiner error, pronoun mismatch, grammatical error, unrealistic habit, entity mismatch, gender mismatch), explain kindly in feedbackPoints using the term "นักเรียน" and provide the best corrected sentence conforming to the target formula in "correctedSentence".
+13. Use Kru Whan's female polite tone (ค่ะ/นะคะ/เลยค่ะ) throughout all feedbackPoints.`;
   }
 
   const modelsToTry = [
@@ -712,7 +758,20 @@ function evaluatePictureDescriptionLocally(item: any, lower: string, original: s
     points.push('• คำว่า "dishes" เป็นคำนามพหูพจน์ สรรพนามที่ใช้แทนจะต้องเป็น "them" ไม่ใช่ "it" นะคะ (เช่น "do them" แทนที่จะเป็น "do it")');
   }
 
-  const hasCore = /\b(i do|i am|he does|she does|i have|i will|he is|she is)\b/i.test(normalizedLower);
+  // Nuance check: "be about to" should ideally be within ~15 minutes
+  const isAboutTo = /\b(about to)\b/i.test(normalizedLower);
+  const isDistantTime = /\b(tomorrow|next week|next month|next year|in \d+ hours|in a few days)\b/i.test(normalizedLower);
+  if (isAboutTo && isDistantTime) {
+    points.push('• ข้อสังเกตเพิ่มเติมเพื่อความเป็นธรรมชาติ: สำนวน "be about to + V" (กำลังจะ...ในอีกไม่ช้า) ใช้บอกเหตุการณ์ที่กำลังจะเกิดขึ้นทันทีหรือในเวลาอันใกล้มาก ๆ (มักเกิดขึ้นภายในไม่เกิน 15 นาที หรือในอีกไม่กี่อึดใจ) หากเป็นเหตุการณ์ที่ห่างออกไป เช่น พรุ่งนี้หรือสัปดาห์หน้า แนะนำให้ใช้ "will + V" หรือ "be going to + V" จะเหมาะสมและเป็นธรรมชาติกว่านะคะ');
+  }
+
+  // Nuance check: "used to ... but now I do that"
+  if (/\bused to\b/i.test(normalizedLower) && /\bnow\s+(i|we|they|he|she)\s+do\s+that\b/i.test(normalizedLower)) {
+    points.push('• คำแนะนำเพิ่มเติมเพื่อความเป็นธรรมชาติ: ท่อนหลังที่ว่า "now I do that" แม้จะสื่อสารเข้าใจได้ แต่เพื่อให้ประโยคสละสลวยเหมือนเจ้าของภาษา แนะนำให้ปรับเป็น "now I do it regularly" หรือ "now I still do so" จะฟังดูเป็นธรรมชาติกว่านะคะ');
+    fixedSentence = fixedSentence.replace(/\bnow\s+i\s+do\s+that\b/gi, 'now I do it regularly');
+  }
+
+  const hasCore = /\b(i do|i am|he does|she does|i have|i will|he is|she is|i used to|used to|about to|be about to)\b/i.test(normalizedLower);
   const hasContext = /\b(to\s+\w+|at|in|on)\b/i.test(normalizedLower);
   const hasConnect = /\b(even when|because|when|although|so)\b/i.test(normalizedLower);
 
