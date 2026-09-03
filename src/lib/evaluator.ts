@@ -55,10 +55,37 @@ TONE, POLITE PARTICLES & PRONOUNS (STRICT RULES):
 - ALWAYS speak as Kru Whan (female teacher persona).
 - ALWAYS use female polite ending particles: "ค่ะ", "นะคะ", "เลยค่ะ".
 - NEVER EVER use male polite particles ("ครับ", "นะครับ").
-- ADDRESSING THE USER (CRITICAL):
-  * ALWAYS refer to the user/student as "นักเรียน" (e.g. "ประโยคของนักเรียน", "นักเรียนเลือกคำศัพท์ได้ดีมากค่ะ", "นักเรียนลองปรับ...", "คำแปลประโยคของนักเรียน").
-  * NEVER EVER use "น้อง", "น้องๆ", "ลูกค้า", "ท่าน", or "คุณ".
-- Deliver clear, friendly, and structured bullet points (2 to 4 points).
+- ADDRESSING THE USER (STRICT TEACHER PERSONA):
+  * When Kru Whan speaks to the student in feedback, ALWAYS refer to the student as "นักเรียน" (e.g. "ประโยคของนักเรียน", "นักเรียนเลือกคำศัพท์ได้ดีมากค่ะ", "นักเรียนลองปรับ...", "คำแปลประโยคของนักเรียน").
+  * Do NOT address the student as "น้อง", "น้องๆ", or "คุณ".
+  * CRITICAL DISTINCTION (NEVER CONFUSE THIS):
+    - The rule to use "นักเรียน" applies ONLY when Kru Whan addresses the student doing the exercise!
+    - It DOES NOT mean the English vocabulary word "customer" is translated as "นักเรียน"!
+    - The English word "customer" / "the customer" / "customers" MUST ALWAYS be translated and referred to as "ลูกค้า" (customer/hotel guest), NEVER as "นักเรียน"!
+    - For example: "help the customer" MUST BE TRANSLATED AS "ช่วยลูกค้า", NEVER "ช่วยนักเรียน"!
+
+TRANSLATION FIDELITY & THAI PRONOUN DISTINCTIONS (CRITICAL):
+- In "studentTranslation", provide a 100% faithful, accurate, and natural Thai translation of what the student literally typed:
+  * "customer" / "customers" MUST be translated as "ลูกค้า", NEVER "นักเรียน".
+  * Pronouns for people vs inanimate objects:
+    - "they" / "them" referring to human beings/people (e.g. customer, guests, people, passengers, friends):
+      * MUST be translated as "พวกเขา" (or "เขา").
+      * NEVER translate "them" referring to people as "พวกมัน" (which in Thai is strictly derogatory or for animals/inanimate things like bags or furniture)!
+    - "they" / "them" referring to inanimate things/objects (e.g. bags, dishes, cars):
+      * Translate as "พวกมัน", "สิ่งเหล่านั้น", or the noun itself (เช่น "กระเป๋าเหล่านั้น").
+
+CRITICAL ANTI-HALLUCINATION & STUDENT ANSWER ISOLATION (ZERO HALLUCINATIONS):
+- You MUST evaluate ONLY the words that the student actually typed in "Student Answer to Evaluate".
+- NEVER attribute words from the reference example (such as 'bags') to the student if the student did not write them!
+- NEVER state in feedback "คำว่า '...' ที่นักเรียนใช้" or give feedback analyzing words that the student DID NOT write in their sentence!
+- The "Reference Model Answer" is provided ONLY as an example of one valid sentence for teacher guidance. It is NOT what the student wrote!
+- Example: If the student wrote "I'm expected to help the customer at the hotel, so I make sure to handle them carefully":
+  * The student wrote "the customer" and "handle them", NOT "bags"!
+  * DO NOT claim in feedback: "คำว่า 'bags' เป็นคำนามพหูพจน์ เมื่อนักเรียนใช้สรรพนาม 'them' อ้างถึงกระเป๋า..." -> THIS IS A BLATANT HALLUCINATION! The student never typed "bags"!
+  * Critique what the student ACTUALLY wrote:
+    1) Singular vs Plural pronoun mismatch: "the customer" is singular, but student used plural pronoun "them" (if referring to customers in general, use plural "customers", or if singular use "him/her").
+    2) Word collocation: "handle" in English is typically used for physical objects or luggage/bags (เช่น ถือ/ยก/ดูแลสิ่งของอย่างระมัดระวัง), whereas for customers (people), we normally say "serve them politely", "assist them attentively", or "take care of them properly".
+    3) If the student wanted to describe the bellboy carrying luggage in the picture, suggest that they can use "carry bags at the hotel, so I make sure to handle them carefully".
 
 UNIVERSAL PEDAGOGICAL EVALUATION FRAMEWORK:
 1. CONTRACTIONS & FULL FORMS EQUIVALENCE (STRICT 100% EQUIVALENT):
@@ -184,7 +211,7 @@ CRITICAL RESPONSE FORMAT: Respond ONLY with valid raw JSON matching this schema:
 }
 Do not wrap in markdown code blocks. Return pure raw JSON string only.`;
 
-  const modelAnswer = req.item.model_answer ? `Target Model Answer / Reference Example: "${req.item.model_answer}"` : '';
+  const modelAnswer = req.item.model_answer ? `Example Reference Sentence (FOR TEACHER REFERENCE ONLY - DO NOT assume the student used words from this example unless they actually appear in the student's answer): "${req.item.model_answer}"` : '';
   const acceptableAnswers = req.item.acceptable_answers ? `Acceptable Variations: ${JSON.stringify(req.item.acceptable_answers)}` : '';
   const teacherGuidance = req.item.teacher_guidance || req.item.context_hint || req.item.guidance || '';
 
@@ -239,8 +266,14 @@ ${targetStructure}
 Student Answer to Evaluate: "${req.studentAnswer}"
 
 Evaluation Steps for this Quiz (ACT STRICTLY LIKE A TEACHER GRADING A STUDENT'S EXERCISE):
-1. Translate what the student wrote into natural Thai and return it in "studentTranslation".
-2. STRICT SENTENCE STRUCTURE ENFORCEMENT (PRIMARY TEACHER DUTY):
+1. Translate what the student wrote into natural Thai and return it in "studentTranslation":
+   - "customer" / "customers" MUST be translated as "ลูกค้า", NEVER "นักเรียน".
+   - "they" / "them" referring to human beings (customers, guests, people) MUST be translated as "พวกเขา", NEVER "พวกมัน".
+2. STRICT ANTI-HALLUCINATION CHECK:
+   - Evaluate ONLY the words that the student actually wrote in "${req.studentAnswer}".
+   - NEVER attribute words from the reference example (such as 'bags') to the student if the student did not write them!
+   - NEVER say "คำว่า '...' ที่นักเรียนใช้" for words that do NOT exist in the student's answer!
+3. STRICT SENTENCE STRUCTURE ENFORCEMENT (PRIMARY TEACHER DUTY):
    - Check if the student's answer adheres to the TARGET SENTENCE STRUCTURE taught in this unit ("${targetStructure}").
    - If the student writes a sentence that fails to use or ignores the required formula (e.g., using active voice when passive voice S. + is/am/are + V.3 is taught, using wrong tense, or missing required slots):
      * MUST mark isCorrect: false.
@@ -340,7 +373,7 @@ Evaluation Steps for this Quiz (ACT STRICTLY LIKE A TEACHER GRADING A STUDENT'S 
     : (typeof parsed.score === 'number' ? parsed.score >= 95 : !parsed.statusText?.includes('ไม่สมบูรณ์'));
 
   const rawFeedbackPoints: string[] = Array.isArray(parsed.feedbackPoints) ? parsed.feedbackPoints : [];
-  let sanitizedFeedbackPoints = rawFeedbackPoints.map(pt => sanitizeThaiStudentPronouns(pt));
+  let sanitizedFeedbackPoints = cleanFeedbackPoints(rawFeedbackPoints, req.studentAnswer);
 
   // Strict Character Gender Verification for Picture Description (Exercise 3)
   if (req.exerciseType === 'picture_description') {
@@ -374,7 +407,7 @@ Evaluation Steps for this Quiz (ACT STRICTLY LIKE A TEACHER GRADING A STUDENT'S 
     isCorrect,
     score: isCorrect ? 100 : (typeof parsed.score === 'number' && isCorrect ? parsed.score : 60),
     statusText: sanitizeThaiStudentPronouns(isCorrect ? 'ถูกต้องเลยค่ะ เก่งมากเลย 👏' : (parsed.statusText || '💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ')),
-    studentTranslation: sanitizeThaiStudentPronouns(parsed.studentTranslation || ''),
+    studentTranslation: cleanStudentTranslation(parsed.studentTranslation || '', req.studentAnswer),
     correctedSentence: finalCorrectedSentence,
     feedbackPoints: sanitizedFeedbackPoints,
     breakdown: cleanBreakdown,
@@ -383,14 +416,80 @@ Evaluation Steps for this Quiz (ACT STRICTLY LIKE A TEACHER GRADING A STUDENT'S 
 }
 
 /**
- * Sanitizes Thai pronouns to strictly use "นักเรียน" instead of "น้อง", "น้องๆ", "ลูกค้า", or "คุณ"
+ * Ensures student translation accurately translates words like 'customer' as 'ลูกค้า'
+ * and human pronouns like 'them' as 'พวกเขา' instead of 'พวกมัน'.
+ */
+function cleanStudentTranslation(translation: string, studentAns: string): string {
+  if (!translation) return '';
+  let result = translation;
+
+  // If student wrote customer/client, ensure translation has ลูกค้า not นักเรียน
+  if (/\b(customer|customers|client|clients)\b/i.test(studentAns)) {
+    result = result.replace(/ช่วยนักเรียน/g, 'ช่วยลูกค้า')
+                   .replace(/บริการนักเรียน/g, 'บริการลูกค้า')
+                   .replace(/ดูแลนักเรียน/g, 'ดูแลลูกค้า')
+                   .replace(/ต่อนักเรียน/g, 'ต่อลูกค้า')
+                   .replace(/กับนักเรียน/g, 'กับลูกค้า')
+                   .replace(/พบนักเรียน/g, 'พบลูกค้า');
+  }
+
+  // If student wrote about human beings (customer, guests, people, passengers, staff, etc.),
+  // 'them' referring to humans must be 'พวกเขา' (or 'เขา') and NEVER 'พวกมัน'!
+  if (/\b(customer|customers|guest|guests|people|person|passenger|passengers|staff|client|clients|visitor|visitors|friend|friends)\b/i.test(studentAns)) {
+    result = result.replace(/พวกมัน/g, 'พวกเขา')
+                   .replace(/จัดการพวกมัน/g, 'ดูแลพวกเขา')
+                   .replace(/บริการพวกมัน/g, 'บริการพวกเขา')
+                   .replace(/ช่วยพวกมัน/g, 'ช่วยพวกเขา');
+  }
+
+  return result;
+}
+
+/**
+ * Sanitizes and cleans feedback points to prevent hallucinated claims
+ * (such as attributing words from the reference model answer like 'bags' that the student never typed).
+ */
+function cleanFeedbackPoints(points: string[], studentAns: string): string[] {
+  const studentLower = studentAns.toLowerCase();
+  const hasBags = /\bbags?\b/i.test(studentLower);
+
+  return points.map(pt => {
+    let cleaned = sanitizeThaiStudentPronouns(pt);
+
+    // If student did NOT mention 'bags' / 'bag', but feedback hallucinated claiming student used 'bags':
+    if (!hasBags) {
+      cleaned = cleaned.replace(/คำว่า\s*['"‘“]bags?['"’”]\s*(?:เป็นคำนามพหูพจน์\s*)?เมื่อนักเรียนใช้สรรพนาม\s*['"‘“]them['"’”]\s*อ้างถึงกระเป๋า.*?(?=แต่|$)/g,
+        'หากนักเรียนต้องการสื่อถึงกระเป๋าเดินทาง (bags) ในภาพ ');
+      cleaned = cleaned.replace(/คำว่า\s*['"‘“]bags?['"’”]\s*ที่นักเรียนใช้/g,
+        'กระเป๋าเดินทาง (bags) ในภาพ');
+    }
+
+    // Ensure business customer mentions are not corrupted to นักเรียน
+    cleaned = cleaned.replace(/บริการนักเรียน/g, 'บริการลูกค้า')
+                     .replace(/การช่วยเหลือนักเรียน/g, 'การช่วยเหลือลูกค้า')
+                     .replace(/ช่วยนักเรียนที่โรงแรม/g, 'ช่วยลูกค้าที่โรงแรม')
+                     .replace(/ไม่ใช่การช่วยนักเรียน/g, 'ไม่ใช่การช่วยลูกค้า');
+
+    // Ensure humans are not referred to as พวกมัน
+    if (/\b(customer|customers|guest|guests|people|person|passenger|passengers|staff|client|clients)\b/i.test(studentLower)) {
+      cleaned = cleaned.replace(/จัดการพวกมัน/g, 'ดูแลพวกเขา')
+                       .replace(/ดูแลพวกมัน/g, 'ดูแลพวกเขา');
+    }
+
+    return cleaned;
+  });
+}
+
+/**
+ * Sanitizes Thai pronouns to strictly use "นักเรียน" when Kru Whan addresses the user/student,
+ * but NEVER replaces the noun "ลูกค้า" (customer).
  */
 function sanitizeThaiStudentPronouns(text: string): string {
   if (!text) return '';
   return text
     .replace(/น้องๆ/g, 'นักเรียน')
     .replace(/น้อง/g, 'นักเรียน')
-    .replace(/ลูกค้า/g, 'นักเรียน')
+    .replace(/คุณลูกค้า/g, 'นักเรียน')
     .replace(/ประโยคของคุณ/g, 'ประโยคของนักเรียน')
     .replace(/คำตอบของคุณ/g, 'คำตอบของนักเรียน')
     .replace(/ของคุณ/g, 'ของนักเรียน')
