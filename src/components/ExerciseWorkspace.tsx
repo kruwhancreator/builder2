@@ -149,7 +149,14 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
             ...item,
             image_description: item.image_description || '',
             context_hint: item.context_hint || '',
-            teacher_guidance: item.teacher_guidance || item.context_hint || exercise?.guidance || exercise?.instruction || '',
+            teacher_guidance: item.teacher_guidance || item.context_hint || exercise?.guidance || exercise?.instruction || chapterData.subtitle || '',
+            unit_title: chapterData.title || '',
+            unit_subtitle: chapterData.subtitle || '',
+            exercise_title: exercise?.title || '',
+            exercise_instruction: exercise?.instruction || '',
+            exercise_guidance: exercise?.guidance || '',
+            grammar_focus: exercise?.grammar_focus || '',
+            structure_required: exercise?.structure_required || null,
             model_answer: item.model_answer || ''
           },
           studentAnswer: studentAns
