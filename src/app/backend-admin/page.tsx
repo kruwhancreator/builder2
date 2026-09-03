@@ -170,11 +170,11 @@ export default function BackendAdminPage() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (passcode === 'admin123') {
+    if (passcode === 'KruWhanLearnerResultTeam#2026') {
       setIsAuthenticated(true);
       setAuthError('');
     } else {
-      setAuthError('Passcode ไม่ถูกต้อง (รหัสผ่านเริ่มต้น: admin123)');
+      setAuthError('Passcode ไม่ถูกต้อง');
     }
   };
 
@@ -824,8 +824,7 @@ export default function BackendAdminPage() {
                 type="password"
                 value={passcode}
                 onChange={(e) => setPasscode(e.target.value)}
-                placeholder="กรอก Passcode ( admin123 )"
-                className="login-passcode-input w-full rounded-2xl bg-slate-50 border border-slate-300 px-4 py-3.5 text-base text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/20 text-center font-mono"
+                className="login-passcode-input w-full rounded-2xl bg-slate-50 border border-slate-300 px-4 py-3.5 text-base text-slate-900 focus:outline-none focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/20 text-center font-mono"
               />
             </div>
 
