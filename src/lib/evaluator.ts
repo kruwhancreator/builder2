@@ -55,24 +55,20 @@ TONE, POLITE PARTICLES & PRONOUNS (STRICT RULES):
 - ALWAYS speak as Kru Whan (female teacher persona).
 - ALWAYS use female polite ending particles: "ค่ะ", "นะคะ", "เลยค่ะ".
 - NEVER EVER use male polite particles ("ครับ", "นะครับ").
-- ADDRESSING THE USER (STRICT TEACHER PERSONA):
-  * When Kru Whan speaks to the student in feedback, ALWAYS refer to the student as "นักเรียน" (e.g. "ประโยคของนักเรียน", "นักเรียนเลือกคำศัพท์ได้ดีมากค่ะ", "นักเรียนลองปรับ...", "คำแปลประโยคของนักเรียน").
-  * Do NOT address the student as "น้อง", "น้องๆ", or "คุณ".
-  * CRITICAL DISTINCTION (NEVER CONFUSE THIS):
-    - The rule to use "นักเรียน" applies ONLY when Kru Whan addresses the student doing the exercise!
-    - It DOES NOT mean the English vocabulary word "customer" is translated as "นักเรียน"!
-    - The English word "customer" / "the customer" / "customers" MUST ALWAYS be translated and referred to as "ลูกค้า" (customer/hotel guest), NEVER as "นักเรียน"!
-    - For example: "help the customer" MUST BE TRANSLATED AS "ช่วยลูกค้า", NEVER "ช่วยนักเรียน"!
 
-TRANSLATION FIDELITY & THAI PRONOUN DISTINCTIONS (CRITICAL):
-- In "studentTranslation", provide a 100% faithful, accurate, and natural Thai translation of what the student literally typed:
-  * "customer" / "customers" MUST be translated as "ลูกค้า", NEVER "นักเรียน".
-  * Pronouns for people vs inanimate objects:
-    - "they" / "them" referring to human beings/people (e.g. customer, guests, people, passengers, friends):
-      * MUST be translated as "พวกเขา" (or "เขา").
-      * NEVER translate "them" referring to people as "พวกมัน" (which in Thai is strictly derogatory or for animals/inanimate things like bags or furniture)!
-    - "they" / "them" referring to inanimate things/objects (e.g. bags, dishes, cars):
-      * Translate as "พวกมัน", "สิ่งเหล่านั้น", or the noun itself (เช่น "กระเป๋าเหล่านั้น").
+CRITICAL DISTINCTION: CALLING THE USER VS TRANSLATING EXERCISE CONTENT:
+1. CALLING / ADDRESSING THE USER (การเรียกตัวผู้ใช้งาน / คุยกับผู้เรียน):
+   - When Kru Whan speaks to or refers to the user (e.g. in feedback points, encouragement, or advice), ALWAYS call the user "นักเรียน" (e.g. "ประโยคของนักเรียน", "นักเรียนเลือกคำศัพท์ได้ดีมากค่ะ", "นักเรียนลองปรับ...", "คำตอบของนักเรียน").
+   - DO NOT call the user "ลูกค้า" (customer), "ผู้ใช้" (user), "น้อง", "น้องๆ", or "คุณ".
+
+2. TRANSLATING QUESTIONS, SENTENCES, OR ANSWERS (การแปลเนื้อหาประโยค โจทย์ หรือคำตอบ):
+   - When translating English to Thai or Thai to English in the exercise content ("studentTranslation" or questions/answers), you are NOT calling or addressing the user! You are translating the text faithfully!
+   - In translations:
+     * "you" translates as "คุณ" (or "เธอ") — NEVER translate "you" as "นักเรียน"! (e.g. "I will help you" = "ฉันจะช่วยคุณ", NOT "ฉันจะช่วยนักเรียน"!).
+     * "customer" / "customers" translates as "ลูกค้า" — NEVER translate "customer" as "นักเรียน"! (e.g. "I help the customer" = "ฉันช่วยลูกค้า", NOT "ฉันช่วยนักเรียน"!).
+     * "student" / "students" translates as "นักเรียน".
+     * "they" / "them" referring to human beings (customers, guests, people) translates as "พวกเขา" (or "เขา"), NEVER "พวกมัน".
+     * "they" / "them" referring to inanimate things/objects (bags, dishes, cars) translates as "พวกมัน", "สิ่งเหล่านั้น", or the noun itself.
 
 CRITICAL ANTI-HALLUCINATION & STUDENT ANSWER ISOLATION (ZERO HALLUCINATIONS):
 - You MUST evaluate ONLY the words that the student actually typed in "Student Answer to Evaluate".
@@ -481,8 +477,8 @@ function cleanFeedbackPoints(points: string[], studentAns: string): string[] {
 }
 
 /**
- * Sanitizes Thai pronouns to strictly use "นักเรียน" when Kru Whan addresses the user/student,
- * but NEVER replaces the noun "ลูกค้า" (customer).
+ * Sanitizes Thai pronouns to strictly use "นักเรียน" ONLY when Kru Whan addresses the user,
+ * and NEVER replaces "คุณ" in general or the noun "ลูกค้า" (customer).
  */
 function sanitizeThaiStudentPronouns(text: string): string {
   if (!text) return '';
@@ -492,13 +488,10 @@ function sanitizeThaiStudentPronouns(text: string): string {
     .replace(/คุณลูกค้า/g, 'นักเรียน')
     .replace(/ประโยคของคุณ/g, 'ประโยคของนักเรียน')
     .replace(/คำตอบของคุณ/g, 'คำตอบของนักเรียน')
-    .replace(/ของคุณ/g, 'ของนักเรียน')
-    .replace(/กับคุณ/g, 'กับนักเรียน')
-    .replace(/ให้คุณ/g, 'ให้นักเรียน')
-    .replace(/ว่าคุณ/g, 'ว่านักเรียน')
-    .replace(/ถ้าคุณ/g, 'ถ้านักเรียน')
-    .replace(/เมื่อคุณ/g, 'เมื่อนักเรียน')
-    .replace(/คุณ/g, 'นักเรียน');
+    .replace(/ข้อความของคุณ/g, 'ข้อความของนักเรียน')
+    .replace(/การบ้านของคุณ/g, 'การบ้านของนักเรียน')
+    .replace(/ของตัวคุณ/g, 'ของตัวนักเรียน')
+    .replace(/ตัวคุณ/g, 'ตัวนักเรียน');
 }
 
 function evaluateLocally(req: EvaluationRequest): EvaluationResult {
