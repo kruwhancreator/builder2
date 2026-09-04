@@ -513,7 +513,7 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                     .filter(Boolean) as typeof exCategories;
 
                   return (
-                    <div key={key} className="quiz-item-card bg-[#f8fafc] border border-slate-200 rounded-xl p-5 shadow-2xs">
+                    <div key={key} className="quiz-item-card bg-[#f8fafc] border border-slate-200 rounded-xl p-3.5 sm:p-5 shadow-2xs overflow-hidden max-w-full">
                       {/* 1. Question Number Header */}
                       <div className="quiz-question-prompt text-base sm:text-lg font-bold text-[#1e3a8a] mb-3 font-heading flex items-center gap-2">
                         <span className="w-8 h-8 rounded-xl bg-blue-100 text-[#1e3a8a] inline-flex items-center justify-center text-sm font-bold shadow-2xs">
@@ -523,13 +523,13 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                       </div>
 
                       {/* 2. Fill-in-the-blank Typing Sentence Builder (No Word Bank) */}
-                      <div className="sentence-builder-card bg-white border border-blue-200 rounded-2xl p-5 mb-4 shadow-2xs">
+                      <div className="sentence-builder-card bg-white border border-blue-200 rounded-2xl p-3.5 sm:p-5 mb-4 shadow-2xs overflow-hidden max-w-full">
                         <div className="text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-1.5">
                           <span>✍️</span>
                           <span>พิมพ์เติมคำในช่องว่าง (Fill in the blanks):</span>
                         </div>
 
-                        <div className="flex flex-wrap items-center gap-2 text-sm sm:text-base font-bold text-slate-900 leading-loose">
+                        <div className="flex flex-wrap items-center gap-2 text-sm sm:text-base font-bold text-slate-900 leading-loose max-w-full">
                           {(() => {
                             // Compute trailing punctuation for each input slot
                             const trailingPuncs: string[] = [];
@@ -561,17 +561,17 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                                     <span className="font-mono text-[#1e3a8a]">{textContent}</span>
                                   )}
                                   {pIdx < slotCount && (
-                                    <span className="inline-flex items-center">
+                                    <span className="inline-flex items-center max-w-full min-w-0 shrink">
                                       <input
                                         type="text"
                                         value={currentVal}
                                         onChange={(e) => handleSlotInputChange(key, promptParts, pIdx, e.target.value, slotCount)}
                                         placeholder={placeholderText}
-                                        style={{ width: `${dynamicWidth}px`, maxWidth: '100%' }}
-                                        className="inline-block px-2.5 sm:px-3 py-1.5 rounded-xl border-2 border-dashed border-blue-400 bg-blue-50/70 focus:bg-white text-sm sm:text-base font-bold text-[#1e3a8a] text-center outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-all font-mono shadow-2xs placeholder:text-blue-400/80 placeholder:font-sans placeholder:text-xs sm:placeholder:text-sm placeholder:font-semibold max-w-full min-w-[90px] sm:min-w-[120px]"
+                                        style={{ width: `${dynamicWidth}px`, maxWidth: trailingPunc ? 'calc(100% - 1.25rem)' : '100%' }}
+                                        className="inline-block px-2.5 sm:px-3 py-1.5 rounded-xl border-2 border-dashed border-blue-400 bg-blue-50/70 focus:bg-white text-sm sm:text-base font-bold text-[#1e3a8a] text-center outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-all font-mono shadow-2xs placeholder:text-blue-400/80 placeholder:font-sans placeholder:text-xs sm:placeholder:text-sm placeholder:font-semibold max-w-full min-w-[80px] sm:min-w-[120px]"
                                       />
                                       {trailingPunc && (
-                                        <span className="font-mono font-bold text-[#1e3a8a] text-base ml-1 select-none">
+                                        <span className="font-mono font-bold text-[#1e3a8a] text-base ml-1 select-none shrink-0">
                                           {trailingPunc}
                                         </span>
                                       )}
