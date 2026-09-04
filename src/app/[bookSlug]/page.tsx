@@ -7,6 +7,7 @@ import {
   GraduationCap
 } from 'lucide-react';
 import { getBookDataFromDb } from '@/lib/data-manager';
+import CurriculumDropdownButton from '@/components/CurriculumDropdownButton';
 
 interface PageProps {
   params: Promise<{
@@ -63,9 +64,7 @@ export default async function DynamicBookLandingPage({ params }: PageProps) {
           <BookOpen className="w-5 h-5 sm:w-6 sm:h-6 text-[#2563eb]" />
           <span>เลือก Unit ที่ต้องการทำ</span>
         </h2>
-        <span className="text-xs sm:text-sm font-semibold text-slate-600 bg-white px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full border border-slate-200 shadow-2xs">
-          {unitsList.length} Units Available
-        </span>
+        <CurriculumDropdownButton bookSlug={bookSlug} units={unitsList} />
       </div>
 
       {unitsList.length > 0 ? (
