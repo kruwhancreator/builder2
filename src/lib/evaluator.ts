@@ -168,12 +168,25 @@ UNIVERSAL PEDAGOGICAL EVALUATION FRAMEWORK:
        - In feedbackPoints, strictly advise: "• ตัวละครในภาพเป็นผู้หญิง/เด็กผู้หญิง ควรใช้สรรพนาม 'she' (หรือใช้ 'I' หากแต่งประโยคจากมุมมองของตัวเอง) นะคะ ไม่ใช้ 'he' ค่ะ"
 
 6. ACCURACY OF IMAGE ELEMENTS, OBJECTS & ENTITIES (STRICT VISUAL MATCHING):
-   - Verify that all key subjects, objects, animals, actions, and settings mentioned by the student match what is depicted in the "Picture Description & Scene Context Prompt" or the reference visual context.
-   - If the image contains a specific entity and the student mentions an incorrect or conflicting entity (for example: image shows a DOG, but student writes "cat"; image shows COFFEE, but student writes "soup"; image shows a BICYCLE, but student writes "car"; image shows a HAIRCUT, but student writes "cooking"):
+   - Verify that all key subjects, objects, animals, actions, and settings describing the PHYSICAL SCENE IN THE PICTURE match what is depicted in the "Picture Description & Scene Context Prompt" or the reference visual context.
+   - If the image contains a specific entity and the student mentions an incorrect or conflicting entity in the visual scene (for example: image shows a DOG, but student writes "cat"; image shows COFFEE, but student writes "soup"; image shows a BICYCLE, but student writes "car"; image shows a HAIRCUT, but student writes "cooking"):
      * MUST mark as INCORRECT (isCorrect: false).
      * Set statusText: "💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ".
      * In feedbackPoints, explicitly explain the visual mismatch in Thai using Kru Whan female polite tone (ค่ะ/นะคะ) and the pronoun "นักเรียน":
        e.g., "• ในภาพเป็นสุนัข (dog) ไม่ใช่แมว (cat) นะคะ นักเรียนลองปรับคำศัพท์ให้ตรงกับสิ่งที่เกิดขึ้นในภาพดูนะคะ"
+
+   - CRITICAL PEDAGOGICAL RULE FOR MULTI-CLAUSE & CONTRAST STRUCTURES (e.g. "I'm about to ..., but I still ...", "Although ..., ...", "Before ..., ...", "I plan to ..., so I need to ..."):
+     * In sentence structures combining an upcoming/future action with a current action (such as: "I'm about to [Action A], but I still [Action B]"):
+       1. Action B describes what the character is CURRENTLY doing or needs to do right now in the picture (e.g. "wrap the gift", "need to wrap the gift", "clean the room", "pack my bags"). THIS ACTION MUST MATCH THE PICTURE!
+       2. Action A describes an UPCOMING, FUTURE, or PLANNED event (e.g. "study in 15 minutes", "study in fifteen minutes", "leave for work", "meet my friend", "take an exam", "go to bed") that has NOT happened yet!
+       3. IT IS PHYSICALLY IMPOSSIBLE FOR A FUTURE/INTENDED ACTION TO BE VISIBLE IN A PICTURE OF THE PRESENT MOMENT!
+       4. Therefore, the upcoming action in "I'm about to..." CAN BE ANY LOGICAL OR REAL-WORLD ACTIVITY!
+       5. NEVER, EVER PENALIZE THE STUDENT OR CLAIM "คำกริยาที่นักเรียนเลือกใช้คือ 'study' ไม่สอดคล้องกับภาพที่กำลังห่อของขวัญ"! The character in the picture is wrapping a gift right now precisely because they are about to study in 15 minutes! This is 100% correct, logical, and natural English!
+       6. Check visual matching ONLY against the clause that describes the current physical scene (e.g. "wrap the gift")!
+
+   - NUMBERS AS WORDS VS DIGITS EQUIVALENCE (100% IDENTICAL):
+     * Numbers written as words ("fifteen minutes", "two hours", "five dollars", "ten percent") and numbers written as digits ("15 minutes", "2 hours", "$5", "10%") are 100% EQUIVALENT and EQUALLY CORRECT!
+     * Both "fifteen minutes" and "15 minutes" are completely valid and natural English. NEVER mark an answer as wrong or treat it differently just because the student wrote words instead of digits or vice versa!
 
 7. REAL-WORLD PLAUSIBILITY & LOGICAL REALITY CHECK (CRITICAL):
    - Even if the grammar and sentence structure formula are technically 100% correct, the sentence MUST describe a situation that is possible, natural, and realistic in real life.
@@ -344,7 +357,11 @@ Evaluation Steps for this Quiz (ACT STRICTLY LIKE A TEACHER GRADING A STUDENT'S 
    - If the character depicted in the picture/context is MALE and student wrote "she", "her", or feminine pronouns: MUST mark isCorrect: false, and advise that the character is male so should use "he" (or "I") instead of "she".
    - If the character depicted in the picture/context is FEMALE and student wrote "he", "his", "him", or masculine pronouns: MUST mark isCorrect: false, and advise that the character is female so should use "she" (or "I") instead of "he".
 8. STRICT IMAGE ELEMENT & ENTITY VERIFICATION:
-   - Check that the animals, objects, actions, and settings in the student's answer match the picture context ("${req.item.image_description || ''}").
+   - Check that the animals, objects, actions, and settings describing the visual scene match the picture context ("${req.item.image_description || ''}").
+   - For multi-clause or contrast structures like "I'm about to [Upcoming Action], but I still [Current Action in Image]":
+     * ONLY the clause describing the current physical action (e.g. "need to wrap the gift") must match the picture!
+     * The future/planned action in "I'm about to [Action]" (e.g. "study", "study in fifteen minutes", "study in 15 minutes", "leave", "take an exam") is an upcoming plan that has not happened yet and therefore is NOT in the image. DO NOT require it to be in the image, and NEVER claim words like 'study' don't match the picture!
+   - Numbers as words vs digits ("fifteen minutes" vs "15 minutes") are 100% IDENTICAL and EQUALLY CORRECT.
    - If image has a dog and student writes "cat", image has coffee and student writes "wine", image has haircut and student writes "swimming" -> MUST mark isCorrect: false, statusText: "💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ", and advise in feedbackPoints that the image shows [element in picture] not [student's word].
 9. STRICT REAL-WORLD PLAUSIBILITY & COMMON SENSE CHECK:
    - Even if grammar is correct, the sentence MUST be reasonable, plausible, and possible in real life!
@@ -436,12 +453,30 @@ Evaluation Steps for this Quiz (ACT STRICTLY LIKE A TEACHER GRADING A STUDENT'S 
 
   // CRITICAL SAFETY CHECK: Exact / Near Model Answer Match
   // If the student writes the teacher's model answer (or acceptable answer), it is BY DEFINITION correct!
-  const normalizeForMatch = (s: string) => (s || '')
-    .trim()
-    .replace(/[.!?]+$/, '')
-    .replace(/['’]/g, "'")
-    .replace(/\s+/g, ' ')
-    .toLowerCase();
+  const normalizeForMatch = (s: string) => {
+    let res = (s || '')
+      .trim()
+      .replace(/[.!?]+$/, '')
+      .replace(/['’]/g, "'")
+      .replace(/\s+/g, ' ')
+      .toLowerCase();
+
+    // Map common number words to digits so "fifteen minutes" and "15 minutes" match perfectly
+    const numWordMap: Record<string, string> = {
+      'zero': '0', 'one': '1', 'two': '2', 'three': '3', 'four': '4',
+      'five': '5', 'six': '6', 'seven': '7', 'eight': '8', 'nine': '9',
+      'ten': '10', 'eleven': '11', 'twelve': '12', 'thirteen': '13',
+      'fourteen': '14', 'fifteen': '15', 'sixteen': '16', 'seventeen': '17',
+      'eighteen': '18', 'nineteen': '19', 'twenty': '20', 'twenty-five': '25',
+      'thirty': '30', 'forty': '40', 'fifty': '50', 'sixty': '60'
+    };
+
+    for (const [word, digit] of Object.entries(numWordMap)) {
+      const reg = new RegExp(`\\b${word}\\b`, 'g');
+      res = res.replace(reg, digit);
+    }
+    return res;
+  };
 
   const studentNorm = normalizeForMatch(req.studentAnswer);
   const modelNorm = normalizeForMatch(req.item.model_answer);
@@ -458,6 +493,30 @@ Evaluation Steps for this Quiz (ACT STRICTLY LIKE A TEACHER GRADING A STUDENT'S 
     } else {
       isCorrect = false;
       sanitizedFeedbackPoints = ['• อย่าลืมใส่เครื่องหมายจุด Full stop (.) ท้ายประโยคด้วยนะคะ'];
+    }
+  }
+
+  // Safety filter for multi-clause / contrast structures ("about to ... but I still ...")
+  // Prevents the AI from wrongly claiming that an upcoming activity (like 'study', 'leave', 'sleep')
+  // does not match a picture of someone wrapping a gift / doing chores right now.
+  const isAboutToOrFuture = /\b(about to|going to)\b/i.test(req.studentAnswer);
+  if (isAboutToOrFuture && !isCorrect) {
+    const hasFalseUpcomingImageMismatch = sanitizedFeedbackPoints.some(pt =>
+      /(ไม่สอดคล้องกับภาพ|ไม่ตรงกับภาพ|ไม่ตรงกับสิ่งที่เกิดขึ้นในภาพ)/.test(pt) &&
+      /(study|leave|sleep|go|exam|work|read|meet|eat|drink|cook|drive|fifteen|minutes)/i.test(pt)
+    );
+
+    if (hasFalseUpcomingImageMismatch) {
+      sanitizedFeedbackPoints = sanitizedFeedbackPoints.filter(pt =>
+        !(/(ไม่สอดคล้องกับภาพ|ไม่ตรงกับภาพ|ไม่ตรงกับสิ่งที่เกิดขึ้นในภาพ)/.test(pt) &&
+          /(study|leave|sleep|go|exam|work|read|meet|eat|drink|cook|drive|fifteen|minutes)/i.test(pt))
+      );
+
+      // If there are no other genuine syntax/grammar errors left:
+      if (sanitizedFeedbackPoints.length === 0) {
+        isCorrect = true;
+        sanitizedFeedbackPoints = ['ประโยคถูกต้องตามโครงสร้างที่กำหนดและสอดคล้องกับภาพเรียบร้อยแล้วค่ะ เก่งมากเลยนะคะ'];
+      }
     }
   }
 
@@ -773,7 +832,7 @@ function evaluatePictureDescriptionLocally(item: any, lower: string, original: s
 
   const hasCore = /\b(i do|i am|he does|she does|i have|i will|he is|she is|i used to|used to|about to|be about to)\b/i.test(normalizedLower);
   const hasContext = /\b(to\s+\w+|at|in|on)\b/i.test(normalizedLower);
-  const hasConnect = /\b(even when|because|when|although|so)\b/i.test(normalizedLower);
+  const hasConnect = /\b(even when|because|when|although|so|but|however)\b/i.test(normalizedLower);
 
   if (hasCore) {
     points.push('• โครงสร้าง Core (I do...) ถูกต้องค่ะ');
