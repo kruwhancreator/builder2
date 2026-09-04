@@ -21,6 +21,49 @@ export interface EvaluationResult {
   modelUsed?: string;
 }
 
+/**
+ * Checks if a sentence containing "about to" specifies a timeframe greater than 15 minutes.
+ * "be about to" in Kru Whan's pedagogy is strictly reserved for immediate timeframes <= 15 minutes
+ * (e.g. 15 minutes, fifteen minutes, 10 minutes, 5 minutes, in moments, right now).
+ * Any duration > 15 minutes (e.g. 16 minutes, 20 minutes, twenty minutes, 30 minutes, an hour, tomorrow, next week)
+ * must be marked incorrect with advice that the timeframe shouldn't exceed 15 minutes.
+ */
+export function isTimeframeGreaterThan15Minutes(text: string): boolean {
+  if (!text) return false;
+  const lower = text.toLowerCase();
+
+  // 1. Explicit numeric minutes: e.g. "in 20 minutes", "in 16 mins", "30 minutes"
+  const numMinMatch = lower.match(/\b(?:in\s+)?(\d+)\s*(?:minutes?|mins?)\b/);
+  if (numMinMatch) {
+    const mins = parseInt(numMinMatch[1], 10);
+    if (mins > 15) return true;
+  }
+
+  // 2. English number words for minutes > 15:
+  // e.g. sixteen, seventeen, eighteen, nineteen, twenty, thirty, forty, fifty, sixty, etc.
+  // Note: "fifteen" is <= 15, so it is NOT matched here.
+  const wordMinMatch = lower.match(
+    /\b(?:in\s+)?(sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)(?:-[a-z]+)?\s*(?:minutes?|mins?)\b/
+  );
+  if (wordMinMatch) return true;
+
+  // 3. Hours or fractions of hours > 15 mins:
+  // e.g. "in an hour", "in 1 hour", "in 2 hours", "in two hours", "half an hour" (30 min), "in a few hours"
+  const hourMatch = lower.match(
+    /\b(?:in\s+)?(?:an?|one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+hours?\b|\bhalf\s+an\s+hour\b|\bin\s+a\s+few\s+hours\b/
+  );
+  if (hourMatch) return true;
+
+  // 4. Days, weeks, months, or distant future:
+  // e.g. "tomorrow", "tonight", "next week", "next month", "in a few days", "in a week"
+  const distantMatch = lower.match(
+    /\b(tomorrow|tonight|next\s+(?:week|month|year|day|monday|tuesday|wednesday|thursday|friday|saturday|sunday)|in\s+a\s+few\s+days|in\s+a\s+week)\b/
+  );
+  if (distantMatch) return true;
+
+  return false;
+}
+
 export async function evaluateAnswer(req: EvaluationRequest): Promise<EvaluationResult> {
   const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 
@@ -210,13 +253,14 @@ UNIVERSAL PEDAGOGICAL EVALUATION FRAMEWORK:
    - SPECIAL CASE A: "be about to + V" (กำลังจะ...ในอีกไม่ช้า / กำลังจะ...เดี๋ยวนี้แล้ว):
      * CRITICAL TEACHING RULE FROM KRU WHAN (EQUAL TO OR LESS THAN 15 MINUTES):
        - The grammatical expression "be about to + V" specifically indicates an action in the IMMEDIATE future that is EQUAL TO OR LESS THAN 15 MINUTES (ช่วงเวลาที่เท่ากับหรือน้อยกว่า 15 นาที เช่น in moments, in 5 minutes, in 10 minutes, in 15 minutes / fifteen minutes, right now).
-       - If the student writes a timeframe EQUAL TO OR LESS THAN 15 MINUTES:
-         * The sentence is 100% correct! You may praise their proper timeframe: "• การใช้ 'be about to' กับช่วงเวลาที่เท่ากับหรือน้อยกว่า 15 นาที (equal to or less than 15 minutes) ถูกต้องและเป็นธรรมชาติมากค่ะ"
-       - If the student uses "be about to" with a timeframe GREATER THAN 15 MINUTES (such as "in 20 minutes", "in 30 minutes", "in an hour", "in two hours", "tomorrow", "next week", "in a few days"):
-         * The sentence structure is grammatically valid -> MUST KEEP isCorrect: true (do NOT penalize the student)!
-         * In feedbackPoints, MUST advise clearly:
-           "• โครงสร้างประโยคของนักเรียนถูกต้องตามบทเรียนแล้วค่ะ เก่งมากเลยนะคะ"
-           "• คำแนะนำสำคัญจากครูหวาน: สำนวน 'be about to + V' (กำลังจะ...ในอีกไม่ช้า) ใช้สำหรับช่วงเวลาที่เท่ากับหรือน้อยกว่า 15 นาที (equal to or less than 15 minutes หรือในอีกไม่กี่อึดใจ) นะคะ หากเป็นช่วงเวลาที่เกินกว่า 15 นาทีขึ้นไป เช่น อีก 30 นาที, อีก 1 ชั่วโมง, พรุ่งนี้ หรือสัปดาห์หน้า แนะนำให้ปรับไปใช้ 'be going to + V' หรือ 'will + V' จะเหมาะสมและเป็นธรรมชาติกว่าค่ะ"
+       - If the student writes a timeframe EQUAL TO OR LESS THAN 15 MINUTES (including "15 minutes" and "fifteen minutes"):
+         * The sentence is 100% correct! MUST MARK isCorrect: true.
+         * You may praise their proper timeframe: "• การใช้ 'be about to' กับช่วงเวลาที่เท่ากับหรือน้อยกว่า 15 นาที (equal to or less than 15 minutes) ถูกต้องและเป็นธรรมชาติมากค่ะ"
+       - If the student uses "be about to" with a timeframe GREATER THAN 15 MINUTES (such as "in 16 minutes", "in 20 minutes", "in twenty minutes", "in 30 minutes", "in thirty minutes", "in an hour", "in two hours", "tomorrow", "next week", "in a few days"):
+         * MUST MARK AS INCORRECT: isCorrect: false!
+         * Set statusText: "💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ"
+         * In feedbackPoints, MUST advise clearly that the time range shouldn't be more than 15 mins:
+           "• การใช้สำนวน 'be about to + V' (กำลังจะ...ในอีกไม่ช้า) ใช้สำหรับช่วงเวลาสั้นๆ ที่เท่ากับหรือน้อยกว่า 15 นาที (equal to or less than 15 minutes หรือในอีกไม่กี่อึดใจ) เท่านั้นนะคะ หากเป็นช่วงเวลาที่เกินกว่า 15 นาทีขึ้นไป (เช่น อีก 20 นาที, อีก 30 นาที, อีก 1 ชั่วโมง หรือพรุ่งนี้) จะไม่สามารถใช้ 'be about to' ได้ค่ะ แนะนำให้เปลี่ยนไปใช้ 'be going to + V' หรือ 'will + V' แทน หรือหากต้องการใช้ 'be about to' ให้ปรับช่วงเวลาไม่เกิน 15 นาทีนะคะ"
          * In "correctedSentence", provide the natural version (e.g. "I'm going to leave in 30 minutes, but I still need to wrap the gift." or "I'm about to leave in 15 minutes...").
 
    - SPECIAL CASE B: AWKWARD OR LESS PROPER CONSTRUCTIONS (e.g. "used to ... but now I do that"):
@@ -375,11 +419,12 @@ Evaluation Steps for this Quiz (ACT STRICTLY LIKE A TEACHER GRADING A STUDENT'S 
 10. PRAGMATIC APPROPRIATENESS & TIME-RANGE CHECKS (PEDAGOGICAL NUANCE & ADVANCED TIPS):
     - For "be about to + V" (เช่น I'm about to...):
       * CRITICAL TEACHING RULE: "be about to" is used for a time period that is EQUAL TO OR LESS THAN 15 MINUTES (ช่วงเวลาที่เท่ากับหรือน้อยกว่า 15 นาที เช่น 15 minutes, fifteen minutes, 10 minutes, in moments, right now).
-      * If time is equal or less than 15 minutes -> 100% correct, praise their proper timeframe.
-      * If student wrote a longer time range GREATER THAN 15 MINUTES (e.g. 20 minutes, 30 minutes, an hour, tomorrow, next week):
-        - KEEP isCorrect: true (do NOT penalize as long as the structure is valid)!
-        - In feedbackPoints, praise the structure, then advise kindly:
-          "• คำแนะนำสำคัญจากครูหวาน: สำนวน 'be about to + V' ใช้สำหรับช่วงเวลาที่เท่ากับหรือน้อยกว่า 15 นาที (equal to or less than 15 minutes หรือในอีกไม่กี่อึดใจ) นะคะ หากเป็นช่วงเวลาที่เกินกว่า 15 นาทีขึ้นไป เช่น อีก 30 นาที, อีก 1 ชั่วโมง หรือพรุ่งนี้ แนะนำให้ใช้ 'be going to' หรือ 'will' จะเหมาะสมและเป็นธรรมชาติกว่าค่ะ"
+      * If time is equal or less than 15 minutes -> 100% correct (isCorrect: true), praise their proper timeframe.
+      * If student wrote a time range GREATER THAN 15 MINUTES (e.g. 16 minutes, 20 minutes, 30 minutes, an hour, tomorrow, next week, twenty minutes, etc.):
+        - MUST mark isCorrect: false!
+        - statusText: "💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ"
+        - In feedbackPoints, explain clearly that the time range for 'be about to' shouldn't be more than 15 mins:
+          "• สำนวน 'be about to + V' ใช้สำหรับช่วงเวลาที่เท่ากับหรือน้อยกว่า 15 นาที (equal to or less than 15 minutes) เท่านั้นนะคะ หากช่วงเวลาเกินกว่า 15 นาทีขึ้นไป แนะนำให้เปลี่ยนไปใช้ 'be going to' หรือ 'will' แทน หรือปรับช่วงเวลาให้ไม่เกิน 15 นาทีค่ะ"
         - In correctedSentence, provide the natural version.
     - For phrasing that is grammatically correct but awkward or would be "more proper" if rephrased (e.g. "I used to take a picture of the scenery but now I do that"):
       * KEEP isCorrect: true!
@@ -500,11 +545,32 @@ Evaluation Steps for this Quiz (ACT STRICTLY LIKE A TEACHER GRADING A STUDENT'S 
     }
   }
 
+  // Pedagogical Rule for "be about to":
+  // "be about to" indicates immediate future <= 15 minutes.
+  // If student uses "about to" with a timeframe > 15 minutes, enforce isCorrect = false.
+  const hasAboutTo = /\babout to\b/i.test(req.studentAnswer);
+  const isOver15Min = hasAboutTo && isTimeframeGreaterThan15Minutes(req.studentAnswer);
+
+  if (isOver15Min) {
+    isCorrect = false;
+    parsed.statusText = '💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ';
+    const timeRangeAdvice = '• สำนวน "be about to + V" (กำลังจะ...ในอีกไม่ช้า) ใช้สำหรับช่วงเวลาสั้นๆ ที่เท่ากับหรือน้อยกว่า 15 นาที (equal to or less than 15 minutes หรือในอีกไม่กี่อึดใจ) เท่านั้นนะคะ หากเป็นช่วงเวลาที่เกินกว่า 15 นาที (เช่น in 20 minutes, in 30 minutes หรือ in an hour) จะไม่สามารถใช้ "be about to" ได้ค่ะ แนะนำให้เปลี่ยนไปใช้ "be going to + V" หรือ "will + V" แทน หรือหากต้องการใช้ "be about to" ให้ปรับช่วงเวลาไม่เกิน 15 นาทีนะคะ';
+
+    sanitizedFeedbackPoints = sanitizedFeedbackPoints.filter(pt => !/(ถูกต้องเลยค่ะ|เก่งมาก)/.test(pt));
+    const alreadyHasAdvice = sanitizedFeedbackPoints.some(pt => pt.includes('15') || pt.includes('about to'));
+    if (!alreadyHasAdvice) {
+      sanitizedFeedbackPoints.unshift(timeRangeAdvice);
+    }
+    if (finalCorrectedSentence && /\babout to\b/i.test(finalCorrectedSentence) && isTimeframeGreaterThan15Minutes(finalCorrectedSentence)) {
+      finalCorrectedSentence = finalCorrectedSentence.replace(/\babout to\b/gi, 'going to');
+    }
+  }
+
   // Safety filter for multi-clause / contrast structures ("about to ... but I still ...")
   // Prevents the AI from wrongly claiming that an upcoming activity (like 'study', 'leave', 'sleep')
   // does not match a picture of someone wrapping a gift / doing chores right now.
   const isAboutToOrFuture = /\b(about to|going to)\b/i.test(req.studentAnswer);
-  if (isAboutToOrFuture && !isCorrect) {
+  if (isAboutToOrFuture && !isCorrect && !isOver15Min) {
     const hasFalseUpcomingImageMismatch = sanitizedFeedbackPoints.some(pt =>
       /(ไม่สอดคล้องกับภาพ|ไม่ตรงกับภาพ|ไม่ตรงกับสิ่งที่เกิดขึ้นในภาพ)/.test(pt) &&
       /(study|leave|sleep|go|exam|work|read|meet|eat|drink|cook|drive|fifteen|minutes)/i.test(pt)
@@ -824,20 +890,12 @@ function evaluatePictureDescriptionLocally(item: any, lower: string, original: s
   // Nuance check: "be about to" is used for a time period equal to or less than 15 minutes
   const isAboutTo = /\b(about to)\b/i.test(normalizedLower);
   if (isAboutTo) {
-    let isGreaterThan15Min = false;
-    const minMatch = normalizedLower.match(/\bin\s+(\d+)\s+min/);
-    if (minMatch) {
-      const mins = parseInt(minMatch[1], 10);
-      if (mins > 15) isGreaterThan15Min = true;
-    }
-    const wordMinMatch = normalizedLower.match(/\bin\s+(twenty|twenty-five|thirty|forty|fifty|sixty)\s+min/);
-    if (wordMinMatch) isGreaterThan15Min = true;
-
-    const distantTimeMatch = /\b(tomorrow|next week|next month|next year|in (?:an?|one|\d+)\s+hours?|in half an hour|in a few days)\b/i.test(normalizedLower);
-    if (distantTimeMatch) isGreaterThan15Min = true;
+    const isGreaterThan15Min = isTimeframeGreaterThan15Minutes(normalizedLower);
 
     if (isGreaterThan15Min) {
-      points.push('• คำแนะนำสำคัญจากครูหวาน: สำนวน "be about to + V" (กำลังจะ...ในอีกไม่ช้า) ใช้สำหรับช่วงเวลาที่เท่ากับหรือน้อยกว่า 15 นาที (equal to or less than 15 minutes หรือในอีกไม่กี่อึดใจ) นะคะ หากเป็นช่วงเวลาที่เกินกว่า 15 นาทีขึ้นไป เช่น อีก 30 นาที, อีก 1 ชั่วโมง, พรุ่งนี้ หรือสัปดาห์หน้า แนะนำให้ใช้ "be going to + V" หรือ "will + V" จะเหมาะสมและเป็นธรรมชาติกว่าค่ะ');
+      isCorrect = false;
+      points.push('• สำนวน "be about to + V" (กำลังจะ...ในอีกไม่ช้า) ใช้สำหรับช่วงเวลาสั้นๆ ที่เท่ากับหรือน้อยกว่า 15 นาที (equal to or less than 15 minutes หรือในอีกไม่กี่อึดใจ) เท่านั้นนะคะ หากเป็นช่วงเวลาที่เกินกว่า 15 นาที (เช่น in 20 minutes, in 30 minutes, in an hour) จะไม่สามารถใช้ "be about to" ได้ค่ะ แนะนำให้เปลี่ยนไปใช้ "be going to + V" หรือ "will + V" แทน หรือหากต้องการใช้ "be about to" ให้ปรับช่วงเวลาไม่เกิน 15 นาทีนะคะ');
+      fixedSentence = fixedSentence.replace(/\babout to\b/gi, 'going to');
     }
   }
 
