@@ -208,13 +208,16 @@ UNIVERSAL PEDAGOGICAL EVALUATION FRAMEWORK:
      * THEN, add a gentle, expert Kru Whan tip (คำแนะนำเพิ่มเติมเพื่อความเป็นธรรมชาติ) explaining why an alternative phrasing is more proper or native-like!
    
    - SPECIAL CASE A: "be about to + V" (กำลังจะ...ในอีกไม่ช้า / กำลังจะ...เดี๋ยวนี้แล้ว):
-     * The grammatical expression "be about to + V" specifically indicates an action in the IMMEDIATE future (typically within 15 minutes, right now, or in moments).
-     * If the student uses "be about to" with a distant or broad timeframe (e.g. "I'm about to leave for work next week", "I'm about to graduate next month", "I'm about to travel tomorrow", "in two hours"):
-       - The sentence structure is grammatically valid -> MUST MARK isCorrect: true!
-       - In feedbackPoints, provide this specific guidance:
-         "• โครงสร้างประโยคของนักเรียนถูกต้องตามบทเรียนแล้วค่ะ เก่งมากเลยนะคะ"
-         "• คำแนะนำเพิ่มเติมเพื่อความเป็นธรรมชาติ: สำนวน 'be about to + V' (กำลังจะ...ในอีกไม่ช้า) ใช้บอกเหตุการณ์ที่กำลังจะเกิดขึ้นทันทีหรือในเวลาอันใกล้มาก ๆ (มักเกิดขึ้นภายในไม่เกิน 15 นาที หรือในอีกไม่กี่อึดใจ) หากเป็นเหตุการณ์ที่ห่างออกไป เช่น พรุ่งนี้ สัปดาห์หน้า หรืออีกหลายชั่วโมงข้างหน้า แนะนำให้ใช้ 'will + V' หรือ 'be going to + V' จะเหมาะสมและเป็นธรรมชาติกว่านะคะ"
-       - In "correctedSentence", provide the natural version (e.g. "I'm going to leave for work next week." or "I'm about to leave for work now.").
+     * CRITICAL TEACHING RULE FROM KRU WHAN (EQUAL TO OR LESS THAN 15 MINUTES):
+       - The grammatical expression "be about to + V" specifically indicates an action in the IMMEDIATE future that is EQUAL TO OR LESS THAN 15 MINUTES (ช่วงเวลาที่เท่ากับหรือน้อยกว่า 15 นาที เช่น in moments, in 5 minutes, in 10 minutes, in 15 minutes / fifteen minutes, right now).
+       - If the student writes a timeframe EQUAL TO OR LESS THAN 15 MINUTES:
+         * The sentence is 100% correct! You may praise their proper timeframe: "• การใช้ 'be about to' กับช่วงเวลาที่เท่ากับหรือน้อยกว่า 15 นาที (equal to or less than 15 minutes) ถูกต้องและเป็นธรรมชาติมากค่ะ"
+       - If the student uses "be about to" with a timeframe GREATER THAN 15 MINUTES (such as "in 20 minutes", "in 30 minutes", "in an hour", "in two hours", "tomorrow", "next week", "in a few days"):
+         * The sentence structure is grammatically valid -> MUST KEEP isCorrect: true (do NOT penalize the student)!
+         * In feedbackPoints, MUST advise clearly:
+           "• โครงสร้างประโยคของนักเรียนถูกต้องตามบทเรียนแล้วค่ะ เก่งมากเลยนะคะ"
+           "• คำแนะนำสำคัญจากครูหวาน: สำนวน 'be about to + V' (กำลังจะ...ในอีกไม่ช้า) ใช้สำหรับช่วงเวลาที่เท่ากับหรือน้อยกว่า 15 นาที (equal to or less than 15 minutes หรือในอีกไม่กี่อึดใจ) นะคะ หากเป็นช่วงเวลาที่เกินกว่า 15 นาทีขึ้นไป เช่น อีก 30 นาที, อีก 1 ชั่วโมง, พรุ่งนี้ หรือสัปดาห์หน้า แนะนำให้ปรับไปใช้ 'be going to + V' หรือ 'will + V' จะเหมาะสมและเป็นธรรมชาติกว่าค่ะ"
+         * In "correctedSentence", provide the natural version (e.g. "I'm going to leave in 30 minutes, but I still need to wrap the gift." or "I'm about to leave in 15 minutes...").
 
    - SPECIAL CASE B: AWKWARD OR LESS PROPER CONSTRUCTIONS (e.g. "used to ... but now I do that"):
      * Example: "I used to take a picture of the scenery but now I do that."
@@ -371,11 +374,12 @@ Evaluation Steps for this Quiz (ACT STRICTLY LIKE A TEACHER GRADING A STUDENT'S 
      * In feedbackPoints, explain kindly that this frequency/action is not realistic in everyday life, and suggest a plausible alternative (e.g. once a month, on weekends).
 10. PRAGMATIC APPROPRIATENESS & TIME-RANGE CHECKS (PEDAGOGICAL NUANCE & ADVANCED TIPS):
     - For "be about to + V" (เช่น I'm about to...):
-      * Note that "be about to" indicates an immediate action (within 15 minutes / shortly).
-      * If student wrote a longer time range (e.g. tomorrow, next week, in 2 hours):
+      * CRITICAL TEACHING RULE: "be about to" is used for a time period that is EQUAL TO OR LESS THAN 15 MINUTES (ช่วงเวลาที่เท่ากับหรือน้อยกว่า 15 นาที เช่น 15 minutes, fifteen minutes, 10 minutes, in moments, right now).
+      * If time is equal or less than 15 minutes -> 100% correct, praise their proper timeframe.
+      * If student wrote a longer time range GREATER THAN 15 MINUTES (e.g. 20 minutes, 30 minutes, an hour, tomorrow, next week):
         - KEEP isCorrect: true (do NOT penalize as long as the structure is valid)!
         - In feedbackPoints, praise the structure, then advise kindly:
-          "• ข้อสังเกตเพิ่มเติมเพื่อความเป็นธรรมชาติ: สำนวน 'be about to + V' สื่อถึงสิ่งที่กำลังจะเกิดขึ้นในอีกไม่กี่นาทีข้างหน้า (มักเกิดขึ้นภายในไม่เกิน 15 นาที หรือในไม่ช้า) หากเป็นเหตุการณ์ที่ห่างออกไป เช่น พรุ่งนี้หรือสัปดาห์หน้า แนะนำให้ใช้ 'will' หรือ 'be going to' จะเหมาะสมและเป็นธรรมชาติกว่านะคะ"
+          "• คำแนะนำสำคัญจากครูหวาน: สำนวน 'be about to + V' ใช้สำหรับช่วงเวลาที่เท่ากับหรือน้อยกว่า 15 นาที (equal to or less than 15 minutes หรือในอีกไม่กี่อึดใจ) นะคะ หากเป็นช่วงเวลาที่เกินกว่า 15 นาทีขึ้นไป เช่น อีก 30 นาที, อีก 1 ชั่วโมง หรือพรุ่งนี้ แนะนำให้ใช้ 'be going to' หรือ 'will' จะเหมาะสมและเป็นธรรมชาติกว่าค่ะ"
         - In correctedSentence, provide the natural version.
     - For phrasing that is grammatically correct but awkward or would be "more proper" if rephrased (e.g. "I used to take a picture of the scenery but now I do that"):
       * KEEP isCorrect: true!
@@ -817,11 +821,24 @@ function evaluatePictureDescriptionLocally(item: any, lower: string, original: s
     points.push('• คำว่า "dishes" เป็นคำนามพหูพจน์ สรรพนามที่ใช้แทนจะต้องเป็น "them" ไม่ใช่ "it" นะคะ (เช่น "do them" แทนที่จะเป็น "do it")');
   }
 
-  // Nuance check: "be about to" should ideally be within ~15 minutes
+  // Nuance check: "be about to" is used for a time period equal to or less than 15 minutes
   const isAboutTo = /\b(about to)\b/i.test(normalizedLower);
-  const isDistantTime = /\b(tomorrow|next week|next month|next year|in \d+ hours|in a few days)\b/i.test(normalizedLower);
-  if (isAboutTo && isDistantTime) {
-    points.push('• ข้อสังเกตเพิ่มเติมเพื่อความเป็นธรรมชาติ: สำนวน "be about to + V" (กำลังจะ...ในอีกไม่ช้า) ใช้บอกเหตุการณ์ที่กำลังจะเกิดขึ้นทันทีหรือในเวลาอันใกล้มาก ๆ (มักเกิดขึ้นภายในไม่เกิน 15 นาที หรือในอีกไม่กี่อึดใจ) หากเป็นเหตุการณ์ที่ห่างออกไป เช่น พรุ่งนี้หรือสัปดาห์หน้า แนะนำให้ใช้ "will + V" หรือ "be going to + V" จะเหมาะสมและเป็นธรรมชาติกว่านะคะ');
+  if (isAboutTo) {
+    let isGreaterThan15Min = false;
+    const minMatch = normalizedLower.match(/\bin\s+(\d+)\s+min/);
+    if (minMatch) {
+      const mins = parseInt(minMatch[1], 10);
+      if (mins > 15) isGreaterThan15Min = true;
+    }
+    const wordMinMatch = normalizedLower.match(/\bin\s+(twenty|twenty-five|thirty|forty|fifty|sixty)\s+min/);
+    if (wordMinMatch) isGreaterThan15Min = true;
+
+    const distantTimeMatch = /\b(tomorrow|next week|next month|next year|in (?:an?|one|\d+)\s+hours?|in half an hour|in a few days)\b/i.test(normalizedLower);
+    if (distantTimeMatch) isGreaterThan15Min = true;
+
+    if (isGreaterThan15Min) {
+      points.push('• คำแนะนำสำคัญจากครูหวาน: สำนวน "be about to + V" (กำลังจะ...ในอีกไม่ช้า) ใช้สำหรับช่วงเวลาที่เท่ากับหรือน้อยกว่า 15 นาที (equal to or less than 15 minutes หรือในอีกไม่กี่อึดใจ) นะคะ หากเป็นช่วงเวลาที่เกินกว่า 15 นาทีขึ้นไป เช่น อีก 30 นาที, อีก 1 ชั่วโมง, พรุ่งนี้ หรือสัปดาห์หน้า แนะนำให้ใช้ "be going to + V" หรือ "will + V" จะเหมาะสมและเป็นธรรมชาติกว่าค่ะ');
+    }
   }
 
   // Nuance check: "used to ... but now I do that"
