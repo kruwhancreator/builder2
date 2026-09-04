@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { 
   CheckCircle2, 
   XCircle, 
@@ -80,13 +80,14 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
       res += parts[i];
       if (i < slots.length && slots[i]) {
         const slotVal = slots[i].trim();
-        if (res.length > 0 && !res.endsWith(' ') && !slotVal.startsWith(' ')) {
+        if (res.length > 0 && !res.endsWith(' ') && !slotVal.startsWith(' ') && !slotVal.startsWith(',') && !slotVal.startsWith('.')) {
           res += ' ';
         }
         res += slotVal;
       }
     }
-    let finalStr = res.replace(/\s+/g, ' ').trim();
+    // Clean up multiple spaces and spaces before punctuation (, . ? !)
+    let finalStr = res.replace(/\s+/g, ' ').replace(/\s+([,.\?!;:])/g, '$1').trim();
     if (finalStr && !finalStr.endsWith('.') && !finalStr.endsWith('?') && !finalStr.endsWith('!')) {
       finalStr += '.';
     }
@@ -496,30 +497,57 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                         </div>
 
                         <div className="flex flex-wrap items-center gap-2 text-sm sm:text-base font-bold text-slate-900 leading-loose">
-                          {promptParts.map((part: string, pIdx: number) => {
-                            const currentVal = currentSlots[pIdx] || '';
-                            const slotOrder = requiredOrders[pIdx] ?? (pIdx + 1);
-                            const targetCat = exCategories.find((c: any) => c.order === slotOrder);
-                            const placeholderText = targetCat?.name ? `(${targetCat.name})` : `(ช่องที่ ${pIdx + 1})`;
-                            const baseWidth = Math.max(140, (placeholderText.length + 4) * 10);
-                            const dynamicWidth = Math.max(baseWidth, (currentVal.length + 3) * 11);
+                          {(() => {
+                            // Compute trailing punctuation for each input slot
+                            const trailingPuncs: string[] = [];
+                            for (let i = 0; i < slotCount; i++) {
+                              const nextPart = promptParts[i + 1] || '';
+                              const m = nextPart.match(/^([,.\?!;:])/);
+                              trailingPuncs.push(m ? m[1] : '');
+                            }
 
-                            return (
-                              <div key={pIdx} className="inline-flex items-center gap-2 flex-wrap">
-                                {part && <span className="font-mono text-[#1e3a8a]">{part}</span>}
-                                {pIdx < slotCount && (
-                                  <input
-                                    type="text"
-                                    value={currentVal}
-                                    onChange={(e) => handleSlotInputChange(key, promptParts, pIdx, e.target.value, slotCount)}
-                                    placeholder={placeholderText}
-                                    style={{ width: `${dynamicWidth}px`, minWidth: `${baseWidth}px` }}
-                                    className="inline-block px-3 py-1.5 rounded-xl border-2 border-dashed border-blue-400 bg-blue-50/70 focus:bg-white text-sm sm:text-base font-bold text-[#1e3a8a] text-center outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-all font-mono shadow-2xs placeholder:text-blue-400/80 placeholder:font-sans placeholder:text-xs sm:placeholder:text-sm placeholder:font-semibold"
-                                  />
-                                )}
-                              </div>
-                            );
-                          })}
+                            return promptParts.map((part: string, pIdx: number) => {
+                              const currentVal = currentSlots[pIdx] || '';
+                              const slotOrder = requiredOrders[pIdx] ?? (pIdx + 1);
+                              const targetCat = exCategories.find((c: any) => c.order === slotOrder);
+                              const placeholderText = targetCat?.name ? `(${targetCat.name})` : `(ช่องที่ ${pIdx + 1})`;
+                              const baseWidth = Math.max(140, (placeholderText.length + 4) * 10);
+                              const dynamicWidth = Math.max(baseWidth, (currentVal.length + 3) * 11);
+
+                              // If previous slot took our leading punctuation, strip it
+                              let cleanPart = part;
+                              if (pIdx > 0 && trailingPuncs[pIdx - 1]) {
+                                cleanPart = cleanPart.replace(new RegExp('^\\s*' + '\\' + trailingPuncs[pIdx - 1]), '');
+                              }
+                              const textContent = cleanPart.trim();
+                              const trailingPunc = trailingPuncs[pIdx] || '';
+
+                              return (
+                                <Fragment key={pIdx}>
+                                  {textContent && (
+                                    <span className="font-mono text-[#1e3a8a]">{textContent}</span>
+                                  )}
+                                  {pIdx < slotCount && (
+                                    <span className="inline-flex items-center">
+                                      <input
+                                        type="text"
+                                        value={currentVal}
+                                        onChange={(e) => handleSlotInputChange(key, promptParts, pIdx, e.target.value, slotCount)}
+                                        placeholder={placeholderText}
+                                        style={{ width: `${dynamicWidth}px`, minWidth: `${baseWidth}px` }}
+                                        className="inline-block px-3 py-1.5 rounded-xl border-2 border-dashed border-blue-400 bg-blue-50/70 focus:bg-white text-sm sm:text-base font-bold text-[#1e3a8a] text-center outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-all font-mono shadow-2xs placeholder:text-blue-400/80 placeholder:font-sans placeholder:text-xs sm:placeholder:text-sm placeholder:font-semibold"
+                                      />
+                                      {trailingPunc && (
+                                        <span className="font-mono font-bold text-[#1e3a8a] text-base ml-1 select-none">
+                                          {trailingPunc}
+                                        </span>
+                                      )}
+                                    </span>
+                                  )}
+                                </Fragment>
+                              );
+                            });
+                          })()}
                         </div>
 
                         {/* Constructed Sentence Preview */}
@@ -616,7 +644,7 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                                   s += chosenWords[pIdx];
                                 }
                               });
-                              const cleanSentence = s.replace(/\s+/g, ' ').trim();
+                              const cleanSentence = s.replace(/\s+/g, ' ').replace(/\s+([,.\?!;:])/g, '$1').trim();
                               const normalizedKey = cleanSentence.toLowerCase();
 
                               if (!seenEn.has(normalizedKey)) {

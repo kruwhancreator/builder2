@@ -653,6 +653,44 @@ export default function BackendAdminPage() {
     });
   };
 
+  const handleUpdatePromptDirect = (qIdx: number, newPrompt: string) => {
+    setQuizItems(prev => {
+      const copy = [...prev];
+      const blankRegex = /_{2,}/g;
+      const matches = newPrompt.match(blankRegex) || [];
+      const slotCount = Math.max(1, matches.length);
+      
+      let curOrders: number[] = copy[qIdx].required_orders ? [...copy[qIdx].required_orders] : [];
+      if (curOrders.length < slotCount) {
+        for (let i = curOrders.length; i < slotCount; i++) {
+          curOrders.push(i + 1);
+        }
+      } else if (curOrders.length > slotCount) {
+        curOrders = curOrders.slice(0, slotCount);
+      }
+
+      copy[qIdx] = {
+        ...copy[qIdx],
+        prompt: newPrompt,
+        required_orders: curOrders
+      };
+      return copy;
+    });
+  };
+
+  const handleSlotOrderChange = (qIdx: number, slotIdx: number, newOrder: number) => {
+    setQuizItems(prev => {
+      const copy = [...prev];
+      const curOrders: number[] = copy[qIdx].required_orders ? [...copy[qIdx].required_orders] : [1];
+      curOrders[slotIdx] = newOrder;
+      copy[qIdx] = {
+        ...copy[qIdx],
+        required_orders: curOrders
+      };
+      return copy;
+    });
+  };
+
   const handleUpdatePromptSegment = (qIdx: number, segIdx: number, newText: string) => {
     setQuizItems(prev => {
       const copy = [...prev];
@@ -663,7 +701,7 @@ export default function BackendAdminPage() {
       parts[segIdx] = newText;
       copy[qIdx] = {
         ...copy[qIdx],
-        prompt: parts.join('_____________________')
+        prompt: parts.join('_____')
       };
       return copy;
     });
@@ -676,9 +714,12 @@ export default function BackendAdminPage() {
       const blankRegex = /_{2,}/g;
       const parts = curPrompt ? curPrompt.split(blankRegex) : [''];
       
-      // Append a new segment after the inserted blank
-      parts.push('');
-      const newPrompt = parts.join('_____________________');
+      // Append a space and blank to avoid adjacent underscore merging
+      let newPrompt = curPrompt.trimEnd();
+      if (newPrompt && !newPrompt.endsWith(' ')) {
+        newPrompt += ' ';
+      }
+      newPrompt += '_____ ';
       
       const curOrders: number[] = copy[qIdx].required_orders ? [...copy[qIdx].required_orders] : [];
       curOrders.push(orderNum);
@@ -709,7 +750,7 @@ export default function BackendAdminPage() {
 
       copy[qIdx] = {
         ...copy[qIdx],
-        prompt: parts.join('_____________________'),
+        prompt: parts.join('_____'),
         required_orders: curOrders.length > 0 ? curOrders : [1]
       };
       return copy;
@@ -2049,17 +2090,80 @@ export default function BackendAdminPage() {
                             {/* Guided Sentence Prompt */}
                             {currentQuizExercise.exercise.type === 'guided_sentence' && (
                               <>
+                                {/* 1. Direct Question Prompt Input (Preserves full sentence with blanks, commas, etc.) */}
+                                <div>
+                                  <div className="flex items-center justify-between mb-1.5">
+                                    <label className="block font-bold text-slate-700 uppercase text-xs sm:text-sm">
+                                      📍 ข้อความโจทย์ภาษาอังกฤษ (QUESTION SENTENCE PROMPT):
+                                    </label>
+                                    <span className="text-[11px] text-blue-700 font-medium">
+                                      💡 พิมพ์โจทย์เต็มพร้อม _____ แทนช่องว่าง เช่น I intend to _____ _____, although it may be _____.
+                                    </span>
+                                  </div>
+                                  <input
+                                    type="text"
+                                    value={q.prompt || ''}
+                                    onChange={(e) => handleUpdatePromptDirect(idx, e.target.value)}
+                                    placeholder="เช่น I intend to _____ _____, although it may be _____."
+                                    className="w-full rounded-2xl bg-white border border-slate-300 px-4 py-2.5 text-sm font-bold text-[#1e3a8a] font-mono focus:outline-none focus:border-[#2563eb] shadow-2xs"
+                                  />
+                                </div>
+
+                                {/* 2. Slot Category Order Mapping */}
+                                {(() => {
+                                  const blankRegex = /_{2,}/g;
+                                  const matches = (q.prompt || '').match(blankRegex) || [];
+                                  const slotCount = Math.max(1, matches.length);
+                                  const reqOrders = q.required_orders || [];
+
+                                  return (
+                                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-2">
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-xs font-bold text-slate-700 uppercase">
+                                          🏷️ กำหนดหมวดหมู่คำศัพท์ประจำแต่ละช่องว่าง ({slotCount} ช่อง):
+                                        </span>
+                                        <span className="text-[11px] text-slate-500">
+                                          เลือกหมวดที่นักเรียนต้องนำมาเติมในแต่ละช่องว่าง
+                                        </span>
+                                      </div>
+                                      <div className="flex flex-wrap items-center gap-2.5">
+                                        {Array.from({ length: slotCount }).map((_, sIdx) => {
+                                          const currentOrder = reqOrders[sIdx] ?? (sIdx + 1);
+                                          return (
+                                            <div key={sIdx} className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-2xs">
+                                              <span className="text-xs font-bold text-[#1e3a8a] font-mono whitespace-nowrap">
+                                                ช่องที่ {sIdx + 1}:
+                                              </span>
+                                              <select
+                                                value={currentOrder}
+                                                onChange={(e) => handleSlotOrderChange(idx, sIdx, Number(e.target.value))}
+                                                className="text-xs font-bold text-slate-800 bg-transparent border-0 outline-none cursor-pointer"
+                                              >
+                                                {quizCategories.map(cat => (
+                                                  <option key={cat.order} value={cat.order}>
+                                                    Order {cat.order}: {cat.name}
+                                                  </option>
+                                                ))}
+                                              </select>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  );
+                                })()}
+
+                                {/* 3. Visual Typable Interactive Sentence Builder */}
                                 <div>
                                   <div className="flex items-center justify-between mb-2">
                                     <label className="block font-bold text-slate-700 uppercase text-xs sm:text-sm">
-                                      📍 ตัวแต่งโจทย์ข้อความ (INTERACTIVE SENTENCE BUILDER):
+                                      🔍 ตัวอย่างประโยคและช่องว่างจำลอง (VISUAL SENTENCE PREVIEW):
                                     </label>
                                     <span className="text-[11px] text-slate-500 font-medium">
-                                      💡 พิมพ์ข้อความในช่อง แล้วคลิกปุ่ม Order ด้านล่างเพื่อแทรกกล่องคำตอบ
+                                      ตัวอย่างการแสดงผลกล่องคำตอบในหน้านักเรียน
                                     </span>
                                   </div>
 
-                                  {/* Visual Typable Interactive Sentence Builder */}
                                   <div className="bg-blue-50/70 border-2 border-blue-200/90 rounded-2xl p-4 shadow-2xs">
                                     <div className="inline-flex items-center gap-2 flex-wrap bg-white p-3 rounded-xl border border-blue-200 text-sm font-bold text-slate-900 shadow-2xs w-full min-h-[56px]">
                                       {(() => {
@@ -2071,9 +2175,9 @@ export default function BackendAdminPage() {
                                         const reqOrders = q.required_orders || [];
 
                                         return parts.map((part: string, pIdx: number) => {
-                                          const slotOrderNum = reqOrders[pIdx];
+                                          const slotOrderNum = reqOrders[pIdx] ?? (pIdx + 1);
                                           const slotCat = quizCategories.find(c => c.order === slotOrderNum);
-                                          const catLabel = slotCat ? slotCat.name : (slotOrderNum ? `หมวดที่ ${slotOrderNum}` : `หมวดที่ ${pIdx + 1}`);
+                                          const catLabel = slotCat ? slotCat.name : `หมวดที่ ${slotOrderNum}`;
 
                                           return (
                                             <div key={pIdx} className="inline-flex items-center gap-1.5 flex-wrap">
@@ -2196,11 +2300,16 @@ export default function BackendAdminPage() {
                                       promptParts.forEach((part: string, pIdx: number) => {
                                         enSentence += part;
                                         if (pIdx < chosenEnWords.length) {
-                                          enSentence += chosenEnWords[pIdx];
+                                          const w = chosenEnWords[pIdx];
+                                          if (enSentence.length > 0 && !enSentence.endsWith(' ') && !w.startsWith(' ') && !w.startsWith(',') && !w.startsWith('.')) {
+                                            enSentence += ' ';
+                                          }
+                                          enSentence += w;
                                         }
                                       });
+                                      const cleanEn = enSentence.replace(/\s+/g, ' ').replace(/\s+([,.\?!;:])/g, '$1').trim();
 
-                                      const normalizedKey = enSentence.trim().toLowerCase();
+                                      const normalizedKey = cleanEn.toLowerCase();
                                       if (!seenEnSolutions.has(normalizedKey)) {
                                         seenEnSolutions.add(normalizedKey);
 
@@ -2217,7 +2326,7 @@ export default function BackendAdminPage() {
                                           thSentence = requiredOrders.map(ord => chosenThWords[ord] || '').filter(Boolean).join(' ');
                                         }
 
-                                        allSolutions.push({ en: enSentence, th: thSentence });
+                                        allSolutions.push({ en: cleanEn, th: thSentence });
                                       }
                                     }
                                   }
