@@ -947,6 +947,41 @@ export default function BackendAdminPage() {
         </button>
       </header>
 
+      {/* Mobile & Tablet Horizontal Navigation Tabs */}
+      <div className="lg:hidden flex items-center gap-2 px-3.5 py-2.5 bg-white border-b border-slate-200 overflow-x-auto no-scrollbar shrink-0">
+        <button
+          onClick={() => setActiveView('books_list')}
+          className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 whitespace-nowrap transition-all shrink-0 ${
+            activeView === 'books_list' ? 'bg-[#2563eb] text-white shadow-2xs' : 'text-slate-600 bg-slate-100 hover:bg-slate-200'
+          }`}
+        >
+          <BookOpen className="w-4 h-4" />
+          <span>Books Management</span>
+        </button>
+
+        <button
+          onClick={() => {
+            setActiveView('analytics_dashboard');
+            fetchAnalytics(selectedBook);
+          }}
+          className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 whitespace-nowrap transition-all shrink-0 ${
+            activeView === 'analytics_dashboard' ? 'bg-[#2563eb] text-white shadow-2xs' : 'text-slate-600 bg-slate-100 hover:bg-slate-200'
+          }`}
+        >
+          <BarChart2 className="w-4 h-4" />
+          <span>Tracking & Analytics</span>
+        </button>
+
+        {activeView === 'curriculum_view' && (
+          <button
+            className="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 whitespace-nowrap bg-[#2563eb] text-white shadow-2xs shrink-0"
+          >
+            <Layers className="w-4 h-4" />
+            <span>Units & Exercises</span>
+          </button>
+        )}
+      </div>
+
       <div className="admin-body-container flex-1 flex w-full">
         {/* ========================================================= */}
         {/* ENGONAIR ADMIN LEFT SIDEBAR */}
@@ -1034,9 +1069,9 @@ export default function BackendAdminPage() {
                 </button>
               </div>
 
-              <div className="books-table-card w-full bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
+              <div className="books-table-card w-full bg-white rounded-2xl sm:rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
                 <div className="table-responsive-wrapper w-full overflow-x-auto">
-                  <table className="crud-books-table w-full text-left border-collapse">
+                  <table className="crud-books-table w-full text-left border-collapse min-w-[650px]">
                     <thead>
                       <tr className="table-header-row bg-slate-50 border-b border-slate-200 text-xs font-extrabold uppercase tracking-wider text-slate-500">
                         <th className="th-title py-4.5 px-6 w-5/12">Title</th>
@@ -1477,7 +1512,7 @@ export default function BackendAdminPage() {
           {activeView === 'curriculum_view' && (
             <section className="curriculum-management-section w-full">
               {/* Back to Books Link */}
-              <div className="back-navigation-bar mb-4 flex items-center justify-between">
+              <div className="back-navigation-bar mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                 <button
                   onClick={() => setActiveView('books_list')}
                   className="btn-back-to-books inline-flex items-center gap-1.5 text-sm font-bold text-[#2563eb] hover:underline cursor-pointer"
@@ -1489,22 +1524,24 @@ export default function BackendAdminPage() {
                 <Link
                   href={`/${activeBookObj.slug || activeBookObj.id}`}
                   target="_blank"
-                  className="btn-preview-book text-sm px-4 py-2 rounded-2xl bg-white hover:bg-slate-50 text-slate-700 font-bold border border-slate-200 shadow-2xs transition-colors flex items-center gap-2"
+                  className="btn-preview-book text-xs sm:text-sm px-3.5 py-2 rounded-2xl bg-white hover:bg-slate-50 text-slate-700 font-bold border border-slate-200 shadow-2xs transition-colors flex items-center justify-center gap-2 self-start sm:self-auto"
                 >
-                  <ExternalLink className="w-4 h-4" />
+                  <ExternalLink className="w-4 h-4 text-slate-400" />
                   <span>ดูหน้าหนังสือจริง (/{activeBookObj.slug || activeBookObj.id})</span>
                 </Link>
               </div>
 
               {/* CURRICULUM TOP HEADER */}
-              <div className="curriculum-top-header flex items-center justify-between mb-6 pb-2">
-                <div className="curriculum-title-container flex items-center gap-3.5">
-                  <Layers className="w-7 h-7 text-[#2563eb]" />
+              <div className="curriculum-top-header flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-2">
+                <div className="curriculum-title-container flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#2563eb] flex items-center justify-center shrink-0 border border-blue-200/60">
+                    <Layers className="w-5 h-5 sm:w-6 sm:h-6" />
+                  </div>
                   <div>
-                    <h1 className="curriculum-main-title text-2xl sm:text-3xl font-extrabold text-slate-900 font-heading">
+                    <h1 className="curriculum-main-title text-xl sm:text-2xl md:text-3xl font-extrabold text-slate-900 font-heading">
                       Units & Exercises Management
                     </h1>
-                    <p className="curriculum-subtitle text-sm text-slate-500 mt-0.5">
+                    <p className="curriculum-subtitle text-xs sm:text-sm text-slate-500 mt-0.5">
                       {activeBookObj.title} ({curriculumUnits.length} Units) • Slug: <span className="font-mono text-[#2563eb]">/{activeBookObj.slug || activeBookObj.id}</span>
                     </p>
                   </div>
@@ -1512,7 +1549,7 @@ export default function BackendAdminPage() {
 
                 <button
                   onClick={openAddUnitModal}
-                  className="btn-add-unit bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 px-4.5 py-2.5 rounded-2xl text-sm font-bold shadow-2xs flex items-center gap-2 cursor-pointer transition-all hover:border-slate-400"
+                  className="btn-add-unit bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 px-4 py-2.5 rounded-2xl text-sm font-bold shadow-2xs flex items-center justify-center gap-2 cursor-pointer transition-all hover:border-slate-400 shrink-0 w-full sm:w-auto"
                 >
                   <Plus className="w-4.5 h-4.5 text-[#2563eb]" />
                   <span>+ Add Unit</span>
@@ -1545,15 +1582,15 @@ export default function BackendAdminPage() {
                       className="unit-card bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden"
                     >
                       {/* UNIT HEADER ROW */}
-                      <div className="unit-header-row p-5 sm:px-7 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between gap-4">
-                        <div className="unit-info-box flex items-center gap-3.5">
-                          <GripVertical className="unit-drag-handle w-5 h-5 text-slate-400 cursor-grab" />
-                          <div className="unit-title-group">
-                            <h2 className="unit-title-text font-extrabold text-slate-900 text-base sm:text-lg">
+                      <div className="unit-header-row p-4 sm:p-5 sm:px-7 bg-slate-50/50 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+                        <div className="unit-info-box flex items-center gap-3.5 min-w-0">
+                          <GripVertical className="unit-drag-handle w-5 h-5 text-slate-400 cursor-grab shrink-0" />
+                          <div className="unit-title-group min-w-0">
+                            <h2 className="unit-title-text font-extrabold text-slate-900 text-base sm:text-lg truncate">
                               Unit {unit.unit_number}: {unit.title}
                             </h2>
                             {unit.subtitle && (
-                              <p className="unit-subtitle-text text-xs sm:text-sm text-slate-500 mt-0.5">
+                              <p className="unit-subtitle-text text-xs sm:text-sm text-slate-500 mt-0.5 truncate">
                                 {unit.subtitle}
                               </p>
                             )}
@@ -1561,7 +1598,7 @@ export default function BackendAdminPage() {
                         </div>
 
                         {/* UNIT ACTION TOOLBAR */}
-                        <div className="unit-action-toolbar flex items-center gap-2 text-slate-500">
+                        <div className="unit-action-toolbar flex items-center justify-end gap-2 text-slate-500 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-200/50">
                           <button
                             onClick={() => openAddExerciseModal(unit)}
                             title="Add Exercise to this Unit"
@@ -1602,9 +1639,9 @@ export default function BackendAdminPage() {
                             .map((exercise: any, exIdx: number, allExs: any[]) => (
                             <div
                               key={exercise.code || exIdx}
-                              className="exercise-item-row bg-white border border-slate-200/80 rounded-2xl p-4 flex items-center justify-between gap-4 hover:border-blue-300 hover:shadow-2xs transition-all"
+                              className="exercise-item-row bg-white border border-slate-200/80 rounded-2xl p-3.5 sm:p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4 hover:border-blue-300 hover:shadow-2xs transition-all"
                             >
-                              <div className="exercise-main-content flex items-center gap-3 min-w-0">
+                              <div className="exercise-main-content flex items-center gap-3 min-w-0 w-full md:w-auto">
                                 {/* Move Up / Move Down Reordering Controls */}
                                 <div className="flex flex-col gap-0.5 shrink-0">
                                   <button
@@ -1636,8 +1673,8 @@ export default function BackendAdminPage() {
                                   </span>
                                 </div>
 
-                                <div className="exercise-title-box truncate">
-                                  <div className="flex items-center gap-2">
+                                <div className="exercise-title-box truncate flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
                                     <span className="exercise-title-text font-bold text-slate-800 text-sm sm:text-base truncate block">
                                       {exercise.title}
                                     </span>
@@ -1654,7 +1691,7 @@ export default function BackendAdminPage() {
                               </div>
 
                               {/* EXERCISE BADGES & ACTION BUTTONS */}
-                              <div className="exercise-right-actions flex items-center gap-3 shrink-0">
+                              <div className="exercise-right-actions flex flex-wrap items-center gap-2 sm:gap-3 w-full md:w-auto justify-between md:justify-end pt-2 md:pt-0 border-t md:border-t-0 border-slate-100">
                                 {exercise.use_ai_check && (
                                   <span className="ai-badge text-xs font-extrabold px-3 py-1 rounded-full bg-purple-50 text-purple-600 border border-purple-200 flex items-center gap-1.5">
                                     <Bot className="w-3.5 h-3.5" />
@@ -1666,7 +1703,7 @@ export default function BackendAdminPage() {
                                   {exercise.itemCount || (exercise.items ? exercise.items.length : 0)} Questions
                                 </span>
 
-                                <div className="exercise-actions-toolbar flex items-center gap-1.5 pl-2 border-l border-slate-100">
+                                <div className="exercise-actions-toolbar flex items-center gap-1.5 pl-0 md:pl-2 md:border-l border-slate-200/60 ml-auto md:ml-0">
                                   <button
                                     onClick={() => openEditExerciseModal(unit, exercise)}
                                     title="Edit Exercise Config (Title, AI Check, Type, Guidance)"
@@ -1825,10 +1862,10 @@ export default function BackendAdminPage() {
               </div>
             </div>
 
-            <div className="modal-footer flex justify-end gap-3 mt-6 border-t border-slate-100 pt-5">
+            <div className="modal-footer flex flex-col-reverse sm:flex-row justify-end gap-2.5 sm:gap-3 mt-6 border-t border-slate-100 pt-5">
               <button
                 onClick={() => setShowExerciseModal(false)}
-                className="btn-modal-cancel px-5 py-2.5 rounded-2xl bg-slate-100 text-slate-700 text-sm font-bold cursor-pointer hover:bg-slate-200"
+                className="btn-modal-cancel w-full sm:w-auto text-center justify-center px-5 py-2.5 rounded-2xl bg-slate-100 text-slate-700 text-sm font-bold cursor-pointer hover:bg-slate-200 transition-colors"
               >
                 ยกเลิก
               </button>
@@ -1836,7 +1873,7 @@ export default function BackendAdminPage() {
               <button
                 onClick={handleSaveExercise}
                 disabled={isSubmittingExercise}
-                className="btn-modal-submit px-6 py-2.5 rounded-2xl bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-sm font-bold flex items-center gap-2 disabled:opacity-50 transition-colors cursor-pointer shadow-md"
+                className="btn-modal-submit w-full sm:w-auto justify-center px-6 py-2.5 rounded-2xl bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-sm font-bold flex items-center gap-2 disabled:opacity-50 transition-colors cursor-pointer shadow-md"
               >
                 {isSubmittingExercise ? (
                   <>
@@ -1856,19 +1893,24 @@ export default function BackendAdminPage() {
       {/* LEVEL 3: QUIZ / QUESTION ITEMS MANAGER MODAL */}
       {/* ========================================================= */}
       {showQuizModal && currentQuizExercise && (
-        <div className="quiz-modal-backdrop fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="quiz-modal-card bg-white rounded-3xl max-w-4xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-slate-200">
+        <div className="quiz-modal-backdrop fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+          <div className="quiz-modal-card bg-white rounded-3xl max-w-4xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
             {/* Modal Header */}
-            <div className="quiz-modal-header p-6 border-b border-slate-100 flex items-center justify-between">
-              <div>
-                <div className="text-xs font-extrabold text-[#2563eb] uppercase tracking-wider">
+            <div className="quiz-modal-header p-4 sm:p-6 border-b border-slate-100 flex items-start sm:items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-[11px] sm:text-xs font-extrabold text-[#2563eb] uppercase tracking-wider truncate">
                   Unit {currentQuizExercise.unit.unit_number}: {currentQuizExercise.unit.title}
                 </div>
-                <h3 className="quiz-modal-heading text-xl font-bold text-slate-900 font-heading mt-1">
+                <h3 className="quiz-modal-heading text-base sm:text-xl font-bold text-slate-900 font-heading mt-0.5 sm:mt-1 truncate">
                   📝 {currentQuizExercise.exercise.title} (Quiz Questions Manager)
                 </h3>
               </div>
-              <button onClick={() => setShowQuizModal(false)} className="modal-close-btn text-slate-400 hover:text-slate-600 text-xl">✕</button>
+              <button 
+                onClick={() => setShowQuizModal(false)} 
+                className="modal-close-btn w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700 flex items-center justify-center shrink-0 cursor-pointer transition-colors text-lg"
+              >
+                ✕
+              </button>
             </div>
 
             {/* Modal Questions Body */}
@@ -2496,16 +2538,16 @@ export default function BackendAdminPage() {
             </div>
 
             {/* Modal Footer */}
-            <div className="quiz-modal-footer p-5 border-t border-slate-100 flex items-center justify-between bg-slate-50/50 rounded-b-3xl">
-              <span className="text-xs text-slate-500 font-medium">
+            <div className="quiz-modal-footer p-4 sm:p-5 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-50/50 rounded-b-3xl">
+              <span className="text-xs text-slate-500 font-medium text-center sm:text-left">
                 ระบบจะบันทึกข้อสอบและอัปเดตลงตาราง exercise_items ใน Supabase ทันที
               </span>
 
-              <div className="flex gap-3">
+              <div className="flex flex-col-reverse sm:flex-row w-full sm:w-auto gap-2 sm:gap-3">
                 <button
                   type="button"
                   onClick={() => setShowQuizModal(false)}
-                  className="px-5 py-2.5 rounded-2xl bg-slate-200/80 text-slate-700 text-sm font-bold cursor-pointer hover:bg-slate-300"
+                  className="w-full sm:w-auto px-5 py-2.5 rounded-2xl bg-slate-200/80 text-slate-700 text-sm font-bold cursor-pointer hover:bg-slate-300 transition-colors text-center"
                 >
                   ยกเลิก
                 </button>
@@ -2514,7 +2556,7 @@ export default function BackendAdminPage() {
                   type="button"
                   onClick={handleSaveQuiz}
                   disabled={isSavingQuiz}
-                  className="px-6 py-2.5 rounded-2xl bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-sm font-bold flex items-center gap-2 disabled:opacity-50 transition-colors cursor-pointer shadow-md"
+                  className="w-full sm:w-auto px-6 py-2.5 rounded-2xl bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-50 transition-colors cursor-pointer shadow-md"
                 >
                   {isSavingQuiz ? (
                     <>
@@ -2587,17 +2629,17 @@ export default function BackendAdminPage() {
               </div>
             </div>
 
-            <div className="modal-footer flex justify-end gap-3 mt-6 border-t border-slate-100 pt-5">
+            <div className="modal-footer flex flex-col-reverse sm:flex-row justify-end gap-2.5 sm:gap-3 mt-6 border-t border-slate-100 pt-5">
               <button
                 onClick={() => setShowUnitModal(false)}
-                className="btn-modal-cancel px-5 py-2.5 rounded-2xl bg-slate-100 text-slate-700 text-sm font-bold cursor-pointer hover:bg-slate-200"
+                className="btn-modal-cancel w-full sm:w-auto text-center justify-center px-5 py-2.5 rounded-2xl bg-slate-100 text-slate-700 text-sm font-bold cursor-pointer hover:bg-slate-200 transition-colors"
               >
                 ยกเลิก
               </button>
 
               <button
                 onClick={handleSaveUnit}
-                className="btn-modal-submit px-6 py-2.5 rounded-2xl bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-sm font-bold flex items-center gap-2 transition-colors cursor-pointer shadow-md"
+                className="btn-modal-submit w-full sm:w-auto justify-center px-6 py-2.5 rounded-2xl bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-sm font-bold flex items-center gap-2 transition-colors cursor-pointer shadow-md"
               >
                 <span>บันทึก Unit</span>
               </button>
@@ -2677,10 +2719,10 @@ export default function BackendAdminPage() {
               </div>
             </div>
 
-            <div className="modal-footer flex justify-end gap-3 mt-6 border-t border-slate-100 pt-5">
+            <div className="modal-footer flex flex-col-reverse sm:flex-row justify-end gap-2.5 sm:gap-3 mt-6 border-t border-slate-100 pt-5">
               <button
                 onClick={() => setShowBookModal(false)}
-                className="btn-modal-cancel px-5 py-2.5 rounded-2xl bg-slate-100 text-slate-700 text-sm font-bold cursor-pointer hover:bg-slate-200"
+                className="btn-modal-cancel w-full sm:w-auto text-center justify-center px-5 py-2.5 rounded-2xl bg-slate-100 text-slate-700 text-sm font-bold cursor-pointer hover:bg-slate-200 transition-colors"
               >
                 ยกเลิก
               </button>
@@ -2688,7 +2730,7 @@ export default function BackendAdminPage() {
               <button
                 onClick={handleSaveBook}
                 disabled={isSubmittingBook}
-                className="btn-modal-submit px-6 py-2.5 rounded-2xl bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-sm font-bold flex items-center gap-2 disabled:opacity-50 transition-colors cursor-pointer shadow-md"
+                className="btn-modal-submit w-full sm:w-auto justify-center px-6 py-2.5 rounded-2xl bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-sm font-bold flex items-center gap-2 disabled:opacity-50 transition-colors cursor-pointer shadow-md"
               >
                 {isSubmittingBook ? (
                   <>

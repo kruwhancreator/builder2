@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, Fragment } from 'react';
+import Link from 'next/link';
 import { 
   CheckCircle2, 
   XCircle, 
@@ -10,7 +11,10 @@ import {
   GripHorizontal,
   RotateCcw,
   Sparkle,
-  Clock
+  Clock,
+  ArrowLeft,
+  ChevronRight,
+  Home
 } from 'lucide-react';
 import { EvaluationResult } from '@/lib/evaluator';
 import { checkOfflineGrammarAndSpelling, checkGuidedSentenceExercise } from '@/lib/offline-checker';
@@ -288,24 +292,53 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
     }
   };
 
+  const bookSlug = chapterData.book || chapterData.slug || 'sentence-builder-vol-2';
+  const bookTitle = chapterData.book_title || (bookSlug === 'sentence-builder-vol-2' ? 'Sentence Builder Vol. 2' : bookSlug.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()));
+
   return (
-    <div className="workspace-main-container max-w-4xl mx-auto px-2 sm:px-4 py-6 font-sans">
+    <div className="workspace-main-container max-w-4xl mx-auto px-3 sm:px-4 py-4 sm:py-6 font-sans">
+      {/* Breadcrumb Navigation */}
+      <nav aria-label="Breadcrumb" className="mb-4 flex items-center justify-between gap-2 text-xs sm:text-sm font-semibold">
+        <div className="flex items-center gap-1.5 sm:gap-2 text-slate-500 overflow-hidden text-ellipsis whitespace-nowrap min-w-0">
+          <Link href={`/${bookSlug}`} className="hover:text-[#2563eb] flex items-center gap-1 transition-colors shrink-0">
+            <Home className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400" />
+            <span className="hidden xs:inline">หน้าหลัก</span>
+          </Link>
+          <ChevronRight className="w-3.5 h-3.5 text-slate-300 shrink-0" />
+          <Link href={`/${bookSlug}`} className="hover:text-[#2563eb] truncate max-w-[130px] sm:max-w-xs transition-colors">
+            {bookTitle}
+          </Link>
+          <ChevronRight className="w-3.5 h-3.5 text-slate-300 shrink-0" />
+          <span className="text-[#1e3a8a] font-bold shrink-0">
+            Unit {unitNumber}
+          </span>
+        </div>
+
+        <Link 
+          href={`/${bookSlug}`}
+          className="inline-flex items-center gap-1 text-xs font-bold text-[#2563eb] hover:text-[#1d4ed8] bg-white px-2.5 py-1.5 rounded-xl border border-slate-200 shadow-2xs shrink-0 transition-all hover:border-blue-300 min-h-[36px]"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          <span><span className="hidden sm:inline">กลับสู่</span>สารบัญ</span>
+        </Link>
+      </nav>
+
       {/* ========================================================= */}
       {/* 1. UNIT HERO BANNER (UNIT DETAIL SECTION) */}
       {/* ========================================================= */}
-      <section className="unit-hero-banner bg-gradient-to-br from-[#1e3a8a] to-[#2563eb] text-white rounded-2xl p-6 sm:p-8 mb-6 shadow-md relative overflow-hidden">
-        <p className="unit-hero-heading text-sm sm:text-base opacity-90 leading-relaxed font-medium mb-1.5">
-          เฉลยแบบฝึกหัด Unit {unitNumber}
-        </p>
+      <section className="unit-hero-banner bg-gradient-to-br from-[#1e3a8a] to-[#2563eb] text-white rounded-2xl sm:rounded-3xl p-5 sm:p-8 mb-6 sm:mb-8 shadow-md relative overflow-hidden">
+        <div className="inline-flex items-center gap-1.5 bg-white/15 backdrop-blur-xs text-sky-200 text-xs sm:text-sm font-bold px-3 py-1 rounded-full mb-2.5 border border-white/20">
+          <span>เฉลยแบบฝึกหัด Unit {unitNumber}</span>
+        </div>
 
         {chapterData.title && (
-          <h1 className="unit-hero-title text-2xl sm:text-3xl font-extrabold font-heading mb-1.5">
+          <h1 className="unit-hero-title text-xl sm:text-3xl md:text-4xl font-extrabold font-heading mb-2 leading-snug">
             {chapterData.title}
           </h1>
         )}
 
         {chapterData.subtitle && (
-          <h2 className="unit-hero-subtitle text-xl sm:text-2xl font-bold opacity-95 leading-relaxed font-heading">
+          <h2 className="unit-hero-subtitle text-base sm:text-xl md:text-2xl font-bold opacity-95 leading-relaxed font-heading">
             {chapterData.subtitle}
           </h2>
         )}
@@ -364,7 +397,7 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                       <div className="quiz-action-group flex flex-wrap items-center gap-2.5 mb-3">
                         <button
                           onClick={() => handleOfflineCheck(item, key, 'translation')}
-                          className="btn-check-answer bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-4 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+                          className="btn-check-answer bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all shadow-2xs cursor-pointer min-h-[42px]"
                         >
                           🔍 ตรวจคำตอบ
                         </button>
@@ -372,7 +405,7 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                           <button
                             type="button"
                             onClick={() => toggleRevealSolution(key)}
-                            className="btn-reveal-solution inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-[#2563eb] hover:text-[#1d4ed8] bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3.5 py-2 rounded-xl transition-all shadow-2xs cursor-pointer"
+                            className="btn-reveal-solution inline-flex items-center justify-center gap-1.5 text-xs sm:text-sm font-bold text-[#2563eb] hover:text-[#1d4ed8] bg-blue-50 hover:bg-blue-100 border border-blue-200 px-4 py-2.5 rounded-xl transition-all shadow-2xs cursor-pointer min-h-[42px]"
                           >
                             💡 {revealedSolutions[key] ? 'ซ่อนเฉลย' : 'ดูเฉลย'}
                           </button>
@@ -511,8 +544,8 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                               const slotOrder = requiredOrders[pIdx] ?? (pIdx + 1);
                               const targetCat = exCategories.find((c: any) => c.order === slotOrder);
                               const placeholderText = targetCat?.name ? `(${targetCat.name})` : `(ช่องที่ ${pIdx + 1})`;
-                              const baseWidth = Math.max(140, (placeholderText.length + 4) * 10);
-                              const dynamicWidth = Math.max(baseWidth, (currentVal.length + 3) * 11);
+                              const baseWidth = Math.max(100, (placeholderText.length + 2) * 9);
+                              const dynamicWidth = Math.max(baseWidth, (currentVal.length + 2) * 10);
 
                               // If previous slot took our leading punctuation, strip it
                               let cleanPart = part;
@@ -534,8 +567,8 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                                         value={currentVal}
                                         onChange={(e) => handleSlotInputChange(key, promptParts, pIdx, e.target.value, slotCount)}
                                         placeholder={placeholderText}
-                                        style={{ width: `${dynamicWidth}px`, minWidth: `${baseWidth}px` }}
-                                        className="inline-block px-3 py-1.5 rounded-xl border-2 border-dashed border-blue-400 bg-blue-50/70 focus:bg-white text-sm sm:text-base font-bold text-[#1e3a8a] text-center outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-all font-mono shadow-2xs placeholder:text-blue-400/80 placeholder:font-sans placeholder:text-xs sm:placeholder:text-sm placeholder:font-semibold"
+                                        style={{ width: `${dynamicWidth}px`, maxWidth: '100%' }}
+                                        className="inline-block px-2.5 sm:px-3 py-1.5 rounded-xl border-2 border-dashed border-blue-400 bg-blue-50/70 focus:bg-white text-sm sm:text-base font-bold text-[#1e3a8a] text-center outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-all font-mono shadow-2xs placeholder:text-blue-400/80 placeholder:font-sans placeholder:text-xs sm:placeholder:text-sm placeholder:font-semibold max-w-full min-w-[90px] sm:min-w-[120px]"
                                       />
                                       {trailingPunc && (
                                         <span className="font-mono font-bold text-[#1e3a8a] text-base ml-1 select-none">
@@ -552,11 +585,11 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
 
                         {/* Constructed Sentence Preview */}
                         {currentConstructed && (
-                          <div className="constructed-preview mt-4 pt-3.5 border-t border-slate-100 flex items-center gap-2">
+                          <div className="constructed-preview mt-4 pt-3.5 border-t border-slate-100 flex flex-wrap sm:flex-nowrap items-center gap-2">
                             <span className="text-xs font-bold text-slate-400 uppercase shrink-0">
                               ประโยคของนักเรียน:
                             </span>
-                            <span className="font-mono text-xs sm:text-sm font-bold text-[#1e3a8a] break-all bg-blue-50/60 px-3 py-1.5 rounded-xl border border-blue-200/60 flex-1">
+                            <span className="font-mono text-xs sm:text-sm font-bold text-[#1e3a8a] break-words bg-blue-50/60 px-3 py-1.5 rounded-xl border border-blue-200/60 flex-1 w-full sm:w-auto">
                               {currentConstructed}
                             </span>
                           </div>
@@ -567,14 +600,14 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                       <div className="quiz-action-group flex flex-wrap items-center gap-2.5 mb-3">
                         <button
                           onClick={() => handleOfflineCheck(item, key, 'guided_sentence', exCategories)}
-                          className="btn-check-answer bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-4 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+                          className="btn-check-answer bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all shadow-2xs cursor-pointer min-h-[42px]"
                         >
                           🔍 ตรวจคำตอบ
                         </button>
                         <button
                           type="button"
                           onClick={() => toggleRevealSolution(key)}
-                          className="btn-reveal-solution inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-[#2563eb] hover:text-[#1d4ed8] bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3.5 py-2 rounded-xl transition-all shadow-2xs cursor-pointer"
+                          className="btn-reveal-solution inline-flex items-center justify-center gap-1.5 text-xs sm:text-sm font-bold text-[#2563eb] hover:text-[#1d4ed8] bg-blue-50 hover:bg-blue-100 border border-blue-200 px-4 py-2.5 rounded-xl transition-all shadow-2xs cursor-pointer min-h-[42px]"
                         >
                           💡 {revealedSolutions[key] ? 'ซ่อนเฉลย' : 'ดูเฉลยคำตอบที่เป็นไปได้'}
                         </button>
@@ -767,7 +800,7 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                             <button
                               onClick={() => handleAiCheck(item, key, idx, exercise)}
                               disabled={isButtonDisabled}
-                              className={`btn-ai-check px-4 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all shadow-2xs ${
+                              className={`btn-ai-check px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all shadow-2xs min-h-[42px] ${
                                 isCooldown 
                                   ? 'bg-amber-100 text-amber-800 border border-amber-300 cursor-not-allowed opacity-90'
                                   : 'bg-[#2563eb] hover:bg-[#1d4ed8] text-white disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer'
@@ -796,7 +829,7 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                           <button
                             type="button"
                             onClick={() => toggleRevealSolution(key)}
-                            className="btn-reveal-solution inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-[#2563eb] hover:text-[#1d4ed8] bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3.5 py-2 rounded-xl transition-all shadow-2xs cursor-pointer"
+                            className="btn-reveal-solution inline-flex items-center justify-center gap-1.5 text-xs sm:text-sm font-bold text-[#2563eb] hover:text-[#1d4ed8] bg-blue-50 hover:bg-blue-100 border border-blue-200 px-4 py-2.5 rounded-xl transition-all shadow-2xs cursor-pointer min-h-[42px]"
                           >
                             💡 {revealedSolutions[key] ? 'ซ่อนเฉลย' : 'ดูตัวอย่างประโยคเฉลย'}
                           </button>

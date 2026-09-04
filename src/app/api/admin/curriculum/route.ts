@@ -213,8 +213,13 @@ export async function GET(req: NextRequest) {
       ]
     }
   ];
+  const fallbackBookInfo = {
+    id: bookName,
+    title: bookName === 'sentence-builder-vol-2' ? 'Sentence Builder Vol. 2' : bookName.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+    subtitle: 'แบบฝึกหัดแต่งประโยคและขยายประโยค Vol. 2 (Core + Context + Connect)'
+  };
 
-  return NextResponse.json({ book: bookName, units: defaultUnits });
+  return NextResponse.json({ book: bookName, bookInfo: fallbackBookInfo, units: defaultUnits });
 }
 
 export async function POST(req: NextRequest) {

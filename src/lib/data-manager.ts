@@ -51,9 +51,22 @@ export async function getBookDataFromDb(slugOrId: string): Promise<any> {
           };
         });
 
+        const defaultUnit1 = {
+          id: 'unit-1',
+          unit_number: 1,
+          title: chapter1Fallback.title || 'Present Continuous & Sentence Expansion',
+          subtitle: chapter1Fallback.subtitle || 'บทที่ 1 : ฉันกำลัง… [ I + am + กริยาเติม -ing ]',
+          exerciseCount: 3
+        };
+
+        const finalUnits = formattedUnits.length > 0 
+          ? formattedUnits 
+          : (bookSlugVal === 'sentence-builder-vol-2' || bookIdentifier === 'sentence-builder-vol-2' ? [defaultUnit1] : []);
+
         const result = {
           ...bookRow,
-          units: formattedUnits
+          title: bookRow.title || (bookSlugVal === 'sentence-builder-vol-2' ? 'Sentence Builder Vol. 2' : bookSlugVal),
+          units: finalUnits
         };
 
         bookCache.set(cacheKey, { data: result, timestamp: Date.now() });
@@ -64,12 +77,21 @@ export async function getBookDataFromDb(slugOrId: string): Promise<any> {
     }
   }
 
+  const defaultUnit1 = {
+    id: 'unit-1',
+    unit_number: 1,
+    title: chapter1Fallback.title || 'Present Continuous & Sentence Expansion',
+    subtitle: chapter1Fallback.subtitle || 'บทที่ 1 : ฉันกำลัง… [ I + am + กริยาเติม -ing ]',
+    exerciseCount: 3
+  };
+
+  const isVol2 = slugOrId === 'sentence-builder-vol-2';
   const fallback = {
     id: slugOrId,
     slug: slugOrId,
-    title: slugOrId === 'sentence-builder-vol-2' ? 'Sentence Builder Vol. 2' : slugOrId,
-    subtitle: 'แบบฝึกหัดแต่งประโยคและขยายประโยคภาษาอังกฤษ',
-    units: []
+    title: isVol2 ? 'Sentence Builder Vol. 2' : slugOrId.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+    subtitle: 'แบบฝึกหัดแต่งประโยคและขยายประโยค Vol. 2 (Core + Context + Connect)',
+    units: isVol2 ? [defaultUnit1] : []
   };
 
   bookCache.set(cacheKey, { data: fallback, timestamp: Date.now() });
