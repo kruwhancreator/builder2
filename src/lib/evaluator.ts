@@ -133,9 +133,9 @@ const SEMANTIC_THEMES = [
     keywords: ['swim', 'swimming', 'swam', 'swimmer', 'pool', 'water']
   },
   {
-    triggers: ['อ่านหนังสือ', 'หนังสือ', 'ห้องสมุด', 'read', 'book', 'library'],
-    topicThai: 'อ่านหนังสือในห้องสมุด',
-    keywords: ['read', 'reading', 'book', 'books', 'library', 'page', 'pages', 'study', 'studying']
+    triggers: ['อ่านหนังสือ', 'หนังสือ', 'ห้องสมุด', 'ตำรา', 'read', 'book', 'books', 'library', 'study'],
+    topicThai: 'อ่านหนังสือที่โต๊ะ',
+    keywords: ['read', 'reading', 'book', 'books', 'library', 'page', 'pages', 'study', 'studying', 'studied', 'homework', 'notes', 'textbook', 'review', 'reviewing', 'desk', 'lamp']
   },
   {
     triggers: ['นอน', 'เข้านอน', 'เตียง', 'sleep', 'bed'],
@@ -380,8 +380,28 @@ export function checkImageRelevance(item: any, studentAnswer: string): ImageRele
     'or', 'so', 'because', 'although', 'even', 'when', 'while', 'if', 'as', 'than',
     'though', 'however', 'not', 'no', 'too', 'very', 'really', 'right', 'now', 'still',
     'just', 'always', 'often', 'usually', 'sometimes', 'never', 'minute', 'minutes',
-    'hour', 'hours', 'day', 'days', 'time', 'times', 'need', 'still', 'tired', 'busy',
-    'happy', 'sad', 'well', 'fine', 'good', 'bad'
+    'hour', 'hours', 'day', 'days', 'time', 'times'
+  ]);
+
+  // Feelings, states, emotions, and generic purpose words cannot alone prove image relevance
+  const ANCILLARY_OR_STATE_WORDS = new Set([
+    // Feelings & physical states (often in Connect: even when I'm ...)
+    'sleepy', 'tired', 'busy', 'happy', 'sad', 'lazy', 'bored', 'hungry', 'thirsty',
+    'exhausted', 'sick', 'drowsy', 'sleep', 'fine', 'well', 'good', 'bad', 'crazy', 'mad',
+    'nervous', 'worried', 'afraid', 'scared', 'stressed',
+    // Generic purpose & abstract verbs / objects
+    'learn', 'learning', 'learned', 'things', 'thing', 'new',
+    'save', 'saving', 'saved',
+    'keep', 'keeping', 'kept',
+    'stay', 'staying', 'stayed',
+    'feel', 'feeling', 'felt',
+    'make', 'making', 'made',
+    'get', 'getting', 'got',
+    'clean', 'cleaning', 'cleaned',
+    'help', 'helping', 'helped',
+    'work', 'working', 'worked',
+    'need', 'needed', 'want', 'wanted', 'like', 'liked', 'try', 'trying', 'tried',
+    'regularly', 'properly', 'carefully', 'quick', 'quickly', 'slow', 'slowly'
   ]);
 
   const rawContentWords: string[] = [];
@@ -448,27 +468,26 @@ export function checkImageRelevance(item: any, studentAnswer: string): ImageRele
     }
   }
 
-  // Filter out generic purpose/connective words so they cannot be the sole reason a sentence passes
-  const GENERIC_OR_PURPOSE_WORDS = new Set([
-    'save', 'saving', 'saved',
-    'keep', 'keeping', 'kept',
-    'stay', 'staying', 'stayed',
-    'feel', 'feeling', 'felt',
-    'make', 'making', 'made',
-    'get', 'getting', 'got',
-    'tired', 'busy', 'happy', 'sad',
-    'clean', 'cleaning'
-  ]);
+  // Filter out ancillary/state words: matching ONLY 'sleepy', 'tired', 'learn', 'save' is NOT sufficient!
+  const nonGenericMatches = matchedWords.filter(w => !ANCILLARY_OR_STATE_WORDS.has(w.toLowerCase()));
 
-  const nonGenericMatches = matchedWords.filter(w => !GENERIC_OR_PURPOSE_WORDS.has(w.toLowerCase()));
-  const isRelevant = nonGenericMatches.length > 0;
+  // Detect explicit unrelated entertainment/activity when image does not support it
+  const unrelatedEntertainment = [
+    'watch series', 'watch tv', 'watch movie', 'watch movies', 'watch show', 'watch shows',
+    'watch video', 'watch videos', 'watch youtube', 'play game', 'play games', 'video game',
+    'video games', 'scroll social media', 'scroll tiktok'
+  ];
+  const hasUnrelatedEntertainment = unrelatedEntertainment.some(phrase => studentLower.includes(phrase)) &&
+    !matchedThemes.some(t => t.triggers.includes('tv') || t.triggers.includes('series') || t.triggers.includes('movie'));
+
+  const isRelevant = nonGenericMatches.length > 0 && !hasUnrelatedEntertainment;
   const topicThai = matchedThemes[0]?.topicThai || 
                     (parsed.contextHints ? parsed.contextHints.split('/')[0].trim() : '') || 
                     (item.context_hint ? item.context_hint.split('/')[0].trim() : '') || 
                     'ในภาพ';
-  const cleanCandidateWords = rawContentWords.length > 0
-    ? Array.from(new Set(rawContentWords))
-    : (matchedThemes[0]?.keywords || Array.from(allExpectedKeywords));
+  const cleanCandidateWords = rawContentWords.filter(w => !ANCILLARY_OR_STATE_WORDS.has(w.toLowerCase())).length > 0
+    ? Array.from(new Set(rawContentWords.filter(w => !ANCILLARY_OR_STATE_WORDS.has(w.toLowerCase()))))
+    : (matchedThemes[0]?.keywords || Array.from(allExpectedKeywords)).filter(w => !ANCILLARY_OR_STATE_WORDS.has(w.toLowerCase()));
 
   const suggestedWords = cleanCandidateWords
     .filter(w => !['toggle', 'sweater', 'finger', 'wall', 'screw', 'indoor', 'plate', 'style', 'art', 'clean', 'look', 'make', 'do', 'have', 'be'].includes(w) && w.length > 2)
@@ -609,9 +628,15 @@ UNIVERSAL PEDAGOGICAL EVALUATION FRAMEWORK:
        * Set statusText: "💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ".
        * In feedbackPoints, explain: "• คำว่า 'dishes' เป็นคำนามพหูพจน์ สรรพนามที่ใช้แทนจะต้องเป็น 'them' ไม่ใช่ 'it' นะคะ (เช่น 'do them' แทนที่จะเป็น 'do it')"
 
-4. GRAMMAR, VOCABULARY & IMAGE PROMPT ANALYSIS:
-   - Compare the student's vocabulary (subjects, actions, feelings, objects) with the "Picture Description / Image Prompt".
-   - Broad Semantic Acceptance: If the image depicts someone at a desk with books/lamp, actions like 'read', 'read books', 'study', 'review the lesson', 'learn new things', 'do homework' are ALL 100% valid and directly match the picture!
+4. GRAMMAR, VOCABULARY & IMAGE PROMPT ANALYSIS (STRICT ACTION MATCHING):
+   - Compare the student's vocabulary (subjects, actions, feelings, objects) with the "Picture Description / Image Prompt" and "Model Answer".
+   - The student's MAIN action verb and object MUST describe what the character is physically doing in the image (as defined in the Image Description and Model Answer).
+   - If the image depicts someone at a desk with books/lamp, valid actions are reading and studying: 'read', 'read books', 'read a book', 'study', 'review the lesson', 'do homework'.
+   - Abstract purposes like 'learn new things' or states like 'sleepy' are NOT physical actions. The student cannot substitute an activity that is absent from the picture (such as 'watch series', 'watch tv', 'play games', 'sleep', 'wash dishes', 'cook food').
+   - If the student uses an action not depicted in the image:
+     * MUST mark as INCORRECT (isCorrect: false).
+     * Set statusText: "💡 ประโยคยังไม่สอดคล้องกับภาพค่ะ".
+     * In feedbackPoints, explain clearly that the image shows reading books, not watching series, and advise them to adjust the action verb.
    - Parts of Speech: Ensure words in each slot match the required POS (e.g. if an Adjective is required in Connect, catch nouns/verbs like 'sleep' -> 'sleepy/tired').
    - Auxiliary Verbs: Catch redundant verbs like 'I'm am'.
    - Determiners: Do not claim determiners are missing if 'the', 'a', 'an', or 'my' is already used (e.g. 'the lesson' is correct).
@@ -765,10 +790,8 @@ Task for Exercise 2:
 
     prompt = `Exercise Type: Picture Description & Sentence Construction (Exercise 3: Dual-Core Assessment)
 ${unitTitle ? `Unit Title: "${unitTitle}"\n` : ''}${unitSubtitle ? `Unit Lesson Subtitle & Pattern: "${unitSubtitle}"\n` : ''}${exerciseTitle ? `Exercise Title: "${exerciseTitle}"\n` : ''}${exerciseInstruction ? `Exercise Instructions: "${exerciseInstruction}"\n` : ''}${grammarFocus ? `Grammar Focus: "${grammarFocus}"\n` : ''}${structureRequired ? `Required Structure Blueprint: ${structureRequired}\n` : ''}
-${modelAnswer}
-${acceptableAnswers}
 
-📋 QUIZ SPECIFICATION & REFERENCE DATA (FROM DATABASE COLUMNS teacher_guidance & context_hint):
+📋 QUIZ SPECIFICATION & REFERENCE DATA (FROM DATABASE COLUMNS teacher_guidance, context_hint, model_answer, acceptable_answers):
 
 1. 🎯 TARGET SENTENCE STRUCTURE (สูตรโครงสร้างประโยคประจำข้อที่กำหนดให้ผู้เรียนใช้):
 ${parsedGuidance.targetSentenceStructure}
@@ -779,7 +802,23 @@ ${parsedGuidance.targetImageDescription || 'None provided'}
 3. 💡 CONTEXT HINTS & KEYWORD CLUES (คำใบ้บริบทเพิ่มเติม):
 ${parsedGuidance.contextHints || 'None provided'}
 
-4. 📌 RAW DATABASE VALUES (FOR FULL TEACHER CONTEXT):
+4. 🎯 MODEL ANSWER & ACCEPTABLE ACTIONS (เฉลยตัวอย่างและกริยาการกระทำที่ถูกต้องตามภาพ):
+- Teacher's Primary Model Answer: "${req.item.model_answer}"
+${req.item.acceptable_answers ? `- Acceptable Variations: ${JSON.stringify(req.item.acceptable_answers)}` : ''}
+
+CRITICAL: CORE PHYSICAL ACTION & OBJECT GROUNDING (กริยาการกระทำและสิ่งของหลักต้องตรงกับภาพ):
+- The Model Answer, Acceptable Variations, and Image Description define the ACTUAL PHYSICAL ACTION and OBJECT depicted in the picture (e.g. reading books at a desk, drinking coffee in a cafe, turning off lights).
+- The student's primary action verb and direct object MUST describe what the character is physically doing in the image (e.g. "read books", "read a book", "study", "review my notes", "do homework").
+- THE STUDENT CANNOT ARBITRARILY SUBSTITUTE AN ENTIRELY UNRELATED ACTIVITY OR HOBBY (such as replacing "read books" with "watch series", "watch TV", "play video games", "wash dishes", "cook dinner", "go shopping", "ride a bicycle", "sleep in bed")!
+- If the student writes an action that is NOT depicted in the image and NOT equivalent in meaning to the Model Answer (e.g. student writes "watch series" when the image shows reading books):
+  * MUST MARK AS INCORRECT: isCorrect: false!
+  * Set statusText: "💡 ประโยคยังไม่สอดคล้องกับภาพค่ะ"
+  * In feedbackPoints, explain clearly in polite Kru Whan Thai:
+    "• ในภาพเป็นเหตุการณ์ที่ตัวละครกำลังอ่านหนังสือ (read books / study) ที่โต๊ะนะคะ ไม่ได้กำลังดูซีรีส์ (watch series) ค่ะ แม้ว่าคำว่า 'sleepy' และโครงสร้างประโยคจะถูกต้อง แต่กริยาการกระทำหลักต้องตรงกับภาพที่กำลังอ่านหนังสือด้วยนะคะ ลองปรับคำกริยาเป็น 'read books' หรือคำที่เกี่ยวกับการอ่านดูนะคะ"
+  * In correctedSentence, provide the Model Answer ("${req.item.model_answer}").
+- NEVER mark an answer as correct just because an emotional/physical state adjective (like 'sleepy' or 'tired') or a purpose clause matches, if the main action verb ('watch series') contradicts what is visually happening in the picture!
+
+5. 📌 RAW DATABASE VALUES (FOR FULL TEACHER CONTEXT):
 - teacher_guidance column: "${req.item.teacher_guidance || 'None'}"
 - context_hint column: "${req.item.context_hint || 'None'}"
 - image_description column: "${req.item.image_description || 'None'}"
@@ -787,7 +826,7 @@ ${parsedGuidance.contextHints || 'None provided'}
 Student Answer to Evaluate: "${req.studentAnswer}"
 
 Evaluation Steps for this Quiz (ACT STRICTLY LIKE A TEACHER GRADING A STUDENT'S EXERCISE):
-The teacher has entered the sentence structure and image description prompt in the teacher_guidance and context_hint columns. You MUST examine the student's answer against BOTH core criteria:
+The teacher has entered the sentence structure, image description prompt, model answer, and acceptable answers. You MUST examine the student's answer against BOTH core criteria:
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 CRITERION 1: SENTENCE STRUCTURE COMPLIANCE (ความถูกต้องตามสูตรโครงสร้างประโยค)
@@ -802,15 +841,15 @@ CRITERION 1: SENTENCE STRUCTURE COMPLIANCE (ความถูกต้องต
   * In correctedSentence, provide a sentence that strictly adheres to the TARGET SENTENCE STRUCTURE.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-CRITERION 2: IMAGE RELEVANCE & CORRESPONDENCE (ความสอดคล้องกับภาพและสิ่งที่กำหนดในคำอธิบายภาพ)
+CRITERION 2: IMAGE RELEVANCE & ACTION CORRESPONDENCE (ความสอดคล้องกับภาพและการกระทำในภาพ)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-- Check whether the student's answer is directly relevant to what is depicted in the IMAGE DESCRIPTION PROMPT & VISUAL SCENE ("${parsedGuidance.targetImageDescription}").
-- If the student writes a sentence about an unrelated activity, topic, or scene (for example: image shows drinking coffee in a cafe, but student writes about washing a car, buying groceries, running, swimming, doing homework, cutting hair, cooking dinner, etc.):
-  * MUST mark as INCORRECT: isCorrect: false!
+- Check whether the student's answer accurately describes the PHYSICAL ACTION and SCENE depicted in the image and defined in the Model Answer ("${req.item.model_answer}") and Image Description ("${parsedGuidance.targetImageDescription}").
+- If the student writes about an activity NOT shown in the picture (e.g. image shows reading books, but student writes about watching series, watching TV, playing video games, washing dishes, cooking food, sleeping, swimming, etc.):
+  * MUST MARK AS INCORRECT: isCorrect: false!
   * Set statusText: "💡 ประโยคยังไม่สอดคล้องกับภาพค่ะ"
   * In feedbackPoints, explain clearly in polite Kru Whan Thai:
-    "• ในภาพเป็นเหตุการณ์ [สิ่งที่เกิดขึ้นในภาพตามคำอธิบายภาพ] นะคะ แต่ประโยคของนักเรียนเกี่ยวกับ [สิ่งที่นักเรียนเขียน] ซึ่งยังไม่สอดคล้องกับสิ่งที่เกิดขึ้นในภาพค่ะ ลองดูภาพแล้วแต่งประโยคใหม่ให้ตรงกับภาพนะคะ"
-  * In correctedSentence, provide a sentence that accurately describes the image using the lesson's target structure.
+    "• ในภาพเป็นเหตุการณ์ [สิ่งที่เกิดขึ้นในภาพ เช่น กำลังอ่านหนังสือ] นะคะ แต่ประโยคของนักเรียนเกี่ยวกับ [สิ่งที่นักเรียนเขียน เช่น ดูซีรีส์] ซึ่งยังไม่สอดคล้องกับสิ่งที่เกิดขึ้นในภาพค่ะ ลองดูภาพแล้วแต่งประโยคใหม่ให้ตรงกับการกระทำในภาพนะคะ"
+  * In correctedSentence, provide the teacher's model answer.
 
 3. Translate what the student wrote into natural Thai and return it in "studentTranslation":
    - "customer" / "customers" MUST be translated as "ลูกค้า", NEVER "นักเรียน".
