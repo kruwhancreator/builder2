@@ -314,6 +314,7 @@ export async function getChapterDataFromDb(slugOrId: string = 'sentence-builder-
               id: i.item_number,
               image_description: i.image_description,
               context_hint: i.context_hint,
+              teacher_guidance: i.teacher_guidance || null,
               model_answer: i.model_answer
             }))
           };

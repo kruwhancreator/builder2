@@ -196,6 +196,147 @@ function getWordVariants(word: string): string[] {
   return Array.from(variants);
 }
 
+export interface ParsedItemGuidance {
+  targetSentenceStructure: string;
+  targetImageDescription: string;
+  contextHints: string;
+  rawTeacherGuidance: string;
+  rawContextHint: string;
+}
+
+const STRUCTURE_MARKER_REGEX = /(?:^|\n|\b)(?:Core:|Context:|Connect:|Structure:|Pattern:|Blueprint:|สูตรโครงสร้าง:|โครงสร้างประโยค:|โครงสร้าง:|S\s*\+|Subject\s*\+|I\s*\+|V\.ไม่ผัน|V\.ing|V\.3|V\.inf|Base Verb|Past Participle|about to|\.\.\.,\s*but)\b/i;
+
+function splitTextIntoStructureAndImage(text: string): { structureParts: string[]; imageParts: string[] } {
+  const structureParts: string[] = [];
+  const imageParts: string[] = [];
+
+  if (!text || !text.trim()) return { structureParts, imageParts };
+
+  const trimmed = text.trim();
+
+  // 1. Check if text has an explicit split point like "Detailed Image Generation Prompt", "Image Description", etc.
+  const imageHeaderMatch = trimmed.search(/(?:Detailed Image Generation Prompt|Detailed Image Prompt|Image Generation Prompt|Image Description|Image Prompt|Visual Description|คำอธิบายภาพ|รายละเอียดภาพ|Key Subject & Style Tags)/i);
+
+  if (imageHeaderMatch >= 0) {
+    const before = trimmed.substring(0, imageHeaderMatch).trim();
+    const after = trimmed.substring(imageHeaderMatch).trim();
+
+    if (before && (STRUCTURE_MARKER_REGEX.test(before) || before.length > 20)) {
+      structureParts.push(before);
+    }
+    if (after) {
+      imageParts.push(after);
+    }
+    return { structureParts, imageParts };
+  }
+
+  // 2. Check if text has "A monochrome... vector illustration" or similar in the middle
+  const illustrationMatch = trimmed.search(/\n\s*(?:A monochrome|A vector illustration|An illustration of|A photo of)/i);
+  if (illustrationMatch > 0) {
+    const before = trimmed.substring(0, illustrationMatch).trim();
+    const after = trimmed.substring(illustrationMatch).trim();
+    if (before && (STRUCTURE_MARKER_REGEX.test(before) || before.length > 20)) {
+      structureParts.push(before);
+    }
+    if (after) imageParts.push(after);
+    return { structureParts, imageParts };
+  }
+
+  // 3. If no explicit split, check whether this text looks more like an image prompt or a sentence structure
+  const hasStructure = STRUCTURE_MARKER_REGEX.test(trimmed);
+  const isImageHeader = /^(?:Detailed Image Generation Prompt|Detailed Image Prompt|Image Generation Prompt|Image Description|Image Prompt|A monochrome|A vector|An illustration|An illustration of|A photo|Photo of|Illustration of|ภาพวาด|รูปภาพ|คำอธิบายภาพ)/i.test(trimmed);
+
+  if (isImageHeader) {
+    imageParts.push(trimmed);
+  } else if (hasStructure) {
+    structureParts.push(trimmed);
+  } else if (/(\/.*\/|ภาพ|ผู้ชาย|ผู้หญิง|กำลัง|โต๊ะ|กาแฟ|วิ่ง)/i.test(trimmed)) {
+    // Thai visual context or slash hints
+    imageParts.push(trimmed);
+  } else if (/^[A-Za-z\s.,+-[\](){}]+$/.test(trimmed) && trimmed.length < 100) {
+    // Short English formula pattern
+    structureParts.push(trimmed);
+  } else {
+    // Default fallback: treat as image prompt if longer narrative, else structure
+    if (trimmed.length > 80 && !hasStructure) {
+      imageParts.push(trimmed);
+    } else {
+      structureParts.push(trimmed);
+    }
+  }
+
+  return { structureParts, imageParts };
+}
+
+/**
+ * Parses teacher_guidance, context_hint, and image_description columns from the database.
+ * Intelligently separates the target sentence structure formula from the image description prompt,
+ * even when entered in either column or combined together.
+ */
+export function parseItemGuidanceAndContext(item: any): ParsedItemGuidance {
+  const allStructures: string[] = [];
+  const allImagePrompts: string[] = [];
+  const contextHints: string[] = [];
+
+  const rawTeacherGuidance = item?.teacher_guidance || '';
+  const rawContextHint = item?.context_hint || '';
+  const rawImageDesc = item?.image_description || '';
+
+  // Process teacher_guidance column
+  if (rawTeacherGuidance) {
+    const res = splitTextIntoStructureAndImage(rawTeacherGuidance);
+    allStructures.push(...res.structureParts);
+    allImagePrompts.push(...res.imageParts);
+  }
+
+  // Process context_hint column
+  if (rawContextHint) {
+    if (rawContextHint.includes('/')) {
+      contextHints.push(rawContextHint);
+    }
+    const res = splitTextIntoStructureAndImage(rawContextHint);
+    allStructures.push(...res.structureParts);
+    allImagePrompts.push(...res.imageParts);
+  }
+
+  // Process image_description column
+  if (rawImageDesc) {
+    const res = splitTextIntoStructureAndImage(rawImageDesc);
+    allStructures.push(...res.structureParts);
+    allImagePrompts.push(...res.imageParts);
+  }
+
+  // Clean deduplication (filter out substrings of longer descriptions)
+  const filterSubstrings = (arr: string[]) => {
+    const unique = Array.from(new Set(arr.map(s => s.trim()).filter(Boolean)));
+    return unique.filter((str, idx) => {
+      return !unique.some((other, otherIdx) => otherIdx !== idx && other.length > str.length && other.includes(str));
+    });
+  };
+
+  const uniqueStructures = filterSubstrings(allStructures);
+  const uniqueImages = filterSubstrings(allImagePrompts);
+
+  const targetSentenceStructure = uniqueStructures.join('\n\n') || 
+                                 item?.grammar_focus || 
+                                 item?.exercise_guidance || 
+                                 item?.unit_subtitle || 
+                                 `Core: I + do + [ V.ไม่ผัน ]\nContext: [ to + V.ไม่ผัน ]\nConnect: [ even when I'm + คำคุณศัพท์ ]`;
+
+  const targetImageDescription = uniqueImages.join('\n\n') || 
+                                rawImageDesc || 
+                                rawContextHint || 
+                                '';
+
+  return {
+    targetSentenceStructure,
+    targetImageDescription,
+    contextHints: contextHints.join('\n'),
+    rawTeacherGuidance,
+    rawContextHint
+  };
+}
+
 /**
  * Validates whether the student's answer has semantic relevance to the image description / context hint.
  * Prevents completely unrelated sentences (e.g. washing a car on a coffee picture) from passing.
@@ -205,19 +346,27 @@ export function checkImageRelevance(item: any, studentAnswer: string): ImageRele
     return { isRelevant: true, matchedWords: [], topicThai: '', suggestedWords: '' };
   }
 
+  const parsed = parseItemGuidanceAndContext(item);
+
   const contextCombined = [
+    parsed.targetImageDescription,
+    parsed.contextHints,
     item.image_description || '',
-    item.context_hint || '',
     item.model_answer || '',
-    item.teacher_guidance || '',
     ...(item.acceptable_answers || [])
   ].join(' ').toLowerCase();
 
   const studentLower = studentAnswer.toLowerCase();
 
-  // 1. Match semantic predefined themes
+  // 1. Match semantic predefined themes using word boundaries for English triggers
   const matchedThemes = SEMANTIC_THEMES.filter(theme =>
-    theme.triggers.some(trig => contextCombined.includes(trig.toLowerCase()))
+    theme.triggers.some(trig => {
+      const t = trig.toLowerCase();
+      if (/^[a-z0-9\s]+$/i.test(t)) {
+        return new RegExp(`\\b${t.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'i').test(contextCombined);
+      }
+      return contextCombined.includes(t);
+    })
   );
 
   // 2. Dynamic keywords extracted from model answer / acceptable answers
@@ -258,9 +407,10 @@ export function checkImageRelevance(item: any, studentAnswer: string): ImageRele
     }
   }
 
-  // Also extract English nouns/verbs from image_description if English text exists
-  if (item.image_description && /[a-zA-Z]{3,}/.test(item.image_description)) {
-    const descWords = item.image_description.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/);
+  // Also extract English nouns/verbs from targetImageDescription if English text exists
+  const descText = `${parsed.targetImageDescription} ${item.image_description || ''}`;
+  if (/[a-zA-Z]{3,}/.test(descText)) {
+    const descWords = descText.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/);
     for (const w of descWords) {
       if (w.length > 3 && !STOPWORDS.has(w)) {
         rawContentWords.push(w);
@@ -298,8 +448,24 @@ export function checkImageRelevance(item: any, studentAnswer: string): ImageRele
     }
   }
 
-  const isRelevant = matchedWords.length > 0;
-  const topicThai = matchedThemes[0]?.topicThai || (item.context_hint ? item.context_hint.split('/')[0].trim() : '') || 'ในภาพ';
+  // Filter out generic purpose/connective words so they cannot be the sole reason a sentence passes
+  const GENERIC_OR_PURPOSE_WORDS = new Set([
+    'save', 'saving', 'saved',
+    'keep', 'keeping', 'kept',
+    'stay', 'staying', 'stayed',
+    'feel', 'feeling', 'felt',
+    'make', 'making', 'made',
+    'get', 'getting', 'got',
+    'tired', 'busy', 'happy', 'sad',
+    'clean', 'cleaning'
+  ]);
+
+  const nonGenericMatches = matchedWords.filter(w => !GENERIC_OR_PURPOSE_WORDS.has(w.toLowerCase()));
+  const isRelevant = nonGenericMatches.length > 0;
+  const topicThai = matchedThemes[0]?.topicThai || 
+                    (parsed.contextHints ? parsed.contextHints.split('/')[0].trim() : '') || 
+                    (item.context_hint ? item.context_hint.split('/')[0].trim() : '') || 
+                    'ในภาพ';
   const cleanCandidateWords = rawContentWords.length > 0
     ? Array.from(new Set(rawContentWords))
     : (matchedThemes[0]?.keywords || Array.from(allExpectedKeywords));
@@ -595,60 +761,64 @@ Task for Exercise 2:
     const grammarFocus = req.item.grammar_focus || '';
     const structureRequired = req.item.structure_required ? JSON.stringify(req.item.structure_required) : '';
 
-    let effectiveTeacherGuidance = req.item.teacher_guidance || '';
-    let effectiveImageDescription = req.item.image_description || '';
+    const parsedGuidance = parseItemGuidanceAndContext(req.item);
 
-    // If teacherGuidance contains Detailed Image Generation Prompt or image description tags,
-    // smartly extract it so image context and grammar formula do not pollute each other.
-    if (effectiveTeacherGuidance.includes('Detailed Image Generation Prompt') || 
-        effectiveTeacherGuidance.includes('Key Subject & Style Tags') || 
-        /A monochrome.*illustration/i.test(effectiveTeacherGuidance)) {
-      const splitMatch = effectiveTeacherGuidance.split(/(?=Detailed Image Generation Prompt|Key Subject & Style Tags)/i);
-      if (splitMatch.length > 1) {
-        effectiveTeacherGuidance = splitMatch[0].trim();
-        const extractedImagePrompt = splitMatch.slice(1).join('\n').trim();
-        effectiveImageDescription = extractedImagePrompt;
-      }
-    }
-
-    const targetStructure = effectiveTeacherGuidance || 
-                            grammarFocus || 
-                            exerciseGuidance || 
-                            unitSubtitle || 
-                            `Core: I + do + [ V.ไม่ผัน ]\nContext: [ to + V.ไม่ผัน ]\nConnect: [ even when I'm + คำคุณศัพท์ ]`;
-
-    prompt = `Exercise Type: Picture Description & Sentence Construction (Exercise 3: Must Accurately Describe the Given Image)
-${unitTitle ? `Unit Title: "${unitTitle}"\n` : ''}${unitSubtitle ? `Unit Lesson Subtitle & Pattern: "${unitSubtitle}"\n` : ''}${exerciseTitle ? `Exercise Title: "${exerciseTitle}"\n` : ''}${exerciseInstruction ? `Exercise Instructions: "${exerciseInstruction}"\n` : ''}${grammarFocus ? `Grammar Focus: "${grammarFocus}"\n` : ''}${structureRequired ? `Required Structure Blueprint: ${structureRequired}\n` : ''}${effectiveImageDescription ? `Picture Description & Scene Context Prompt:\n"${effectiveImageDescription}"\n` : ''}
+    prompt = `Exercise Type: Picture Description & Sentence Construction (Exercise 3: Dual-Core Assessment)
+${unitTitle ? `Unit Title: "${unitTitle}"\n` : ''}${unitSubtitle ? `Unit Lesson Subtitle & Pattern: "${unitSubtitle}"\n` : ''}${exerciseTitle ? `Exercise Title: "${exerciseTitle}"\n` : ''}${exerciseInstruction ? `Exercise Instructions: "${exerciseInstruction}"\n` : ''}${grammarFocus ? `Grammar Focus: "${grammarFocus}"\n` : ''}${structureRequired ? `Required Structure Blueprint: ${structureRequired}\n` : ''}
 ${modelAnswer}
 ${acceptableAnswers}
 
-🎯 TARGET LESSON SENTENCE STRUCTURE TO ENFORCE (สูตรโครงสร้างประโยคประจำบทเรียนที่ต้องบังคับใช้):
-${targetStructure}
+📋 QUIZ SPECIFICATION & REFERENCE DATA (FROM DATABASE COLUMNS teacher_guidance & context_hint):
+
+1. 🎯 TARGET SENTENCE STRUCTURE (สูตรโครงสร้างประโยคประจำข้อที่กำหนดให้ผู้เรียนใช้):
+${parsedGuidance.targetSentenceStructure}
+
+2. 🖼️ IMAGE DESCRIPTION PROMPT & VISUAL SCENE (คำอธิบายภาพและสิ่งที่เกิดขึ้นในภาพ):
+${parsedGuidance.targetImageDescription || 'None provided'}
+
+3. 💡 CONTEXT HINTS & KEYWORD CLUES (คำใบ้บริบทเพิ่มเติม):
+${parsedGuidance.contextHints || 'None provided'}
+
+4. 📌 RAW DATABASE VALUES (FOR FULL TEACHER CONTEXT):
+- teacher_guidance column: "${req.item.teacher_guidance || 'None'}"
+- context_hint column: "${req.item.context_hint || 'None'}"
+- image_description column: "${req.item.image_description || 'None'}"
 
 Student Answer to Evaluate: "${req.studentAnswer}"
 
 Evaluation Steps for this Quiz (ACT STRICTLY LIKE A TEACHER GRADING A STUDENT'S EXERCISE):
-1. STRICT IMAGE CORRESPONDENCE & RELEVANCE (TOP PRIORITY - ต้องบรรยายให้สอดคล้องกับภาพ):
-   - Check whether the student's answer is directly relevant to what is depicted in the picture ("${effectiveImageDescription || req.item.image_description || ''}").
-   - If the student writes a sentence about an unrelated activity/topic (for example: image shows drinking coffee in a cafe, but student writes about washing a car, buying groceries, running, swimming, doing homework, cutting hair, cooking dinner, etc.):
-     * MUST MARK AS INCORRECT: isCorrect: false!
-     * Set statusText: "💡 ประโยคยังไม่สอดคล้องกับภาพค่ะ"
-     * In feedbackPoints, explain clearly in polite Kru Whan Thai:
-       "• ในภาพเป็นเหตุการณ์ [สิ่งที่เกิดขึ้นในภาพ] นะคะ แต่ประโยคของนักเรียนเกี่ยวกับ [สิ่งที่นักเรียนเขียน] ซึ่งยังไม่สอดคล้องกับสิ่งที่เกิดขึ้นในภาพค่ะ ลองดูภาพแล้วแต่งประโยคใหม่ให้ตรงกับภาพนะคะ"
-     * In correctedSentence, provide a sentence that accurately describes the image using the lesson's target structure.
-2. Translate what the student wrote into natural Thai and return it in "studentTranslation":
+The teacher has entered the sentence structure and image description prompt in the teacher_guidance and context_hint columns. You MUST examine the student's answer against BOTH core criteria:
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CRITERION 1: SENTENCE STRUCTURE COMPLIANCE (ความถูกต้องตามสูตรโครงสร้างประโยค)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- Check whether the student's answer strictly adheres to the TARGET SENTENCE STRUCTURE specified above ("${parsedGuidance.targetSentenceStructure}").
+- If the student writes a sentence that fails to use or ignores the required formula (e.g., using active voice when passive voice S. + is/am/are + V.3 is taught, using wrong tense, missing required slots or connectors such as 'to + V', 'even when', 'so', 'but', etc.):
+  * MUST mark as INCORRECT: isCorrect: false!
+  * Set statusText: "💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ".
+  * In feedbackPoints, explain clearly as a teacher in polite Kru Whan Thai:
+    - "• ในข้อนี้เรากำลังฝึกแต่งประโยคด้วยโครงสร้าง [ระบุสูตรโครงสร้างที่กำหนด] นะคะ"
+    - Point out precisely what part of the structure the student missed or wrote incorrectly, and teach how to fix it to match the required formula.
+  * In correctedSentence, provide a sentence that strictly adheres to the TARGET SENTENCE STRUCTURE.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CRITERION 2: IMAGE RELEVANCE & CORRESPONDENCE (ความสอดคล้องกับภาพและสิ่งที่กำหนดในคำอธิบายภาพ)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- Check whether the student's answer is directly relevant to what is depicted in the IMAGE DESCRIPTION PROMPT & VISUAL SCENE ("${parsedGuidance.targetImageDescription}").
+- If the student writes a sentence about an unrelated activity, topic, or scene (for example: image shows drinking coffee in a cafe, but student writes about washing a car, buying groceries, running, swimming, doing homework, cutting hair, cooking dinner, etc.):
+  * MUST mark as INCORRECT: isCorrect: false!
+  * Set statusText: "💡 ประโยคยังไม่สอดคล้องกับภาพค่ะ"
+  * In feedbackPoints, explain clearly in polite Kru Whan Thai:
+    "• ในภาพเป็นเหตุการณ์ [สิ่งที่เกิดขึ้นในภาพตามคำอธิบายภาพ] นะคะ แต่ประโยคของนักเรียนเกี่ยวกับ [สิ่งที่นักเรียนเขียน] ซึ่งยังไม่สอดคล้องกับสิ่งที่เกิดขึ้นในภาพค่ะ ลองดูภาพแล้วแต่งประโยคใหม่ให้ตรงกับภาพนะคะ"
+  * In correctedSentence, provide a sentence that accurately describes the image using the lesson's target structure.
+
+3. Translate what the student wrote into natural Thai and return it in "studentTranslation":
    - "customer" / "customers" MUST be translated as "ลูกค้า", NEVER "นักเรียน".
    - "they" / "them" referring to human beings (customers, guests, people) MUST be translated as "พวกเขา", NEVER "พวกมัน".
-3. STRICT ANTI-HALLUCINATION CHECK:
+4. STRICT ANTI-HALLUCINATION CHECK:
    - Evaluate ONLY the words that the student actually wrote in "${req.studentAnswer}".
    - NEVER attribute words from the reference example (such as 'bags') to the student if the student did not write them!
    - NEVER say "คำว่า '...' ที่นักเรียนใช้" for words that do NOT exist in the student's answer!
-4. STRICT SENTENCE STRUCTURE ENFORCEMENT (SECONDARY TEACHER DUTY):
-   - Check if the student's answer adheres to the TARGET SENTENCE STRUCTURE taught in this unit ("${targetStructure}").
-   - If the student writes a sentence that fails to use or ignores the required formula (e.g., using active voice when passive voice S. + is/am/are + V.3 is taught, using wrong tense, or missing required slots):
-     * MUST mark isCorrect: false.
-     * statusText: "💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ".
-     * In feedbackPoints, explain: "ในบทเรียนนี้เรากำลังฝึกแต่งประโยคด้วยโครงสร้าง [ระบุโครงสร้าง] นะคะ" and point out exactly what needs to be changed to conform to the lesson.
 5. STRICT PUNCTUATION MARKS & CLAUSE COMMAS:
    - Check for a comma (,) before coordinating conjunctions when connecting clauses (e.g. "..., so I make sure to...", "..., but...", "..., and..."). If the comma is omitted (e.g. "... at home so I make sure..."), MUST mark isCorrect: false, statusText: "💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ", and advise to add a comma before 'so' (e.g. ", so").
    - Check for ending period / full stop (.). If missing, mark isCorrect: false.
@@ -665,7 +835,7 @@ Evaluation Steps for this Quiz (ACT STRICTLY LIKE A TEACHER GRADING A STUDENT'S 
    - If the character depicted in the picture/context is MALE and student wrote "she", "her", or feminine pronouns: MUST mark isCorrect: false, and advise that the character is male so should use "he" (or "I") instead of "she".
    - If the character depicted in the picture/context is FEMALE and student wrote "he", "his", "him", or masculine pronouns: MUST mark isCorrect: false, and advise that the character is female so should use "she" (or "I") instead of "he".
 10. STRICT IMAGE ELEMENT & ENTITY VERIFICATION:
-   - Check that the animals, objects, actions, and settings describing the visual scene match the picture context ("${req.item.image_description || ''}").
+   - Check that the animals, objects, actions, and settings describing the visual scene match the picture context ("${parsedGuidance.targetImageDescription || req.item.image_description || ''}").
    - For multi-clause or contrast structures like "I'm about to [Upcoming Action], but I still [Current Action in Image]":
      * ONLY the clause describing the current physical action (e.g. "need to wrap the gift") must match the picture!
      * The future/planned action in "I'm about to [Action]" (e.g. "study", "study in fifteen minutes", "study in 15 minutes", "leave", "take an exam") is an upcoming plan that has not happened yet and therefore is NOT in the image. DO NOT require it to be in the image, and NEVER claim words like 'study' don't match the picture!

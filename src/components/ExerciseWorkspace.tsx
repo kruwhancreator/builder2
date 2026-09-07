@@ -221,7 +221,7 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
             unit_number: unitNumber,
             image_description: item.image_description || '',
             context_hint: item.context_hint || '',
-            teacher_guidance: (item.teacher_guidance || item.context_hint || exercise?.guidance || exercise?.instruction || chapterData.subtitle || '').replace(/ไม่มีถูกไม่มีผิด(?:นะคะ|นะ|ค่ะ)?/g, 'แต่งประโยคให้สอดคล้องกับภาพ'),
+            teacher_guidance: (item.teacher_guidance || exercise?.guidance || exercise?.instruction || chapterData.subtitle || '').replace(/ไม่มีถูกไม่มีผิด(?:นะคะ|นะ|ค่ะ)?/g, 'แต่งประโยคให้สอดคล้องกับภาพ'),
             unit_title: chapterData.title || '',
             unit_subtitle: chapterData.subtitle || '',
             exercise_title: exercise?.title || '',
