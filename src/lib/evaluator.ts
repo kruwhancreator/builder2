@@ -809,14 +809,12 @@ ${req.item.acceptable_answers ? `- Acceptable Variations: ${JSON.stringify(req.i
 CRITICAL: CORE PHYSICAL ACTION & OBJECT GROUNDING (กริยาการกระทำและสิ่งของหลักต้องตรงกับภาพ):
 - The Model Answer, Acceptable Variations, and Image Description define the ACTUAL PHYSICAL ACTION and OBJECT depicted in the picture (e.g. reading books at a desk, drinking coffee in a cafe, turning off lights).
 - The student's primary action verb and direct object MUST describe what the character is physically doing in the image (e.g. "read books", "read a book", "study", "review my notes", "do homework").
-- THE STUDENT CANNOT ARBITRARILY SUBSTITUTE AN ENTIRELY UNRELATED ACTIVITY OR HOBBY (such as replacing "read books" with "watch series", "watch TV", "play video games", "wash dishes", "cook dinner", "go shopping", "ride a bicycle", "sleep in bed")!
-- If the student writes an action that is NOT depicted in the image and NOT equivalent in meaning to the Model Answer (e.g. student writes "watch series" when the image shows reading books):
+- If the student writes an action that is NOT depicted in the image and NOT equivalent in meaning to the Model Answer (e.g. writing an unrelated activity not visible in the picture):
   * MUST MARK AS INCORRECT: isCorrect: false!
   * Set statusText: "💡 ประโยคยังไม่สอดคล้องกับภาพค่ะ"
-  * In feedbackPoints, explain clearly in polite Kru Whan Thai:
-    "• ในภาพเป็นเหตุการณ์ที่ตัวละครกำลังอ่านหนังสือ (read books / study) ที่โต๊ะนะคะ ไม่ได้กำลังดูซีรีส์ (watch series) ค่ะ แม้ว่าคำว่า 'sleepy' และโครงสร้างประโยคจะถูกต้อง แต่กริยาการกระทำหลักต้องตรงกับภาพที่กำลังอ่านหนังสือด้วยนะคะ ลองปรับคำกริยาเป็น 'read books' หรือคำที่เกี่ยวกับการอ่านดูนะคะ"
+  * In feedbackPoints, explain clearly in polite Kru Whan Thai: state what the character in the picture is physically doing (matching "${req.item.model_answer}" and the image description), point out that they are not doing the student's activity, and kindly encourage the student to use a verb that matches the picture.
   * In correctedSentence, provide the Model Answer ("${req.item.model_answer}").
-- NEVER mark an answer as correct just because an emotional/physical state adjective (like 'sleepy' or 'tired') or a purpose clause matches, if the main action verb ('watch series') contradicts what is visually happening in the picture!
+- NEVER mark an answer as correct just because an emotional/physical state adjective (like 'sleepy' or 'tired') or a purpose clause matches, if the main action verb contradicts what is visually happening in the picture!
 
 5. 📌 RAW DATABASE VALUES (FOR FULL TEACHER CONTEXT):
 - teacher_guidance column: "${req.item.teacher_guidance || 'None'}"
@@ -981,7 +979,7 @@ CRITERION 2: IMAGE RELEVANCE & ACTION CORRESPONDENCE (ความสอดค�
       sanitizedFeedbackPoints = sanitizedFeedbackPoints.filter(pt => !/(ถูกต้องเลยค่ะ|เก่งมาก)/.test(pt));
 
       const hasImageMismatchPt = sanitizedFeedbackPoints.some(pt =>
-        /(ไม่สอดคล้องกับภาพ|ไม่ตรงกับภาพ|ไม่ตรงกับสิ่งที่เกิดขึ้นในภาพ|ภาพนี้เป็นเหตุการณ์)/.test(pt)
+        /(ไม่สอดคล้องกับภาพ|ไม่ตรงกับภาพ|ไม่ตรงกับสิ่งที่เกิดขึ้นในภาพ|(?:ในภาพ|ภาพนี้|ภาพ).*เป็นเหตุการณ์)/.test(pt)
       );
 
       if (!hasImageMismatchPt) {

@@ -121,9 +121,15 @@
       "items": [
         {
           "id": 1,
-          "image_description": "ผู้ชายกำลังดื่มกาแฟในคาเฟ่",
-          "context_hint": "ดื่มกาแฟ / ในคาเฟ่ / เพื่อความสดชื่น",
-          "model_answer": "I am drinking coffee at the cafe right now to feel refreshed."
+          "image_description": "A monochrome, black-and-white vector illustration of a tired and sleepy young woman sitting at a desk with an open book in front of her, yawning with one hand resting on her cheek. Beside her is an illuminated desk lamp and a stack of books. Clean black line art with soft grayscale shading.",
+          "context_hint": "อ่านหนังสือ / เพื่อเรียนรู้สิ่งใหม่ๆ / แม้ว่าจะง่วงนอน",
+          "teacher_guidance": "Core: \tI + do + [ V.ไม่ผัน ]\nI do read books.\nContext: \tI + do + V.ไม่ผัน + [ to + V.ไม่ผัน ]\nI do read books to learn new things.\nConnect: \tI + do + V.ไม่ผัน + to + V.ไม่ผัน + [ even when I’m + คำคุณศัพท์]\nI do read books to learn new things even when I am sleepy.",
+          "model_answer": "I do read books to learn new things even when I'm sleepy.",
+          "acceptable_answers": [
+            "I do read books to learn new things even when I'm sleepy.",
+            "I do read a book to learn new things even when I'm sleepy.",
+            "I do study to learn new things even when I'm sleepy."
+          ]
         },
         {
           "id": 2,
