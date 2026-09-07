@@ -64,6 +64,259 @@ export function isTimeframeGreaterThan15Minutes(text: string): boolean {
   return false;
 }
 
+export interface ImageRelevanceResult {
+  isRelevant: boolean;
+  matchedWords: string[];
+  topicThai: string;
+  suggestedWords: string;
+}
+
+const SEMANTIC_THEMES = [
+  {
+    triggers: ['กาแฟ', 'ดื่มกาแฟ', 'ดื่มน้ำ', 'คาเฟ่', 'ร้านกาแฟ', 'ชา', 'เครื่องดื่ม', 'สดชื่น', 'coffee', 'cafe', 'tea', 'espresso', 'latte', 'cappuccino'],
+    topicThai: 'ดื่มกาแฟในคาเฟ่',
+    keywords: ['coffee', 'drink', 'drinking', 'drank', 'drinks', 'sip', 'sipping', 'sipped', 'cup', 'mug', 'cafe', 'café', 'espresso', 'latte', 'cappuccino', 'tea', 'water', 'beverage', 'shop', 'restaurant', 'refresh', 'refreshed', 'chill', 'relax', 'table', 'barista', 'cafeteria']
+  },
+  {
+    triggers: ['วิ่ง', 'วิ่งออกกำลังกาย', 'เดิน', 'สวนสาธารณะ', 'สวน', 'run', 'running', 'jog', 'jogging', 'park'],
+    topicThai: 'วิ่งออกกำลังกายในสวนสาธารณะ',
+    keywords: ['run', 'running', 'ran', 'runs', 'jog', 'jogging', 'jogged', 'jogs', 'sprint', 'sprinting', 'walk', 'walking', 'park', 'garden', 'outdoor', 'outdoors', 'exercise', 'exercising', 'workout', 'fit', 'fitness', 'healthy', 'health', 'cardio', 'sweat', 'track']
+  },
+  {
+    triggers: ['ปิดไฟ', 'เปิดไฟ', 'สวิตช์', 'ไฟฟ้า', 'ประหยัดไฟ', 'หลอดไฟ', 'ประหยัดพลังงาน', 'light', 'switch', 'electricity', 'toggle'],
+    topicThai: 'ปิดสวิตช์ไฟเพื่อประหยัดพลังงาน',
+    keywords: ['light', 'lights', 'switch', 'switches', 'toggle', 'turn off', 'turning off', 'turned off', 'switch off', 'switching off', 'switched off', 'turn on', 'switch on', 'electricity', 'energy', 'power', 'save', 'saving', 'saved', 'press', 'pressing', 'pressed', 'flip', 'flipping', 'flipped', 'finger', 'hand', 'wall', 'button', 'lamp']
+  },
+  {
+    triggers: ['ห่อของขวัญ', 'ของขวัญ', 'กล่องของขวัญ', 'ริบบิ้น', 'wrap', 'gift', 'present'],
+    topicThai: 'ห่อของขวัญที่โต๊ะ',
+    keywords: ['wrap', 'wrapping', 'wrapped', 'gift', 'gifts', 'present', 'presents', 'box', 'boxes', 'ribbon', 'ribbons', 'package', 'packaging', 'packaged', 'desk', 'table', 'tape', 'paper']
+  },
+  {
+    triggers: ['ล้างรถ', 'รถ', 'รถยนต์', 'wash car', 'car wash', 'vehicle'],
+    topicThai: 'ล้างรถ',
+    keywords: ['wash', 'washing', 'washed', 'car', 'cars', 'vehicle', 'vehicles', 'clean', 'cleaning', 'cleaned', 'water', 'sponge', 'garage']
+  },
+  {
+    triggers: ['ตัดผม', 'ร้านตัดผม', 'ช่างทำผม', 'ผม', 'haircut', 'barber', 'salon'],
+    topicThai: 'ตัดผมที่ร้านทำผม',
+    keywords: ['hair', 'haircut', 'haircuts', 'cut', 'cutting', 'barber', 'barbershop', 'salon', 'stylist', 'shave', 'shaving', 'trim', 'trimming']
+  },
+  {
+    triggers: ['ทำอาหาร', 'ทำกับข้าว', 'ปรุงอาหาร', 'ครัว', 'อาหาร', 'cook', 'cooking', 'kitchen', 'meal'],
+    topicThai: 'ทำอาหารในครัว',
+    keywords: ['cook', 'cooking', 'cooked', 'meal', 'meals', 'food', 'dinner', 'lunch', 'breakfast', 'kitchen', 'stove', 'pan', 'dish', 'dishes', 'chef', 'bake', 'baking', 'recipe', 'prep']
+  },
+  {
+    triggers: ['ซักผ้า', 'เสื้อผ้า', 'ตากผ้า', 'รีดผ้า', 'laundry', 'clothes'],
+    topicThai: 'ซักผ้า',
+    keywords: ['laundry', 'clothes', 'clothing', 'wash', 'washing', 'washed', 'shirt', 'shirts', 'pants', 'fabric', 'fold', 'folding', 'iron', 'ironing', 'hang']
+  },
+  {
+    triggers: ['ล้างจาน', 'จาน', 'ชาม', 'dish', 'dishes', 'sink'],
+    topicThai: 'ล้างจานในครัว',
+    keywords: ['dish', 'dishes', 'plate', 'plates', 'bowl', 'bowls', 'wash', 'washing', 'washed', 'sink', 'clean', 'cleaning', 'cleaned', 'soap', 'sponge']
+  },
+  {
+    triggers: ['กระเป๋า', 'ยกกระเป๋า', 'กระเป๋าเดินทาง', 'สัมภาระ', 'โรงแรม', 'luggage', 'suitcase', 'bellboy', 'hotel'],
+    topicThai: 'ยกกระเป๋าเดินทางที่โรงแรม',
+    keywords: ['bag', 'bags', 'luggage', 'suitcase', 'suitcases', 'carry', 'carrying', 'carried', 'hotel', 'lobby', 'bellboy', 'guest', 'guests', 'handle', 'handling']
+  },
+  {
+    triggers: ['เดินทาง', 'ไปทำงาน', 'กลับบ้าน', 'รถติด', 'รถไฟฟ้า', 'ออฟฟิศ', 'commute', 'commuting', 'traffic'],
+    topicThai: 'เดินทางไปทำงาน',
+    keywords: ['commute', 'commuting', 'commuted', 'work', 'office', 'train', 'bus', 'subway', 'transit', 'station', 'traffic', 'drive', 'driving', 'road', 'metro']
+  },
+  {
+    triggers: ['ว่ายน้ำ', 'สระว่ายน้ำ', 'swim', 'swimming', 'pool'],
+    topicThai: 'ว่ายน้ำในสระว่ายน้ำ',
+    keywords: ['swim', 'swimming', 'swam', 'swimmer', 'pool', 'water']
+  },
+  {
+    triggers: ['อ่านหนังสือ', 'หนังสือ', 'ห้องสมุด', 'read', 'book', 'library'],
+    topicThai: 'อ่านหนังสือในห้องสมุด',
+    keywords: ['read', 'reading', 'book', 'books', 'library', 'page', 'pages', 'study', 'studying']
+  },
+  {
+    triggers: ['นอน', 'เข้านอน', 'เตียง', 'sleep', 'bed'],
+    topicThai: 'เข้านอนพักผ่อน',
+    keywords: ['sleep', 'sleeping', 'slept', 'bed', 'bedroom', 'rest', 'resting', 'tired', 'night', 'nap']
+  },
+  {
+    triggers: ['ซื้อของ', 'ซูเปอร์มาร์เก็ต', 'ตลาด', 'ช้อปปิ้ง', 'shopping', 'supermarket', 'grocery'],
+    topicThai: 'ซื้อของที่ซูเปอร์มาร์เก็ต',
+    keywords: ['shop', 'shopping', 'buy', 'buying', 'grocery', 'groceries', 'supermarket', 'market', 'store', 'cart']
+  },
+  {
+    triggers: ['ทำความสะอาด', 'กวาดบ้าน', 'ถูบ้าน', 'จัดห้อง', 'ปัดฝุ่น', 'clean room', 'housework'],
+    topicThai: 'ทำความสะอาดห้อง',
+    keywords: ['clean', 'cleaning', 'sweep', 'sweeping', 'mop', 'mopping', 'tidy', 'tidying', 'dust', 'dusting', 'room', 'house', 'floor', 'vacuum']
+  },
+  {
+    triggers: ['รดน้ำต้นไม้', 'ปลูกต้นไม้', 'ต้นไม้', 'ดอกไม้', 'gardening', 'plant'],
+    topicThai: 'รดน้ำต้นไม้ในสวน',
+    keywords: ['water', 'watering', 'plant', 'plants', 'garden', 'gardening', 'flower', 'flowers', 'tree', 'trees', 'lawn']
+  },
+  {
+    triggers: ['หมา', 'สุนัข', 'แมว', 'สัตว์เลี้ยง', 'pet', 'dog', 'cat'],
+    topicThai: 'ดูแลสัตว์เลี้ยง',
+    keywords: ['dog', 'dogs', 'puppy', 'cat', 'cats', 'kitten', 'pet', 'pets', 'walk', 'walking', 'feed', 'feeding', 'leash']
+  }
+];
+
+function getWordVariants(word: string): string[] {
+  const variants = new Set([word]);
+  const w = word.toLowerCase();
+
+  // Plural / 3rd person singular -s / -es
+  if (w.endsWith('ies') && w.length > 4) variants.add(w.slice(0, -3) + 'y');
+  if (w.endsWith('es') && w.length > 3) variants.add(w.slice(0, -2));
+  if (w.endsWith('s') && !w.endsWith('ss') && w.length > 3) variants.add(w.slice(0, -1));
+
+  // -ing
+  if (w.endsWith('ing') && w.length > 4) {
+    const base = w.slice(0, -3);
+    variants.add(base);
+    variants.add(base + 'e');
+    if (base.length > 2 && base[base.length - 1] === base[base.length - 2]) {
+      variants.add(base.slice(0, -1));
+    }
+  }
+
+  // -ed
+  if (w.endsWith('ed') && w.length > 3) {
+    const base = w.slice(0, -2);
+    variants.add(base);
+    variants.add(base + 'e');
+    if (base.length > 2 && base[base.length - 1] === base[base.length - 2]) {
+      variants.add(base.slice(0, -1));
+    }
+  }
+
+  return Array.from(variants);
+}
+
+/**
+ * Validates whether the student's answer has semantic relevance to the image description / context hint.
+ * Prevents completely unrelated sentences (e.g. washing a car on a coffee picture) from passing.
+ */
+export function checkImageRelevance(item: any, studentAnswer: string): ImageRelevanceResult {
+  if (!item || !studentAnswer) {
+    return { isRelevant: true, matchedWords: [], topicThai: '', suggestedWords: '' };
+  }
+
+  const contextCombined = [
+    item.image_description || '',
+    item.context_hint || '',
+    item.model_answer || '',
+    item.teacher_guidance || '',
+    ...(item.acceptable_answers || [])
+  ].join(' ').toLowerCase();
+
+  const studentLower = studentAnswer.toLowerCase();
+
+  // 1. Match semantic predefined themes
+  const matchedThemes = SEMANTIC_THEMES.filter(theme =>
+    theme.triggers.some(trig => contextCombined.includes(trig.toLowerCase()))
+  );
+
+  // 2. Dynamic keywords extracted from model answer / acceptable answers
+  const STOPWORDS = new Set([
+    'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them',
+    'my', 'your', 'his', 'her', 'our', 'their', 'am', 'is', 'are', 'was', 'were',
+    'be', 'been', 'being', 'do', 'does', 'did', 'have', 'has', 'had', 'will', 'would',
+    'shall', 'should', 'can', 'could', 'may', 'might', 'must', 'a', 'an', 'the',
+    'this', 'that', 'these', 'those', 'to', 'at', 'in', 'on', 'for', 'from', 'with',
+    'by', 'about', 'into', 'through', 'after', 'before', 'under', 'over', 'and', 'but',
+    'or', 'so', 'because', 'although', 'even', 'when', 'while', 'if', 'as', 'than',
+    'though', 'however', 'not', 'no', 'too', 'very', 'really', 'right', 'now', 'still',
+    'just', 'always', 'often', 'usually', 'sometimes', 'never', 'minute', 'minutes',
+    'hour', 'hours', 'day', 'days', 'time', 'times', 'need', 'still', 'tired', 'busy',
+    'happy', 'sad', 'well', 'fine', 'good', 'bad'
+  ]);
+
+  const rawContentWords: string[] = [];
+  const dynamicKeywords = new Set<string>();
+  const allReferenceAnswers = [item.model_answer || '', ...(item.acceptable_answers || [])];
+  for (const ans of allReferenceAnswers) {
+    // If answer contains a multi-clause contrast like "about to ... but I still ...",
+    // the visual scene corresponds to the clause AFTER 'but' (the current physical action)!
+    let visualClause = ans;
+    if (/\b(about to|going to)\b.*\b(but|however)\b/i.test(ans)) {
+      const parts = ans.split(/\b(but|however)\b/i);
+      visualClause = parts.slice(1).join(' ');
+    }
+
+    const words = visualClause.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/);
+    for (const w of words) {
+      if (w.length > 2 && !STOPWORDS.has(w)) {
+        rawContentWords.push(w);
+        for (const variant of getWordVariants(w)) {
+          dynamicKeywords.add(variant);
+        }
+      }
+    }
+  }
+
+  // Also extract English nouns/verbs from image_description if English text exists
+  if (item.image_description && /[a-zA-Z]{3,}/.test(item.image_description)) {
+    const descWords = item.image_description.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/);
+    for (const w of descWords) {
+      if (w.length > 3 && !STOPWORDS.has(w)) {
+        rawContentWords.push(w);
+        for (const variant of getWordVariants(w)) {
+          dynamicKeywords.add(variant);
+        }
+      }
+    }
+  }
+
+  // 3. Combine all expected keywords
+  const allExpectedKeywords = new Set<string>([...dynamicKeywords]);
+  for (const th of matchedThemes) {
+    for (const kw of th.keywords) {
+      allExpectedKeywords.add(kw);
+    }
+  }
+
+  // 4. Check if student answer contains any of the expected keywords
+  const matchedWords: string[] = [];
+  for (const kw of allExpectedKeywords) {
+    const regex = new RegExp(`\\b${kw.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'i');
+    if (regex.test(studentLower)) {
+      matchedWords.push(kw);
+    }
+  }
+
+  // Check multi-word action phrases
+  const multiWordPhrases = ['turn off', 'switch off', 'turn on', 'switch on', 'coffee shop', 'work out', 'light switch', 'hair cut', 'car wash'];
+  for (const phrase of multiWordPhrases) {
+    if (allExpectedKeywords.has(phrase) || matchedThemes.some(t => t.keywords.includes(phrase))) {
+      if (studentLower.includes(phrase)) {
+        matchedWords.push(phrase);
+      }
+    }
+  }
+
+  const isRelevant = matchedWords.length > 0;
+  const topicThai = matchedThemes[0]?.topicThai || (item.context_hint ? item.context_hint.split('/')[0].trim() : '') || 'ในภาพ';
+  const cleanCandidateWords = rawContentWords.length > 0
+    ? Array.from(new Set(rawContentWords))
+    : (matchedThemes[0]?.keywords || Array.from(allExpectedKeywords));
+
+  const suggestedWords = cleanCandidateWords
+    .filter(w => !['toggle', 'sweater', 'finger', 'wall', 'screw', 'indoor', 'plate', 'style', 'art', 'clean', 'look', 'make', 'do', 'have', 'be'].includes(w) && w.length > 2)
+    .slice(0, 3)
+    .join(', ');
+
+  return {
+    isRelevant,
+    matchedWords,
+    topicThai,
+    suggestedWords
+  };
+}
+
 export async function evaluateAnswer(req: EvaluationRequest): Promise<EvaluationResult> {
   const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 
@@ -364,7 +617,7 @@ Task for Exercise 2:
                             unitSubtitle || 
                             `Core: I + do + [ V.ไม่ผัน ]\nContext: [ to + V.ไม่ผัน ]\nConnect: [ even when I'm + คำคุณศัพท์ ]`;
 
-    prompt = `Exercise Type: Picture Description & Sentence Construction (Exercise 3: Free-Style Structure Building)
+    prompt = `Exercise Type: Picture Description & Sentence Construction (Exercise 3: Must Accurately Describe the Given Image)
 ${unitTitle ? `Unit Title: "${unitTitle}"\n` : ''}${unitSubtitle ? `Unit Lesson Subtitle & Pattern: "${unitSubtitle}"\n` : ''}${exerciseTitle ? `Exercise Title: "${exerciseTitle}"\n` : ''}${exerciseInstruction ? `Exercise Instructions: "${exerciseInstruction}"\n` : ''}${grammarFocus ? `Grammar Focus: "${grammarFocus}"\n` : ''}${structureRequired ? `Required Structure Blueprint: ${structureRequired}\n` : ''}${effectiveImageDescription ? `Picture Description & Scene Context Prompt:\n"${effectiveImageDescription}"\n` : ''}
 ${modelAnswer}
 ${acceptableAnswers}
@@ -375,48 +628,56 @@ ${targetStructure}
 Student Answer to Evaluate: "${req.studentAnswer}"
 
 Evaluation Steps for this Quiz (ACT STRICTLY LIKE A TEACHER GRADING A STUDENT'S EXERCISE):
-1. Translate what the student wrote into natural Thai and return it in "studentTranslation":
+1. STRICT IMAGE CORRESPONDENCE & RELEVANCE (TOP PRIORITY - ต้องบรรยายให้สอดคล้องกับภาพ):
+   - Check whether the student's answer is directly relevant to what is depicted in the picture ("${effectiveImageDescription || req.item.image_description || ''}").
+   - If the student writes a sentence about an unrelated activity/topic (for example: image shows drinking coffee in a cafe, but student writes about washing a car, buying groceries, running, swimming, doing homework, cutting hair, cooking dinner, etc.):
+     * MUST MARK AS INCORRECT: isCorrect: false!
+     * Set statusText: "💡 ประโยคยังไม่สอดคล้องกับภาพค่ะ"
+     * In feedbackPoints, explain clearly in polite Kru Whan Thai:
+       "• ในภาพเป็นเหตุการณ์ [สิ่งที่เกิดขึ้นในภาพ] นะคะ แต่ประโยคของนักเรียนเกี่ยวกับ [สิ่งที่นักเรียนเขียน] ซึ่งยังไม่สอดคล้องกับสิ่งที่เกิดขึ้นในภาพค่ะ ลองดูภาพแล้วแต่งประโยคใหม่ให้ตรงกับภาพนะคะ"
+     * In correctedSentence, provide a sentence that accurately describes the image using the lesson's target structure.
+2. Translate what the student wrote into natural Thai and return it in "studentTranslation":
    - "customer" / "customers" MUST be translated as "ลูกค้า", NEVER "นักเรียน".
    - "they" / "them" referring to human beings (customers, guests, people) MUST be translated as "พวกเขา", NEVER "พวกมัน".
-2. STRICT ANTI-HALLUCINATION CHECK:
+3. STRICT ANTI-HALLUCINATION CHECK:
    - Evaluate ONLY the words that the student actually wrote in "${req.studentAnswer}".
    - NEVER attribute words from the reference example (such as 'bags') to the student if the student did not write them!
    - NEVER say "คำว่า '...' ที่นักเรียนใช้" for words that do NOT exist in the student's answer!
-3. STRICT SENTENCE STRUCTURE ENFORCEMENT (PRIMARY TEACHER DUTY):
+4. STRICT SENTENCE STRUCTURE ENFORCEMENT (SECONDARY TEACHER DUTY):
    - Check if the student's answer adheres to the TARGET SENTENCE STRUCTURE taught in this unit ("${targetStructure}").
    - If the student writes a sentence that fails to use or ignores the required formula (e.g., using active voice when passive voice S. + is/am/are + V.3 is taught, using wrong tense, or missing required slots):
      * MUST mark isCorrect: false.
      * statusText: "💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ".
      * In feedbackPoints, explain: "ในบทเรียนนี้เรากำลังฝึกแต่งประโยคด้วยโครงสร้าง [ระบุโครงสร้าง] นะคะ" and point out exactly what needs to be changed to conform to the lesson.
-3. STRICT PUNCTUATION MARKS & CLAUSE COMMAS:
+5. STRICT PUNCTUATION MARKS & CLAUSE COMMAS:
    - Check for a comma (,) before coordinating conjunctions when connecting clauses (e.g. "..., so I make sure to...", "..., but...", "..., and..."). If the comma is omitted (e.g. "... at home so I make sure..."), MUST mark isCorrect: false, statusText: "💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ", and advise to add a comma before 'so' (e.g. ", so").
    - Check for ending period / full stop (.). If missing, mark isCorrect: false.
    - Check first letter capitalization.
-4. STRICT DETERMINERS & COLLOCATIONS:
+6. STRICT DETERMINERS & COLLOCATIONS:
    - Check that set phrases and chores include required determiners (e.g. "do the dishes" NOT "do dishes", "make the bed", "take out the trash"). If missing 'the', mark isCorrect: false and advise in feedbackPoints.
-5. STRICT PRONOUN-ANTECEDENT AGREEMENT:
+7. STRICT PRONOUN-ANTECEDENT AGREEMENT:
    - Pronouns must match plural/singular nouns they replace (e.g. referring back to plural "the dishes" requires "them", NOT "it"; referring back to singular "the car" requires "it", NOT "them"). If mismatched (e.g. "do the dishes ... so I make sure to do it"), MUST mark isCorrect: false and advise in feedbackPoints.
-6. STRICT GRAMMATICAL CORRECTNESS:
+8. STRICT GRAMMATICAL CORRECTNESS:
    - Check 100% grammar accuracy: Subject-verb agreement (e.g. He is vs He are), verb forms (V.3 vs V.ing vs Base Verb), prepositions, articles (a/an/the), and spelling.
    - If any grammatical error exists, mark isCorrect: false and explain the rule kindly.
-7. STRICT CHARACTER GENDER & PRONOUN VERIFICATION:
+9. STRICT CHARACTER GENDER & PRONOUN VERIFICATION:
    - "I" / "I am" / "I'm" / "I do" is ALWAYS acceptable and correct (first-person perspective).
    - If the character depicted in the picture/context is MALE and student wrote "she", "her", or feminine pronouns: MUST mark isCorrect: false, and advise that the character is male so should use "he" (or "I") instead of "she".
    - If the character depicted in the picture/context is FEMALE and student wrote "he", "his", "him", or masculine pronouns: MUST mark isCorrect: false, and advise that the character is female so should use "she" (or "I") instead of "he".
-8. STRICT IMAGE ELEMENT & ENTITY VERIFICATION:
+10. STRICT IMAGE ELEMENT & ENTITY VERIFICATION:
    - Check that the animals, objects, actions, and settings describing the visual scene match the picture context ("${req.item.image_description || ''}").
    - For multi-clause or contrast structures like "I'm about to [Upcoming Action], but I still [Current Action in Image]":
      * ONLY the clause describing the current physical action (e.g. "need to wrap the gift") must match the picture!
      * The future/planned action in "I'm about to [Action]" (e.g. "study", "study in fifteen minutes", "study in 15 minutes", "leave", "take an exam") is an upcoming plan that has not happened yet and therefore is NOT in the image. DO NOT require it to be in the image, and NEVER claim words like 'study' don't match the picture!
    - Numbers as words vs digits ("fifteen minutes" vs "15 minutes") are 100% IDENTICAL and EQUALLY CORRECT.
-   - If image has a dog and student writes "cat", image has coffee and student writes "wine", image has haircut and student writes "swimming" -> MUST mark isCorrect: false, statusText: "💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ", and advise in feedbackPoints that the image shows [element in picture] not [student's word].
-9. STRICT REAL-WORLD PLAUSIBILITY & COMMON SENSE CHECK:
+   - If image has a dog and student writes "cat", image has coffee and student writes "wine", image has haircut and student writes "swimming" -> MUST mark isCorrect: false, statusText: "💡 ประโยคยังไม่สอดคล้องกับภาพค่ะ", and advise in feedbackPoints that the image shows [element in picture] not [student's word].
+11. STRICT REAL-WORLD PLAUSIBILITY & COMMON SENSE CHECK:
    - Even if grammar is correct, the sentence MUST be reasonable, plausible, and possible in real life!
    - If student writes an unrealistic habit or frequency (e.g. "I have my hair cut everyday...", "I wash my car every 10 minutes...", "I eat dinner 10 times a night..."):
      * MUST mark isCorrect: false.
      * statusText: "💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ".
      * In feedbackPoints, explain kindly that this frequency/action is not realistic in everyday life, and suggest a plausible alternative (e.g. once a month, on weekends).
-10. PRAGMATIC APPROPRIATENESS & TIME-RANGE CHECKS (PEDAGOGICAL NUANCE & ADVANCED TIPS):
+12. PRAGMATIC APPROPRIATENESS & TIME-RANGE CHECKS (PEDAGOGICAL NUANCE & ADVANCED TIPS):
     - For "be about to + V" (เช่น I'm about to...):
       * CRITICAL TEACHING RULE: "be about to" is used for a time period that is EQUAL TO OR LESS THAN 15 MINUTES (ช่วงเวลาที่เท่ากับหรือน้อยกว่า 15 นาที เช่น 15 minutes, fifteen minutes, 10 minutes, in moments, right now).
       * If time is equal or less than 15 minutes -> 100% correct (isCorrect: true), praise their proper timeframe.
@@ -431,10 +692,10 @@ Evaluation Steps for this Quiz (ACT STRICTLY LIKE A TEACHER GRADING A STUDENT'S 
       * In feedbackPoints, praise the grammar first, then add advice:
         "• คำแนะนำเพิ่มเติมเพื่อความเป็นธรรมชาติ: ท่อนหลังที่ว่า 'now I do that' แนะนำให้ปรับเป็น 'now I do it regularly' หรือ 'now I enjoy doing so' จะสละสลวยกว่านะคะ"
       * In correctedSentence, provide the polished phrasing.
-11. If the sentence is 100% grammatically correct, adheres strictly to the target sentence structure, logically matches the image elements and gender, and is plausible in real life:
+13. If the sentence is 100% grammatically correct, adheres strictly to the target sentence structure, logically matches the image elements and gender, and is plausible in real life:
     - Set isCorrect: true, statusText: "ถูกต้องเลยค่ะ เก่งมากเลย 👏", and praise their sentence in feedbackPoints.
-12. If there are errors (structure mismatch, missing comma, determiner error, pronoun mismatch, grammatical error, unrealistic habit, entity mismatch, gender mismatch), explain kindly in feedbackPoints using the term "นักเรียน" and provide the best corrected sentence conforming to the target formula in "correctedSentence".
-13. Use Kru Whan's female polite tone (ค่ะ/นะคะ/เลยค่ะ) throughout all feedbackPoints.`;
+14. If there are errors (image mismatch, structure mismatch, missing comma, determiner error, pronoun mismatch, grammatical error, unrealistic habit, entity mismatch, gender mismatch), explain kindly in feedbackPoints using the term "นักเรียน" and provide the best corrected sentence conforming to the target formula in "correctedSentence".
+15. Use Kru Whan's female polite tone (ค่ะ/นะคะ/เลยค่ะ) throughout all feedbackPoints.`;
   }
 
   const modelsToTry = [
@@ -495,10 +756,33 @@ Evaluation Steps for this Quiz (ACT STRICTLY LIKE A TEACHER GRADING A STUDENT'S 
 
   let isCorrect = typeof parsed.isCorrect === 'boolean'
     ? parsed.isCorrect
-    : (typeof parsed.score === 'number' ? parsed.score >= 95 : !parsed.statusText?.includes('ไม่สมบูรณ์'));
+    : (typeof parsed.score === 'number' ? parsed.score >= 95 : !parsed.statusText?.includes('ไม่สมบูรณ์') && !parsed.statusText?.includes('ไม่สอดคล้อง'));
 
   const rawFeedbackPoints: string[] = Array.isArray(parsed.feedbackPoints) ? parsed.feedbackPoints : [];
   let sanitizedFeedbackPoints = cleanFeedbackPoints(rawFeedbackPoints, req.studentAnswer);
+
+  // Strict Image Relevance Enforcement for Picture Description (Exercise 3)
+  if (req.exerciseType === 'picture_description') {
+    const relevance = checkImageRelevance(req.item, req.studentAnswer);
+    if (!relevance.isRelevant) {
+      isCorrect = false;
+      parsed.statusText = '💡 ประโยคยังไม่สอดคล้องกับภาพค่ะ';
+
+      // Remove false praise
+      sanitizedFeedbackPoints = sanitizedFeedbackPoints.filter(pt => !/(ถูกต้องเลยค่ะ|เก่งมาก)/.test(pt));
+
+      const hasImageMismatchPt = sanitizedFeedbackPoints.some(pt =>
+        /(ไม่สอดคล้องกับภาพ|ไม่ตรงกับภาพ|ไม่ตรงกับสิ่งที่เกิดขึ้นในภาพ|ภาพนี้เป็นเหตุการณ์)/.test(pt)
+      );
+
+      if (!hasImageMismatchPt) {
+        const topicText = relevance.topicThai ? `ที่เกี่ยวกับ${relevance.topicThai}` : 'ที่ปรากฏในภาพ';
+        sanitizedFeedbackPoints.unshift(
+          `• ในภาพเป็นเหตุการณ์${topicText}นะคะ แต่ประโยคของนักเรียนยังไม่สอดคล้องกับสิ่งที่เกิดขึ้นในภาพค่ะ ลองดูภาพแล้วแต่งประโยคใหม่ให้ตรงกับภาพนะคะ`
+        );
+      }
+    }
+  }
 
   // CRITICAL SAFETY CHECK: Exact / Near Model Answer Match
   // If the student writes the teacher's model answer (or acceptable answer), it is BY DEFINITION correct!
@@ -569,8 +853,11 @@ Evaluation Steps for this Quiz (ACT STRICTLY LIKE A TEACHER GRADING A STUDENT'S 
   // Safety filter for multi-clause / contrast structures ("about to ... but I still ...")
   // Prevents the AI from wrongly claiming that an upcoming activity (like 'study', 'leave', 'sleep')
   // does not match a picture of someone wrapping a gift / doing chores right now.
+  // CRITICAL: Only applies when the sentence actually has semantic relevance to the image!
   const isAboutToOrFuture = /\b(about to|going to)\b/i.test(req.studentAnswer);
-  if (isAboutToOrFuture && !isCorrect && !isOver15Min) {
+  const isRelevantToImage = req.exerciseType !== 'picture_description' || checkImageRelevance(req.item, req.studentAnswer).isRelevant;
+
+  if (isAboutToOrFuture && !isCorrect && !isOver15Min && isRelevantToImage) {
     const hasFalseUpcomingImageMismatch = sanitizedFeedbackPoints.some(pt =>
       /(ไม่สอดคล้องกับภาพ|ไม่ตรงกับภาพ|ไม่ตรงกับสิ่งที่เกิดขึ้นในภาพ)/.test(pt) &&
       /(study|leave|sleep|go|exam|work|read|meet|eat|drink|cook|drive|fifteen|minutes)/i.test(pt)
@@ -827,6 +1114,70 @@ function evaluatePictureDescriptionLocally(item: any, lower: string, original: s
   let isCorrect = true;
   const normalizedLower = normalizeContractions(lower);
 
+  // 1. Strict Image Relevance Verification
+  const relevance = checkImageRelevance(item, original);
+  if (!relevance.isRelevant) {
+    isCorrect = false;
+    const topicText = relevance.topicThai ? `ที่เกี่ยวกับ${relevance.topicThai}` : 'ที่ปรากฏในภาพ';
+    points.push(`• ในภาพเป็นเหตุการณ์${topicText}นะคะ แต่ประโยคที่นักเรียนแต่งยังไม่สอดคล้องกับสิ่งที่เกิดขึ้นในภาพค่ะ`);
+    if (relevance.suggestedWords) {
+      points.push(`• นักเรียนลองสังเกตภาพอีกครั้ง แล้วลองแต่งประโยคโดยเลือกใช้คำศัพท์ที่ตรงกับภาพ เช่น "${relevance.suggestedWords}" ดูนะคะ`);
+    }
+  }
+
+  // Exact or near model answer match check (100% correct by definition)
+  const normalizeForMatch = (s: string) => {
+    let res = (s || '')
+      .trim()
+      .replace(/[.!?]+$/, '')
+      .replace(/['’]/g, "'")
+      .replace(/\s+/g, ' ')
+      .toLowerCase();
+
+    const numWordMap: Record<string, string> = {
+      'zero': '0', 'one': '1', 'two': '2', 'three': '3', 'four': '4',
+      'five': '5', 'six': '6', 'seven': '7', 'eight': '8', 'nine': '9',
+      'ten': '10', 'eleven': '11', 'twelve': '12', 'thirteen': '13',
+      'fourteen': '14', 'fifteen': '15', 'sixteen': '16', 'seventeen': '17',
+      'eighteen': '18', 'nineteen': '19', 'twenty': '20', 'twenty-five': '25',
+      'thirty': '30', 'forty': '40', 'fifty': '50', 'sixty': '60'
+    };
+
+    for (const [word, digit] of Object.entries(numWordMap)) {
+      const reg = new RegExp(`\\b${word}\\b`, 'g');
+      res = res.replace(reg, digit);
+    }
+    return res;
+  };
+
+  const studentNorm = normalizeForMatch(original);
+  const modelNorm = normalizeForMatch(item.model_answer);
+  const isMatchModel = modelNorm.length > 0 && (
+    studentNorm === modelNorm ||
+    (Array.isArray(item.acceptable_answers) && item.acceptable_answers.some((ans: string) => normalizeForMatch(ans) === studentNorm))
+  );
+
+  if (isMatchModel) {
+    const hasEndingPunc = /[.!?]$/.test(original.trim());
+    if (hasEndingPunc) {
+      return {
+        isCorrect: true,
+        statusText: 'ถูกต้องเลยค่ะ เก่งมากเลย 👏',
+        correctedSentence: item.model_answer || original,
+        feedbackPoints: ['• ประโยคถูกต้องตามโครงสร้างที่กำหนดและสอดคล้องกับภาพเรียบร้อยแล้วค่ะ เก่งมากเลยนะคะ'],
+        breakdown: { core: true, context: true, connect: true }
+      };
+    } else {
+      return {
+        isCorrect: false,
+        statusText: '💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ',
+        correctedSentence: item.model_answer || original,
+        feedbackPoints: ['• อย่าลืมใส่เครื่องหมายจุด Full stop (.) ท้ายประโยคด้วยนะคะ'],
+        breakdown: { core: true, context: true, connect: true }
+      };
+    }
+  }
+
   let fixedSentence = original;
   if (/\bmakeing\b/i.test(original)) {
     isCorrect = false;
@@ -905,29 +1256,31 @@ function evaluatePictureDescriptionLocally(item: any, lower: string, original: s
     fixedSentence = fixedSentence.replace(/\bnow\s+i\s+do\s+that\b/gi, 'now I do it regularly');
   }
 
-  const hasCore = /\b(i do|i am|he does|she does|i have|i will|he is|she is|i used to|used to|about to|be about to)\b/i.test(normalizedLower);
-  const hasContext = /\b(to\s+\w+|at|in|on)\b/i.test(normalizedLower);
-  const hasConnect = /\b(even when|because|when|although|so|but|however)\b/i.test(normalizedLower);
+  const hasCore = /\b(i do|i am|he does|she does|i have|i will|he is|she is|i used to|used to|about to|be about to|they are|we are|it is)\b/i.test(normalizedLower);
+  const hasContext = /\b(to\s+\w+|at|in|on|because|right now|with|for|before|after)\b/i.test(normalizedLower);
+  const hasConnect = /\b(even when|because|when|although|so|but|however|to\s+\w+|and)\b/i.test(normalizedLower);
 
-  if (hasCore) {
-    points.push('• โครงสร้าง Core (I do...) ถูกต้องค่ะ');
-  } else {
-    isCorrect = false;
-    points.push('• ขาดโครงสร้าง Core (เช่น I do + กริยาไม่ผัน หรือ He does / She does)');
-  }
+  if (relevance.isRelevant) {
+    if (hasCore) {
+      points.push('• โครงสร้าง Core (ประธาน + กริยาช่วย/กริยาหลัก) ถูกต้องค่ะ');
+    } else {
+      isCorrect = false;
+      points.push('• ขาดโครงสร้าง Core (เช่น I do + กริยาไม่ผัน หรือ I am / He is / She is)');
+    }
 
-  if (hasContext) {
-    points.push('• โครงสร้าง Context (to...) ถูกต้องค่ะ');
-  } else {
-    isCorrect = false;
-    points.push('• ขาดโครงสร้าง Context (เช่น to + กริยาไม่ผัน)');
-  }
+    if (hasContext) {
+      points.push('• โครงสร้าง Context ถูกต้องค่ะ');
+    } else {
+      isCorrect = false;
+      points.push('• ขาดโครงสร้าง Context (เช่น to + กริยาไม่ผัน หรือระบุสถานที่/เวลา)');
+    }
 
-  if (hasConnect) {
-    points.push('• โครงสร้าง Connect (even when...) ถูกต้องค่ะ');
-  } else {
-    isCorrect = false;
-    points.push('• ขาดโครงสร้าง Connect (เช่น even when I\'m / I am + คุณศัพท์)');
+    if (hasConnect) {
+      points.push('• โครงสร้าง Connect ถูกต้องค่ะ');
+    } else {
+      isCorrect = false;
+      points.push('• ขาดโครงสร้าง Connect (เช่น even when I\'m / because / but / to + กริยา)');
+    }
   }
 
   const breakdown = {
@@ -938,7 +1291,9 @@ function evaluatePictureDescriptionLocally(item: any, lower: string, original: s
 
   return {
     isCorrect,
-    statusText: isCorrect ? 'ถูกต้องเลยค่ะ เก่งมากเลย 👏' : '💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ',
+    statusText: isCorrect
+      ? 'ถูกต้องเลยค่ะ เก่งมากเลย 👏'
+      : (!relevance.isRelevant ? '💡 ประโยคยังไม่สอดคล้องกับภาพค่ะ' : '💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ'),
     correctedSentence: item.model_answer || (fixedSentence.charAt(0).toUpperCase() + fixedSentence.slice(1)),
     feedbackPoints: points,
     breakdown

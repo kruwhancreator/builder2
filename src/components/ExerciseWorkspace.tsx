@@ -221,7 +221,7 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
             unit_number: unitNumber,
             image_description: item.image_description || '',
             context_hint: item.context_hint || '',
-            teacher_guidance: item.teacher_guidance || item.context_hint || exercise?.guidance || exercise?.instruction || chapterData.subtitle || '',
+            teacher_guidance: (item.teacher_guidance || item.context_hint || exercise?.guidance || exercise?.instruction || chapterData.subtitle || '').replace(/ไม่มีถูกไม่มีผิด(?:นะคะ|นะ|ค่ะ)?/g, 'แต่งประโยคให้สอดคล้องกับภาพ'),
             unit_title: chapterData.title || '',
             unit_subtitle: chapterData.subtitle || '',
             exercise_title: exercise?.title || '',
@@ -752,7 +752,7 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                     📌 คำแนะนำจากครูหวาน:
                   </span>
                   <span className="font-medium text-rose-900">
-                    {exercise.instruction || exercise.guidance || `แบบฝึกหัดนี้ใช้จินตนาการแต่งประโยคจากภาพได้เลยนะคะ ไม่มีถูกไม่มีผิดนะคะ ลองแต่งประโยคตามโครงสร้าง 3 กล่องด้านล่างได้เลยค่ะ`}
+                    {exercise.instruction || exercise.guidance || `แบบฝึกหัดนี้ให้นักเรียนดูภาพแล้วแต่งประโยคภาษาอังกฤษให้สอดคล้องกับภาพ โดยใช้โครงสร้าง Core + Context + Connect ให้ถูกต้องนะคะ`}
                   </span>
                 </div>
               </div>
