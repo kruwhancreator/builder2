@@ -621,9 +621,199 @@ export const COMMON_TYPOS: Record<string, string> = {
   'helpfull': 'helpful'
 };
 
+export const VALID_ENGLISH_WORDS = new Set<string>([
+  // Conjunctions & Connectors
+  'and', 'but', 'or', 'nor', 'for', 'yet', 'so', 'although', 'though', 'even',
+  'while', 'when', 'whenever', 'where', 'wherever', 'because', 'since', 'as',
+  'if', 'unless', 'until', 'till', 'before', 'after', 'than', 'whether', 'that',
+  'both', 'either', 'neither', 'whereas', 'however', 'meanwhile', 'besides',
+  
+  // Pronouns & Determiners
+  'i', 'you', 'he', 'she', 'it', 'we', 'they',
+  'me', 'him', 'her', 'us', 'them',
+  'my', 'your', 'his', 'its', 'our', 'their',
+  'mine', 'yours', 'hers', 'ours', 'theirs',
+  'myself', 'yourself', 'himself', 'herself', 'itself', 'ourselves', 'yourselves', 'themselves',
+  'this', 'that', 'these', 'those', 'the', 'a', 'an',
+  'some', 'any', 'no', 'every', 'each', 'all', 'one', 'ones', 'another', 'other', 'others',
+  'someone', 'anyone', 'everyone', 'no one', 'nobody', 'somebody', 'everybody',
+  'something', 'anything', 'everything', 'nothing',
+  
+  // Prepositions
+  'in', 'on', 'at', 'to', 'for', 'with', 'by', 'from', 'of', 'about', 'into', 'onto', 'upon',
+  'over', 'under', 'above', 'below', 'between', 'among', 'through', 'during', 'without',
+  'behind', 'near', 'across', 'around', 'against', 'towards', 'toward', 'off', 'out', 'up', 'down',
+  'along', 'past', 'inside', 'outside', 'within',
+  
+  // Auxiliaries & Modals
+  'am', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
+  'have', 'has', 'had', 'having',
+  'do', 'does', 'did', 'done', 'doing',
+  'will', 'would', 'shall', 'should', 'can', 'could', 'may', 'might', 'must',
+  'need', 'needs', 'needed', 'dare', 'ought',
+  
+  // Adverbs
+  'still', 'just', 'already', 'always', 'usually', 'often', 'frequently', 'sometimes',
+  'seldom', 'rarely', 'hardly', 'never', 'ever', 'not', 'now', 'then', 'soon', 'later',
+  'today', 'tomorrow', 'yesterday', 'tonight', 'here', 'there', 'everywhere', 'somewhere',
+  'nowhere', 'anywhere', 'well', 'very', 'too', 'really', 'quite', 'extremely', 'pretty',
+  'fairly', 'rather', 'almost', 'nearly', 'only', 'also', 'again', 'away', 'back',
+  'together', 'apart', 'instead', 'perhaps', 'maybe', 'definitely', 'certainly', 'probably',
+  
+  // Numbers
+  'zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',
+  'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen',
+  'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety', 'hundred', 'thousand', 'million',
+  
+  // Common Verbs & Forms
+  'take', 'takes', 'took', 'taken', 'taking',
+  'get', 'gets', 'got', 'gotten', 'getting',
+  'make', 'makes', 'made', 'making',
+  'go', 'goes', 'went', 'gone', 'going',
+  'come', 'comes', 'came', 'coming',
+  'see', 'sees', 'saw', 'seen', 'seeing',
+  'look', 'looks', 'looked', 'looking',
+  'watch', 'watches', 'watched', 'watching',
+  'read', 'reads', 'reading',
+  'write', 'writes', 'wrote', 'written', 'writing',
+  'cook', 'cooks', 'cooked', 'cooking',
+  'bake', 'bakes', 'baked', 'baking',
+  'eat', 'eats', 'ate', 'eaten', 'eating',
+  'drink', 'drinks', 'drank', 'drunk', 'drinking',
+  'sleep', 'sleeps', 'slept', 'sleeping',
+  'wake', 'wakes', 'woke', 'woken', 'waking',
+  'brush', 'brushes', 'brushed', 'brushing',
+  'wash', 'washes', 'washed', 'washing',
+  'shower', 'showers', 'showered', 'showering',
+  'clean', 'cleans', 'cleaned', 'cleaning',
+  'work', 'works', 'worked', 'working',
+  'study', 'studies', 'studied', 'studying',
+  'learn', 'learns', 'learned', 'learning',
+  'teach', 'teaches', 'taught', 'teaching',
+  'play', 'plays', 'played', 'playing',
+  'run', 'runs', 'ran', 'running',
+  'walk', 'walks', 'walked', 'walking',
+  'drive', 'drives', 'drove', 'driven', 'driving',
+  'ride', 'rides', 'rode', 'ridden', 'riding',
+  'fly', 'flies', 'flew', 'flown', 'flying',
+  'buy', 'buys', 'bought', 'buying',
+  'sell', 'sells', 'sold', 'selling',
+  'pay', 'pays', 'paid', 'paying',
+  'spend', 'spends', 'spent', 'spending',
+  'save', 'saves', 'saved', 'saving',
+  'give', 'gives', 'gave', 'given', 'giving',
+  'help', 'helps', 'helped', 'helping',
+  'ask', 'asks', 'asked', 'asking',
+  'tell', 'tells', 'told', 'telling',
+  'say', 'says', 'said', 'saying',
+  'speak', 'speaks', 'spoke', 'spoken', 'speaking',
+  'talk', 'talks', 'talked', 'talking',
+  'listen', 'listens', 'listened', 'listening',
+  'hear', 'hears', 'heard', 'hearing',
+  'feel', 'feels', 'felt', 'feeling',
+  'think', 'thinks', 'thought', 'thinking',
+  'know', 'knows', 'knew', 'known', 'knowing',
+  'understand', 'understands', 'understood', 'understanding',
+  'remember', 'remembers', 'remembered', 'remembering',
+  'forget', 'forgets', 'forgot', 'forgotten', 'forgetting',
+  'start', 'starts', 'started', 'starting',
+  'begin', 'begins', 'began', 'begun', 'beginning',
+  'finish', 'finishes', 'finished', 'finishing',
+  'stop', 'stops', 'stopped', 'stopping',
+  'end', 'ends', 'ended', 'ending',
+  'open', 'opens', 'opened', 'opening',
+  'close', 'closes', 'closed', 'closing',
+  'wear', 'wears', 'wore', 'worn', 'wearing',
+  'put', 'puts', 'putting',
+  'wrap', 'wraps', 'wrapped', 'wrapping',
+  'wait', 'waits', 'waited', 'waiting',
+  'meet', 'meets', 'met', 'meeting',
+  'leave', 'leaves', 'left', 'leaving',
+  'arrive', 'arrives', 'arrived', 'arriving',
+  'stay', 'stays', 'stayed', 'staying',
+  'sit', 'sits', 'sat', 'sitting',
+  'stand', 'stands', 'stood', 'standing',
+  'try', 'tries', 'tried', 'trying',
+  'use', 'uses', 'used', 'using',
+  'find', 'finds', 'found', 'finding',
+  'lose', 'loses', 'lost', 'losing',
+  'keep', 'keeps', 'kept', 'keeping',
+  'hold', 'holds', 'held', 'holding',
+  'bring', 'brings', 'brought', 'bringing',
+  'send', 'sends', 'sent', 'sending',
+  'receive', 'receives', 'received', 'receiving',
+  'show', 'shows', 'showed', 'shown', 'showing',
+  'choose', 'chooses', 'chose', 'chosen', 'choosing',
+  'hope', 'hopes', 'hoped', 'hoping',
+  'wish', 'wishes', 'wished', 'wishing',
+  'plan', 'plans', 'planned', 'planning',
+  'decide', 'decides', 'decided', 'deciding',
+  'expect', 'expects', 'expected', 'expecting',
+  'prefer', 'prefers', 'preferred', 'preferring',
+  'like', 'likes', 'liked', 'liking',
+  'love', 'loves', 'loved', 'loving',
+  'hate', 'hates', 'hated', 'hating',
+  'enjoy', 'enjoys', 'enjoyed', 'enjoying',
+  'miss', 'misses', 'missed', 'missing',
+  'visit', 'visits', 'visited', 'visiting',
+  'travel', 'travels', 'traveled', 'travelling',
+  'pass', 'passes', 'passed', 'passing',
+  'fail', 'fails', 'failed', 'failing',
+  'win', 'wins', 'won', 'winning',
+  'cut', 'cuts', 'cutting',
+  
+  // Common Nouns
+  'shower', 'towel', 'towels', 'water', 'soap', 'shampoo', 'bathroom', 'bedroom', 'kitchen', 'living',
+  'room', 'rooms', 'bed', 'table', 'chair', 'desk', 'sofa', 'couch', 'door', 'window',
+  'house', 'home', 'apartment', 'school', 'university', 'college', 'class', 'classes',
+  'lesson', 'lessons', 'exam', 'exams', 'test', 'tests', 'homework', 'office', 'company',
+  'work', 'job', 'store', 'shop', 'market', 'restaurant', 'cafe', 'park', 'hospital',
+  'library', 'station', 'airport', 'street', 'road', 'car', 'cars', 'bus', 'buses',
+  'train', 'trains', 'bike', 'bikes', 'bicycle', 'bicycles', 'plane', 'planes',
+  'book', 'books', 'pen', 'pens', 'pencil', 'pencils', 'paper', 'notebook', 'bag', 'bags',
+  'backpack', 'computer', 'laptop', 'phone', 'phones', 'mobile', 'television', 'tv',
+  'music', 'song', 'songs', 'movie', 'movies', 'film', 'films', 'series', 'photo', 'photos',
+  'picture', 'pictures', 'video', 'videos', 'game', 'games', 'food', 'meal', 'meals',
+  'breakfast', 'lunch', 'dinner', 'snack', 'snacks', 'coffee', 'tea', 'milk', 'juice',
+  'bread', 'rice', 'noodle', 'noodles', 'meat', 'beef', 'pork', 'chicken', 'fish', 'egg', 'eggs',
+  'fruit', 'fruits', 'vegetable', 'vegetables', 'cake', 'cookies', 'cookie', 'pie', 'dessert',
+  'money', 'dollar', 'dollars', 'baht', 'cash', 'coin', 'coins', 'card', 'cards', 'price',
+  'cost', 'bill', 'time', 'times', 'second', 'seconds', 'minute', 'minutes', 'hour', 'hours',
+  'day', 'days', 'week', 'weeks', 'month', 'months', 'year', 'years', 'morning', 'mornings',
+  'afternoon', 'afternoons', 'evening', 'evenings', 'night', 'nights', 'weekend', 'weekends',
+  'person', 'people', 'man', 'men', 'woman', 'women', 'boy', 'boys', 'girl', 'girls',
+  'child', 'children', 'baby', 'babies', 'kid', 'kids', 'guy', 'guys', 'mother', 'mothers',
+  'father', 'fathers', 'mom', 'moms', 'mum', 'mums', 'dad', 'dads', 'parent', 'parents',
+  'brother', 'brothers', 'sister', 'sisters', 'sibling', 'siblings', 'son', 'sons',
+  'daughter', 'daughters', 'husband', 'husbands', 'wife', 'wives', 'friend', 'friends',
+  'friendly', 'neighbor', 'neighbors', 'teacher', 'teachers', 'student', 'students',
+  'boss', 'colleague', 'colleagues', 'coworker', 'coworkers', 'doctor', 'nurse',
+  'dog', 'dogs', 'cat', 'cats', 'pet', 'pets', 'bird', 'birds', 'hair', 'hand', 'hands',
+  'head', 'face', 'eye', 'eyes', 'ear', 'ears', 'mouth', 'tooth', 'teeth', 'foot', 'feet',
+  'leg', 'legs', 'arm', 'arms', 'body', 'clothes', 'shirt', 'shirts', 't-shirt', 'pants',
+  'trousers', 'dress', 'dresses', 'skirt', 'skirts', 'coat', 'coats', 'jacket', 'jackets',
+  'shoes', 'shoe', 'socks', 'sock', 'hat', 'hats', 'cap', 'glasses', 'gift', 'gifts',
+  'present', 'presents', 'thing', 'things', 'matter', 'problem', 'idea', 'question', 'answer',
+  
+  // Common Adjectives
+  'good', 'bad', 'great', 'nice', 'fine', 'excellent', 'wonderful', 'awesome',
+  'tired', 'sleepy', 'exhausted', 'happy', 'sad', 'angry', 'excited', 'nervous',
+  'scared', 'afraid', 'worried', 'bored', 'boring', 'interested', 'interesting',
+  'busy', 'free', 'available', 'hungry', 'thirsty', 'full', 'hot', 'cold', 'warm', 'cool',
+  'cozy', 'clean', 'dirty', 'quiet', 'loud', 'noisy', 'dark', 'bright', 'light', 'heavy',
+  'big', 'large', 'huge', 'small', 'little', 'tiny', 'short', 'tall', 'long', 'young', 'old', 'new',
+  'fast', 'quick', 'slow', 'early', 'late', 'easy', 'simple', 'hard', 'difficult', 'tough',
+  'strong', 'weak', 'soft', 'expensive', 'cheap', 'rich', 'poor', 'safe', 'dangerous',
+  'sick', 'ill', 'healthy', 'fit', 'beautiful', 'pretty', 'handsome', 'cute', 'ugly',
+  'right', 'correct', 'wrong', 'true', 'false', 'ready', 'sure', 'certain', 'important',
+  'special', 'popular', 'famous', 'similar', 'different', 'same', 'next', 'last', 'first',
+  'second', 'third', 'final', 'able', 'unable', 'possible', 'impossible', 'likely', 'realistic'
+]);
+
 /**
  * Detects misspelled words or typos in student answer by checking known common errors
  * and comparing words against the target model answer and acceptable variations.
+ * CRITICAL RULE: Real, valid English words (e.g. 'yet', 'so', 'and', 'brother', 'shower') are NEVER typos!
  */
 export function detectSpellingAndTypos(
   studentAnswer: string,
@@ -655,7 +845,9 @@ export function detectSpellingAndTypos(
 
     for (let i = 0; i < studentWords.length; i++) {
       const sw = studentWords[i];
+      // If word is in target pool, already flagged, or is a VALID English word, it is NOT a typo!
       if (targetWordPool.has(sw) || errors.some(e => e.typed.toLowerCase() === sw)) continue;
+      if (VALID_ENGLISH_WORDS.has(sw)) continue;
 
       // Collocation / adjacent position check (e.g. "my mu" -> next word in model is "mum")
       if (i > 0) {
@@ -663,11 +855,15 @@ export function detectSpellingAndTypos(
         const modelIdx = modelWords.indexOf(prevSw);
         if (modelIdx !== -1 && modelIdx + 1 < modelWords.length) {
           const expectedNext = modelWords[modelIdx + 1];
-          const dist = getLevenshteinDistance(sw, expectedNext);
-          if (dist > 0 && dist <= 2 && Math.abs(sw.length - expectedNext.length) <= 2) {
-            if (!errors.some(e => e.typed.toLowerCase() === sw)) {
-              errors.push({ typed: sw, correction: expectedNext });
-              continue;
+          // Never flag a valid word or short connector as a typo for expectedNext
+          if (!VALID_ENGLISH_WORDS.has(expectedNext) || expectedNext.length >= 4) {
+            const dist = getLevenshteinDistance(sw, expectedNext);
+            const maxDist = expectedNext.length >= 6 ? 2 : 1;
+            if (dist > 0 && dist <= maxDist && Math.abs(sw.length - expectedNext.length) <= 1) {
+              if (!errors.some(e => e.typed.toLowerCase() === sw)) {
+                errors.push({ typed: sw, correction: expectedNext });
+                continue;
+              }
             }
           }
         }
@@ -675,7 +871,7 @@ export function detectSpellingAndTypos(
 
       // General distance check against target pool words
       for (const tw of Array.from(targetWordPool)) {
-        if (tw.length >= 3 && Math.abs(sw.length - tw.length) <= 1) {
+        if (tw.length >= 4 && Math.abs(sw.length - tw.length) <= 1) {
           const dist = getLevenshteinDistance(sw, tw);
           if (dist === 1 && !errors.some(e => e.typed.toLowerCase() === sw)) {
             errors.push({ typed: sw, correction: tw });
@@ -803,6 +999,72 @@ export function checkStructureCompliance(
     }
   }
 
+  // 8. Connector: "but" (e.g. in "[ but I still need to + V.ไม่ผัน ]", "[ but ... ]", "+ but")
+  const hasButConnector = /\[\s*but\b/i.test(rawStructure) || /\+\s*but\b/i.test(rawStructure);
+  if (hasButConnector) {
+    if (!/\bbut\b/i.test(sLower)) {
+      if (/\byet\b/i.test(sLower)) {
+        return {
+          isCompliant: false,
+          missingSlotName: 'but',
+          feedbackPoint: '• ตามโครงสร้างประโยคที่กำหนด [ but I still need to + V.ไม่ผัน ] มีการกำหนดให้ใช้คำเชื่อม "but" (แต่) นะคะ ในประโยคของนักเรียนใช้คำว่า "yet" ซึ่งแม้ความหมายจะใกล้เคียงกัน แต่ยังไม่ตรงกับสูตรโครงสร้างที่กำหนดในบทนี้ค่ะ แนะนำให้เปลี่ยนจาก "yet" เป็น "but" ให้ตรงตามสูตรของบทเรียนนี้นะคะ'
+        };
+      } else if (/\band\b/i.test(sLower)) {
+        return {
+          isCompliant: false,
+          missingSlotName: 'but',
+          feedbackPoint: '• ตามโครงสร้างประโยคที่กำหนดในบทนี้ มีการกำหนดให้ใช้คำเชื่อม "but" (แต่) นะคะ ในประโยคของนักเรียนใช้คำว่า "and" แนะนำให้ปรับเป็น "but" ให้ตรงตามสูตรค่ะ'
+        };
+      } else if (/\bso\b/i.test(sLower)) {
+        return {
+          isCompliant: false,
+          missingSlotName: 'but',
+          feedbackPoint: '• ตามโครงสร้างประโยคที่กำหนดในบทนี้ มีการกำหนดให้ใช้คำเชื่อม "but" (แต่) นะคะ ในประโยคของนักเรียนใช้คำว่า "so" แนะนำให้ปรับเป็น "but" ให้ตรงตามสูตรค่ะ'
+        };
+      } else {
+        return {
+          isCompliant: false,
+          missingSlotName: 'but',
+          feedbackPoint: '• ในประโยคยังขาดคำเชื่อม "but" ตามโครงสร้างที่กำหนด [ but I still need to + V.ไม่ผัน ] นะคะ ลองปรับเป็น ", but..." ดูนะคะ'
+        };
+      }
+    }
+  }
+
+  // 9. Clause Slot: "still need to"
+  if (/still\s+need\s+to/i.test(rawStructure)) {
+    if (!/\bstill\s+need\s+to\b/i.test(sLower)) {
+      return {
+        isCompliant: false,
+        missingSlotName: 'still need to',
+        feedbackPoint: '• ตามโครงสร้างประโยคที่กำหนด มีการใช้ "[ but I still need to + V.ไม่ผัน ]" นะคะ แต่ในประโยคของนักเรียนยังขาด "still need to" ไปค่ะ'
+      };
+    }
+  }
+
+  // 10. Starting / Core Slot: "about to" (e.g. "I’m about to + V.ไม่ผัน")
+  if (/\babout\s+to\b/i.test(rawStructure)) {
+    if (!/\babout\s+to\b/i.test(sLower)) {
+      return {
+        isCompliant: false,
+        missingSlotName: 'about to',
+        feedbackPoint: '• ตามโครงสร้างประโยคที่กำหนด มีการใช้สำนวน "I’m about to + V.ไม่ผัน" นะคะ แต่ในประโยคของนักเรียนยังขาด "about to" ไปค่ะ'
+      };
+    }
+  }
+
+  // 11. Time Slot with "in": "in + เวลา"
+  if (/\bin\s*\+\s*(?:เวลา|ช่วงเวลา)/i.test(rawStructure)) {
+    const inTimeRegex = /\bin\s+(?:\w+\s+)?(?:minutes?|hours?|days?|weeks?|months?|years?|a\s+moment|a\s+second|a\s+while|a\s+bit|the\s+morning|the\s+afternoon|the\s+evening)\b/i;
+    if (!inTimeRegex.test(sLower)) {
+      return {
+        isCompliant: false,
+        missingSlotName: 'in + เวลา',
+        feedbackPoint: '• ตามโครงสร้างประโยคที่กำหนด มีการระบุ "in + เวลา" (เช่น in five minutes หรือ in 10 minutes) ด้วยนะคะ แต่ในประโยคของนักเรียนยังขาดส่วนนี้ไปค่ะ'
+      };
+    }
+  }
+
   return { isCompliant: true };
 }
 
@@ -925,6 +1187,7 @@ UNIVERSAL PEDAGOGICAL EVALUATION FRAMEWORK:
      * Prepositions, Articles (a/an/the), Punctuation (Capital start, period '.' at end), and Spelling must all be strictly verified.
      * STRICT SPELLING & TYPO AUDIT (ZERO TOLERANCE FOR MISSPELLED/DROPPED WORDS):
        - Audit EVERY SINGLE WORD the student wrote for spelling errors, typos, or dropped letters (e.g. 'mu' for 'mum'/'mom', 'makeing' for 'making', 'studing' for 'studying', 'freind' for 'friend', 'becuase' for 'because', 'writting' for 'writing', 'buring' for 'burning', 'coffe' for 'coffee').
+       - Real English words (e.g. 'yet', 'so', 'and', 'while', 'cook') are NEVER typos! If an alternative connector is used (like 'yet' instead of 'but'), treat it as a structure mismatch, NOT a typo!
        - If the student has ANY typo or misspelled word:
          1) MUST mark as INCORRECT: isCorrect: false!
          2) Set statusText: "💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ"
@@ -1261,9 +1524,11 @@ CRITERION 2: IMAGE RELEVANCE & ACTION CORRESPONDENCE (ความสอดค�
   }
 
   const modelsToTry = [
+    'gemini-3.5-flash-lite',
+    'gemini-2.5-flash-lite',
+    'gemini-2.0-flash-lite',
     'gemini-2.0-flash',
-    'gemini-1.5-flash',
-    'gemini-2.0-flash-lite'
+    'gemini-1.5-flash'
   ];
 
   let lastError: any = null;
@@ -1391,6 +1656,9 @@ CRITERION 2: IMAGE RELEVANCE & ACTION CORRESPONDENCE (ความสอดค�
   const allTypos = [...codeDetectedTypos];
   for (const gErr of geminiSpellingErrors) {
     if (gErr?.typed && gErr?.correction && !allTypos.some(t => t.typed.toLowerCase() === gErr.typed?.toLowerCase())) {
+      if (VALID_ENGLISH_WORDS.has(gErr.typed.toLowerCase().trim())) {
+        continue;
+      }
       allTypos.push({ typed: gErr.typed, correction: gErr.correction });
     }
   }
@@ -1599,7 +1867,21 @@ function cleanFeedbackPoints(points: string[], studentAns: string): string[] {
   const studentLower = studentAns.toLowerCase();
   const hasBags = /\bbags?\b/i.test(studentLower);
 
-  return points.map(pt => {
+  // Filter out any feedback points that falsely claim a valid English word is a typo/spelling error
+  const filtered = points.filter(pt => {
+    if (/(?:สะกดคำผิด|สะกดผิด|พิมพ์ตก)/.test(pt)) {
+      const match = pt.match(/คำว่า\s*["'‘“]([^"'’”]+)["'’”]/);
+      if (match && match[1]) {
+        const word = match[1].toLowerCase().trim();
+        if (VALID_ENGLISH_WORDS.has(word)) {
+          return false;
+        }
+      }
+    }
+    return true;
+  });
+
+  return filtered.map(pt => {
     let cleaned = sanitizeThaiStudentPronouns(pt);
 
     // If student did NOT mention 'bags' / 'bag', but feedback hallucinated claiming student used 'bags':
