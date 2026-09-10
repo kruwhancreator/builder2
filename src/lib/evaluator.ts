@@ -904,16 +904,25 @@ export function checkStructureCompliance(
   const sLower = studentAnswer.toLowerCase().trim();
   const rawStructure = targetStructure.replace(/^.*Sentence Structure\s*[:=]\s*/i, '').trim();
 
-  // 1. Time Slot: "เวลา" or "ช่วงเวลา" (e.g. before, recently, in the past, many times)
+  // 1. Time Slot: "เวลา" or "ช่วงเวลา" (e.g. before, recently, in the past, many times, from time to time, every day)
   const hasTimeSlotInFormula = /(?:^|[^\u0E00-\u0E7Fa-zA-Z0-9])(?:เวลา|ช่วงเวลา)(?:[^\u0E00-\u0E7Fa-zA-Z0-9]|$)/i.test(rawStructure) ||
                                /\b(?:time|timeframe)\b/i.test(rawStructure);
   if (hasTimeSlotInFormula) {
-    const timeExpressionRegex = /\b(before|already|yet|just|recently|lately|in the past|many times|several times|once|twice|three times|often|always|never|ever|earlier|previously|today|tonight|yesterday|tomorrow|this morning|this afternoon|this evening|now|later|soon|every\s+(?:day|week|month|year|morning|night)|on\s+(?:weekends?|mondays?|tuesdays?|wednesdays?|thursdays?|fridays?|saturdays?|sundays?)|at\s+night|in\s+(?:the\s+morning|the\s+afternoon|the\s+evening)|in\s+\w+\s+minutes?|for\s+\w+\s+(?:hours?|days?|weeks?|months?|years?)|since\s+\w+)\b/i;
+    const timeExpressionRegex = /\b(before|already|yet|just|recently|lately|in the past|many times|several times|once|twice|three times|often|always|never|ever|earlier|previously|today|tonight|yesterday|tomorrow|this morning|this afternoon|this evening|now|later|soon|every\s+(?:day|week|month|year|morning|night|single\s+day|other\s+day)|each\s+(?:day|week|month|year)|on\s+(?:weekends?|mondays?|tuesdays?|wednesdays?|thursdays?|fridays?|saturdays?|sundays?)|at\s+night|in\s+(?:the\s+morning|the\s+afternoon|the\s+evening)|in\s+\w+\s+minutes?|for\s+\w+\s+(?:hours?|days?|weeks?|months?|years?)|since\s+\w+|from\s+time\s+to\s+time|once\s+in\s+a\s+while|at\s+times|all\s+the\s+time|sometimes|usually|normally|regularly|frequently|rarely|seldom|daily|weekly|monthly|yearly)\b/i;
     if (!timeExpressionRegex.test(sLower)) {
+      let exampleWords = '"before" หรือ "recently"';
+      if (/used\s+to/i.test(rawStructure) || /from\s+time\s+to\s+time/i.test(rawStructure + (item?.model_answer || ''))) {
+        exampleWords = '"from time to time" หรือ "every day"';
+      } else if (/every\s+day/i.test(rawStructure)) {
+        exampleWords = '"every day"';
+      } else if (item?.model_answer && /\b(every day|from time to time|on weekends|regularly|often|always)\b/i.test(item.model_answer)) {
+        exampleWords = '"from time to time" หรือ "every day"';
+      }
+
       return {
         isCompliant: false,
         missingSlotName: 'เวลา',
-        feedbackPoint: '• ตามโครงสร้างประโยคที่กำหนด มีการระบุช่วงเวลา (เวลา) เช่น "before" หรือ "recently" ด้วยนะคะ แต่ในประโยคของนักเรียนยังขาดคำระบุเวลาไปค่ะ ลองเติมคำว่า "before" ต่อท้ายดูนะคะ'
+        feedbackPoint: `• ตามโครงสร้างประโยคที่กำหนด มีการระบุช่วงเวลา (เวลา) เช่น ${exampleWords} ด้วยนะคะ แต่ในประโยคของนักเรียนยังขาดคำระบุเวลาไปค่ะ ใกล้แล้วค่ะ สู้ๆ นะคะ`
       };
     }
   }
@@ -1088,6 +1097,39 @@ export function checkStructureCompliance(
     }
   }
 
+  // 14. Core Slot: "used to + V.ing"
+  if (/used\s+to\s*\+\s*V\.ing/i.test(rawStructure) || /used\s+to.*V\.ing/i.test(rawStructure)) {
+    if (!/\bused\s+to\b/i.test(sLower)) {
+      return {
+        isCompliant: false,
+        missingSlotName: 'used to',
+        feedbackPoint: '• ตามโครงสร้างประโยคที่กำหนด มีการใช้สำนวน "I’m used to + V.ing" นะคะ แต่ในประโยคของนักเรียนยังขาด "used to" ไปค่ะ ใกล้แล้วค่ะ สู้ๆ นะคะ'
+      };
+    }
+    const usedToMatch = sLower.match(/\bused\s+to\s+([a-z]+)/i);
+    if (usedToMatch && usedToMatch[1]) {
+      const verbWord = usedToMatch[1];
+      if (!verbWord.endsWith('ing')) {
+        return {
+          isCompliant: false,
+          missingSlotName: 'used to + V.ing',
+          feedbackPoint: `• ตามโครงสร้าง "I’m used to + V.ing" (เคยชินกับการ...) คำกริยาที่ตามหลัง "used to" จะต้องเติม -ing ด้วยนะคะ (เช่น เปลี่ยนจาก "${verbWord}" เป็น "${verbWord}ing") ใกล้แล้วค่ะ สู้ๆ นะคะ`
+        };
+      }
+    }
+  }
+
+  // 15. Clause Slot: "[ but I still get + คำคุณศัพท์ ]"
+  if (/still\s+get\s*\+\s*คำคุณศัพท์/i.test(rawStructure) || /still\s+get\b/i.test(rawStructure)) {
+    if (!/\bstill\s+(?:get|feel|become)\b/i.test(sLower)) {
+      return {
+        isCompliant: false,
+        missingSlotName: 'still get',
+        feedbackPoint: '• ในประโยคยังขาดส่วนเชื่อม "[ but I still get + คำคุณศัพท์ ]" ตามโครงสร้างที่กำหนดนะคะ ใกล้แล้วค่ะ สู้ๆ นะคะ'
+      };
+    }
+  }
+
   return { isCompliant: true };
 }
 
@@ -1182,16 +1224,25 @@ UNIVERSAL PEDAGOGICAL EVALUATION FRAMEWORK:
    - MANDATORY STRUCTURE ADHERENCE & ZERO TOLERANCE FOR DROPPING FORMULA SLOTS:
      * In Kru Whan's curriculum, the TARGET SENTENCE STRUCTURE is an exact blueprint where EVERY SINGLE SLOT, PLUS SIGN (+), AND PLACEHOLDER IS MANDATORY!
      * THAI PLACEHOLDERS ARE STRICTLY MANDATORY SLOTS:
-       - "เวลา" (Time / Timeframe): The student MUST include a valid time word (e.g. 'before', 'already', 'recently', 'in the past', 'many times', 'once', 'twice', 'earlier', etc.).
-         * CRITICAL EXAMPLE:
-           Target Formula: "I + have + V.3 + with + คน + เวลา, + [ so I can + V.ไม่ผัน ]"
-           Model Answer: "I have baked with my mum before, so I can help her bake."
-           Student Answer: "I have baked with my mum, so I can help her bake."
-           -> THE STUDENT OMITTED THE "เวลา" SLOT ('before' / 'recently')!
-           -> EVEN THOUGH THE SENTENCE IS GRAMMATICALLY SOUND IN GENERAL ENGLISH, IT OMITTED THE REQUIRED "เวลา" SLOT!
-           -> THIS MUST BE MARKED AS INCORRECT: isCorrect: false!
-           -> statusText: "💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ"
-           -> In feedbackPoints, explain: "• ตามโครงสร้างประโยคที่กำหนด มีการระบุช่วงเวลา (เวลา) เช่น 'before' หรือ 'recently' ด้วยนะคะ แต่ในประโยคของนักเรียนยังขาดคำระบุเวลาไปค่ะ ลองเติม 'before' ต่อท้ายดูนะคะ"
+        - "เวลา" (Time / Timeframe): The student MUST include a valid time word (e.g. 'before', 'already', 'recently', 'in the past', 'many times', 'from time to time', 'every day', 'once in a while', 'on weekends', 'usually', etc.).
+          * CRITICAL EXAMPLE 1:
+            Target Formula: "I + have + V.3 + with + คน + เวลา, + [ so I can + V.ไม่ผัน ]"
+            Model Answer: "I have baked with my mum before, so I can help her bake."
+            Student Answer: "I have baked with my mum, so I can help her bake."
+            -> THE STUDENT OMITTED THE "เวลา" SLOT ('before' / 'recently')!
+            -> EVEN THOUGH THE SENTENCE IS GRAMMATICALLY SOUND IN GENERAL ENGLISH, IT OMITTED THE REQUIRED "เวลา" SLOT!
+            -> THIS MUST BE MARKED AS INCORRECT: isCorrect: false!
+            -> statusText: "💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ"
+            -> In feedbackPoints, explain: "• ตามโครงสร้างประโยคที่กำหนด มีการระบุช่วงเวลา (เวลา) เช่น 'before' หรือ 'recently' ด้วยนะคะ แต่ในประโยคของนักเรียนยังขาดคำระบุเวลาไปค่ะ ใกล้แล้วค่ะ สู้ๆ นะคะ"
+          * CRITICAL EXAMPLE 2:
+            Target Formula: "I’m used to + V.ing + เวลา, + [but I still get + คำคุณศัพท์]"
+            Model Answer: "I’m used to handling complaints every day, but I still get upset." / "I’m used to losing football matches from time to time, but I still get upset."
+            Student Answer: "I’m used to losing football matches, but I still get upset."
+            -> THE STUDENT OMITTED THE "เวลา" SLOT ('from time to time' / 'every day')!
+            -> EVEN THOUGH "I'm used to losing football matches, but I still get upset" IS COMPLETELY VALID GRAMMAR IN CASUAL ENGLISH, IT OMITTED THE MANDATORY "เวลา" (TIME) SLOT FROM THE TAUGHT LESSON FORMULA!
+            -> THIS MUST BE MARKED AS INCORRECT: isCorrect: false!
+            -> statusText: "💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ"
+            -> In feedbackPoints, explain: "• ตามโครงสร้างประโยคที่กำหนด มีการระบุช่วงเวลา (เวลา) เช่น 'from time to time' หรือ 'every day' ด้วยนะคะ แต่ในประโยคของนักเรียนยังขาดคำระบุเวลาไปค่ะ ใกล้แล้วค่ะ สู้ๆ นะคะ"
        - "สถานที่" (Place): Student MUST include place phrase (e.g. 'at home', 'in the kitchen').
        - "คน" (Person): Student MUST include person being referred to (e.g. 'Jane', 'my mum', 'her', 'him').
        - "คำคุณศัพท์" (Adjective): Student MUST include an adjective (e.g. 'sleepy', 'tired', 'busy').
@@ -1393,12 +1444,13 @@ Prompt / Template: "${req.item.prompt || req.item.thai_template || ''}"
 Word Bank Reference: ${JSON.stringify(req.wordBank || {})}
 Templates Reference: ${JSON.stringify(req.templates || [])}
 ${modelAnswer}
-${teacherGuidance ? `Teacher Formula / Guidance:\n${teacherGuidance}` : ''}
+${parsedGuidance.targetSentenceStructure ? `🎯 TARGET SENTENCE STRUCTURE (สูตรโครงสร้างประโยคประจำข้อที่กำหนดให้ผู้เรียนใช้):\n${parsedGuidance.targetSentenceStructure}\n` : (teacherGuidance ? `Teacher Formula / Guidance:\n${teacherGuidance}\n` : '')}
 Student Answer to Evaluate: "${req.studentAnswer}"
 
 Task for Exercise 2:
-1. Check grammar, sentence structure flow, word choices, spelling, capital first letter, and period '.' at the end.
-2. Provide constructive feedback points in Thai as Kru Whan.`;
+1. STRICT FORMULA SLOT ENFORCEMENT: Strictly verify that student's answer adheres to the TARGET SENTENCE STRUCTURE slot by slot (including mandatory slots like 'เวลา', 'สถานที่', 'คน', connectors). If ANY slot is omitted, mark isCorrect: false!
+2. Check grammar, sentence structure flow, word choices, spelling, capital first letter, and period '.' at the end.
+3. Provide constructive feedback points in Thai as Kru Whan (using female polite tone ค่ะ/นะคะ, no '!' in Thai text).`;
   } else {
     const unitTitle = req.item.unit_title || '';
     const unitSubtitle = req.item.unit_subtitle || '';
@@ -1994,11 +2046,37 @@ function evaluateTranslationLocally(item: any, lower: string, original: string):
   const result = checkOfflineGrammarAndSpelling(item, original, 'translation');
   const targetAnswer = item.model_answer || "I am commuting to get home.";
 
+  let isCorrect = result.isCorrect;
+  const points = [...result.points];
+
+  const parsedGuidance = parseItemGuidanceAndContext(item);
+  const structureCompliance = checkStructureCompliance(
+    parsedGuidance.targetSentenceStructure || item.teacher_guidance || '',
+    original,
+    item
+  );
+  if (!structureCompliance.isCompliant) {
+    isCorrect = false;
+    if (structureCompliance.feedbackPoint && !points.includes(structureCompliance.feedbackPoint)) {
+      points.push(structureCompliance.feedbackPoint);
+    }
+  }
+
+  const typos = detectSpellingAndTypos(original, item.model_answer, item.acceptable_answers);
+  if (typos.length > 0) {
+    isCorrect = false;
+    for (const err of typos) {
+      if (!points.some(pt => pt.includes(err.typed))) {
+        points.unshift(`• สะกดคำผิด: คำว่า "${err.typed}" น่าจะพิมพ์ตกหรือสะกดผิดมาจากคำว่า "${err.correction}" นะคะ อย่าลืมตรวจสอบตัวสะกดด้วยนะคะ`);
+      }
+    }
+  }
+
   return {
-    isCorrect: result.isCorrect,
-    statusText: result.isCorrect ? 'ถูกต้องเลยค่ะ เก่งมากเลย 👏' : '💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ',
+    isCorrect,
+    statusText: isCorrect ? 'ถูกต้องเลยค่ะ เก่งมากเลย 👏' : '💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ',
     correctedSentence: targetAnswer,
-    feedbackPoints: result.points
+    feedbackPoints: points
   };
 }
 
@@ -2007,10 +2085,37 @@ function evaluateGuidedSentenceLocally(item: any, lower: string, original: strin
   let isCorrect = true;
   const normalizedLower = normalizeContractions(lower);
 
+  // 1. Strict Sentence Structure Slot Compliance Verification
+  const parsedGuidance = parseItemGuidanceAndContext(item);
+  const structureCompliance = checkStructureCompliance(
+    parsedGuidance.targetSentenceStructure || item.teacher_guidance || '',
+    original,
+    item
+  );
+  if (!structureCompliance.isCompliant) {
+    isCorrect = false;
+    if (structureCompliance.feedbackPoint && !points.includes(structureCompliance.feedbackPoint)) {
+      points.push(structureCompliance.feedbackPoint);
+    }
+  }
+
+  // 2. Strict Spelling & Typo Enforcement
+  const typos = detectSpellingAndTypos(original, item.model_answer, item.acceptable_answers);
+  if (typos.length > 0) {
+    isCorrect = false;
+    for (const err of typos) {
+      if (!points.some(pt => pt.includes(err.typed))) {
+        points.unshift(`• สะกดคำผิด: คำว่า "${err.typed}" น่าจะพิมพ์ตกหรือสะกดผิดมาจากคำว่า "${err.correction}" นะคะ อย่าลืมตรวจสอบตัวสะกดด้วยนะคะ`);
+      }
+    }
+  }
+
   let fixedSentence = original;
   if (/\bmakeing\b/i.test(original)) {
     isCorrect = false;
-    points.push('• สะกดคำผิด: "makeing" ควรแก้เป็น "making" (ตัด e ก่อนเติม -ing นะคะ)');
+    if (!points.some(pt => pt.includes('makeing'))) {
+      points.push('• สะกดคำผิด: "makeing" ควรแก้เป็น "making" (ตัด e ก่อนเติม -ing นะคะ)');
+    }
     fixedSentence = fixedSentence.replace(/\bmakeing\b/gi, 'making');
   }
 
@@ -2021,28 +2126,15 @@ function evaluateGuidedSentenceLocally(item: any, lower: string, original: strin
     fixedSentence = fixedSentence + '.';
   }
 
-  const hasAction = /\b(do|am|is|are|cook|read|drink|wash|study)\b/i.test(normalizedLower);
-  const hasTime = /\b(now|right now|at the moment|currently|today)\b/i.test(normalizedLower);
-  const hasPurpose = /\b(to|for)\s+\w+/.test(normalizedLower);
-  const hasReason = normalizedLower.includes("even when") || normalizedLower.includes("because") || normalizedLower.includes("due to");
-
-  if (hasAction) {
-    points.push('• โครงสร้างคำกริยาถูกต้องค่ะ');
-  }
-
-  if (hasPurpose) {
-    points.push('• มีการใช้ to แสดงจุดประสงค์ (Context) ถูกต้องค่ะ');
-  }
-
-  if (hasReason) {
-    points.push('• มีการใช้คำเชื่อม (Connect) ถูกต้องค่ะ');
+  if (isCorrect) {
+    points.push('• โครงสร้างประโยคถูกต้องตามที่กำหนดเรียบร้อยแล้วค่ะ เก่งมากเลยนะคะ');
   }
 
   const breakdown = {
-    actionValid: hasAction,
-    timeValid: hasTime,
-    purposeValid: hasPurpose,
-    reasonValid: hasReason
+    actionValid: isCorrect,
+    timeValid: structureCompliance.missingSlotName !== 'เวลา',
+    purposeValid: structureCompliance.missingSlotName !== 'to + V',
+    reasonValid: !structureCompliance.missingSlotName?.includes('so') && !structureCompliance.missingSlotName?.includes('even') && !structureCompliance.missingSlotName?.includes('but')
   };
 
   return {
