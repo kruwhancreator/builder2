@@ -515,6 +515,7 @@ export function checkImageRelevance(item: any, studentAnswer: string): ImageRele
                     (item.context_hint ? item.context_hint.split('/')[0].trim() : '') || 
                     matchedThemes[0]?.topicThai ||
                     'ที่ปรากฏในภาพ';
+
   const cleanCandidateWords = rawContentWords.filter(w => !ANCILLARY_OR_STATE_WORDS.has(w.toLowerCase())).length > 0
     ? Array.from(new Set(rawContentWords.filter(w => !ANCILLARY_OR_STATE_WORDS.has(w.toLowerCase()))))
     : (matchedThemes[0]?.keywords || Array.from(allExpectedKeywords)).filter(w => !ANCILLARY_OR_STATE_WORDS.has(w.toLowerCase()));
@@ -530,6 +531,124 @@ export function checkImageRelevance(item: any, studentAnswer: string): ImageRele
     topicThai,
     suggestedWords
   };
+}
+
+export interface StructureComplianceResult {
+  isCompliant: boolean;
+  missingSlotName?: string;
+  feedbackPoint?: string;
+}
+
+/**
+ * Validates whether the student's answer contains all mandatory slots specified in the target sentence structure formula.
+ * In Kru Whan's curriculum, every placeholder slot (e.g. 'เวลา', 'สถานที่', 'คน', 'คำคุณศัพท์', connectors) is mandatory.
+ */
+export function checkStructureCompliance(
+  targetStructure: string,
+  studentAnswer: string,
+  item?: any
+): StructureComplianceResult {
+  if (!targetStructure || !studentAnswer) return { isCompliant: true };
+
+  const sLower = studentAnswer.toLowerCase().trim();
+  const rawStructure = targetStructure.replace(/^.*Sentence Structure\s*[:=]\s*/i, '').trim();
+
+  // 1. Time Slot: "เวลา" or "ช่วงเวลา" (e.g. before, recently, in the past, many times)
+  const hasTimeSlotInFormula = /(?:^|[^\u0E00-\u0E7Fa-zA-Z0-9])(?:เวลา|ช่วงเวลา)(?:[^\u0E00-\u0E7Fa-zA-Z0-9]|$)/i.test(rawStructure) ||
+                               /\b(?:time|timeframe)\b/i.test(rawStructure);
+  if (hasTimeSlotInFormula) {
+    const timeExpressionRegex = /\b(before|already|yet|just|recently|lately|in the past|many times|several times|once|twice|three times|often|always|never|ever|earlier|previously|today|tonight|yesterday|tomorrow|this morning|this afternoon|this evening|now|later|soon|every\s+(?:day|week|month|year|morning|night)|on\s+(?:weekends?|mondays?|tuesdays?|wednesdays?|thursdays?|fridays?|saturdays?|sundays?)|at\s+night|in\s+(?:the\s+morning|the\s+afternoon|the\s+evening)|in\s+\w+\s+minutes?|for\s+\w+\s+(?:hours?|days?|weeks?|months?|years?)|since\s+\w+)\b/i;
+    if (!timeExpressionRegex.test(sLower)) {
+      return {
+        isCompliant: false,
+        missingSlotName: 'เวลา',
+        feedbackPoint: '• ตามโครงสร้างประโยคที่กำหนด มีการระบุช่วงเวลา (เวลา) เช่น "before" หรือ "recently" ด้วยนะคะ แต่ในประโยคของนักเรียนยังขาดคำระบุเวลาไปค่ะ ลองเติมคำว่า "before" ต่อท้ายดูนะคะ'
+      };
+    }
+  }
+
+  // 2. Place Slot: "สถานที่" (e.g. in the kitchen, at home, at work, at the cafe)
+  const hasPlaceSlotInFormula = /(?:^|[^\u0E00-\u0E7Fa-zA-Z0-9])สถานที่(?:[^\u0E00-\u0E7Fa-zA-Z0-9]|$)/i.test(rawStructure) ||
+                                /\b(?:place|location)\b/i.test(rawStructure);
+  if (hasPlaceSlotInFormula) {
+    const placeExpressionRegex = /\b(at\s+(?:home|work|school|the\s+\w+|a\s+\w+)|in\s+(?:the\s+\w+|my\s+\w+|a\s+\w+)|on\s+the\s+\w+)\b/i;
+    if (!placeExpressionRegex.test(sLower)) {
+      return {
+        isCompliant: false,
+        missingSlotName: 'สถานที่',
+        feedbackPoint: '• ตามโครงสร้างประโยคที่กำหนด มีการระบุสถานที่ เช่น "at home" หรือ "in the kitchen" ด้วยนะคะ แต่ในประโยคของนักเรียนยังขาดคำระบุสถานที่ไปค่ะ'
+      };
+    }
+  }
+
+  // 3. Person Slot: "คน" or "with + คน"
+  const hasWithPersonSlot = /\bwith\s*\+\s*(?:คน|บุคคล|person|someone)\b/i.test(rawStructure) ||
+                            /(?:^|[^\u0E00-\u0E7Fa-zA-Z0-9])with\s*\+\s*คน/i.test(rawStructure);
+  if (hasWithPersonSlot) {
+    const withPersonRegex = /\bwith\s+(?:my\s+[a-z]+|[A-Z][a-z]+|her|him|them|someone|anyone|everyone|a\s+[a-z]+|the\s+[a-z]+|[a-z]+)\b/i;
+    if (!withPersonRegex.test(studentAnswer)) {
+      return {
+        isCompliant: false,
+        missingSlotName: 'with + คน',
+        feedbackPoint: '• ตามโครงสร้างประโยคที่กำหนด มีการระบุ "with + คน" (เช่น with my mum หรือ with Jane) ด้วยนะคะ แต่ในประโยคของนักเรียนยังขาดส่วนนี้ไปค่ะ'
+      };
+    }
+  }
+
+  // 4. Connector: "even when"
+  if (/even\s+when/i.test(rawStructure)) {
+    if (!/\beven\s+when\b/i.test(sLower)) {
+      return {
+        isCompliant: false,
+        missingSlotName: 'even when',
+        feedbackPoint: '• ในประโยคยังขาดส่วนเชื่อม "even when" ตามโครงสร้างที่กำหนดนะคะ'
+      };
+    }
+  }
+
+  // 5. Connector: "so I can"
+  if (/\[\s*so\s+I\s+can/i.test(rawStructure) || /\+\s*so\s+I\s+can/i.test(rawStructure)) {
+    if (!/\bso\s+(?:that\s+)?I\s+can\b/i.test(sLower)) {
+      return {
+        isCompliant: false,
+        missingSlotName: 'so I can',
+        feedbackPoint: '• ในประโยคยังขาดส่วนเชื่อม "[ so I can + V.ไม่ผัน ]" ตามโครงสร้างที่กำหนดนะคะ'
+      };
+    }
+  }
+
+  // 6. Purpose Slot: "to + V" (เช่น to + V.ไม่ผัน)
+  if (/\+\s*to\s*\+\s*V(?:\.ไม่ผัน|\.inf|[\s,\]])/i.test(rawStructure)) {
+    if (!/\bto\s+[a-z]+\b/i.test(sLower)) {
+      return {
+        isCompliant: false,
+        missingSlotName: 'to + V',
+        feedbackPoint: '• ในประโยคยังขาดส่วนบอกวัตถุประสงค์ "to + V.ไม่ผัน" (เช่น to learn new things) ตามโครงสร้างที่กำหนดนะคะ'
+      };
+    }
+  }
+
+  // 7. Comma before coordinating conjunctions (", so" / ", but")
+  if (/(?:เวลา,|,)\s*\+\s*\[?\s*so/i.test(rawStructure) || /,\s*so\b/i.test(rawStructure)) {
+    if (/\bso\b/i.test(sLower) && !/,\s*so\b/i.test(sLower)) {
+      return {
+        isCompliant: false,
+        missingSlotName: 'comma before so',
+        feedbackPoint: '• ขาดเครื่องหมายจุลภาค (Comma ,) หน้าคำเชื่อม "so" นะคะ เมื่อเชื่อมประโยคควรใส่เป็น ", so" ค่ะ'
+      };
+    }
+  }
+  if (/(?:,)\s*\+\s*\[?\s*but/i.test(rawStructure) || /,\s*but\b/i.test(rawStructure)) {
+    if (/\bbut\b/i.test(sLower) && !/,\s*but\b/i.test(sLower)) {
+      return {
+        isCompliant: false,
+        missingSlotName: 'comma before but',
+        feedbackPoint: '• ขาดเครื่องหมายจุลภาค (Comma ,) หน้าคำเชื่อม "but" นะคะ เมื่อเชื่อมสองประโยคเข้าด้วยกัน ควรใส่เป็น ", but" ค่ะ'
+      };
+    }
+  }
+
+  return { isCompliant: true };
 }
 
 export async function evaluateAnswer(req: EvaluationRequest): Promise<EvaluationResult> {
@@ -616,9 +735,26 @@ UNIVERSAL PEDAGOGICAL EVALUATION FRAMEWORK:
 2. TEACHER PERSONA & STRICT ENFORCEMENT OF TAUGHT LESSON SENTENCE STRUCTURE:
    - You are a real, meticulous, and expert English teacher (Kru Whan) grading student exercises.
    - In each unit, a specific sentence structure or grammar pattern is taught to the student (e.g., "S. + is/am/are + V.3", "S. + is/am/are + V.ing", "Core + Context + Connect", "S. + have/has + V.3", etc., as specified in the quiz context).
-   - MANDATORY STRUCTURE ADHERENCE:
-     * The student MUST construct their sentence using the target grammatical structure taught in this lesson.
-     * CRITICAL RULE: Even if the student's answer is grammatically correct in general English, IF IT DOES NOT FOLLOW OR USE THE SENTENCE STRUCTURE TAUGHT IN THIS UNIT, IT IS 100% INCORRECT (isCorrect: false)!
+   - MANDATORY STRUCTURE ADHERENCE & ZERO TOLERANCE FOR DROPPING FORMULA SLOTS:
+     * In Kru Whan's curriculum, the TARGET SENTENCE STRUCTURE is an exact blueprint where EVERY SINGLE SLOT, PLUS SIGN (+), AND PLACEHOLDER IS MANDATORY!
+     * THAI PLACEHOLDERS ARE STRICTLY MANDATORY SLOTS:
+       - "เวลา" (Time / Timeframe): The student MUST include a valid time word (e.g. 'before', 'already', 'recently', 'in the past', 'many times', 'once', 'twice', 'earlier', etc.).
+         * CRITICAL EXAMPLE:
+           Target Formula: "I + have + V.3 + with + คน + เวลา, + [ so I can + V.ไม่ผัน ]"
+           Model Answer: "I have baked with my mum before, so I can help her bake."
+           Student Answer: "I have baked with my mum, so I can help her bake."
+           -> THE STUDENT OMITTED THE "เวลา" SLOT ('before' / 'recently')!
+           -> EVEN THOUGH THE SENTENCE IS GRAMMATICALLY SOUND IN GENERAL ENGLISH, IT OMITTED THE REQUIRED "เวลา" SLOT!
+           -> THIS MUST BE MARKED AS INCORRECT: isCorrect: false!
+           -> statusText: "💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ"
+           -> In feedbackPoints, explain: "• ตามโครงสร้างประโยคที่กำหนด มีการระบุช่วงเวลา (เวลา) เช่น 'before' หรือ 'recently' ด้วยนะคะ แต่ในประโยคของนักเรียนยังขาดคำระบุเวลาไปค่ะ ลองเติม 'before' ต่อท้ายดูนะคะ"
+       - "สถานที่" (Place): Student MUST include place phrase (e.g. 'at home', 'in the kitchen').
+       - "คน" (Person): Student MUST include person being referred to (e.g. 'Jane', 'my mum', 'her', 'him').
+       - "คำคุณศัพท์" (Adjective): Student MUST include an adjective (e.g. 'sleepy', 'tired', 'busy').
+     * CONNECTORS AND CLAUSES IN FORMULA ARE MANDATORY:
+       - If formula specifies "[ so I can + V.ไม่ผัน ]", "even when", "to + V", the student MUST include them.
+       - If formula specifies a comma before coordinating conjunctions (", so", ", but"), the comma is MANDATORY.
+     * CRITICAL RULE: Even if the student's answer is grammatically correct in general English, IF IT DOES NOT FOLLOW, OMITS SLOTS, OR DROPS REQUIRED ELEMENTS FROM THE TAUGHT SENTENCE STRUCTURE, IT IS 100% INCORRECT (isCorrect: false)!
      * Example: If the unit teaches Passive Voice ("S. + is/am/are + V.3"), and the student writes an active voice sentence (e.g. "The barber cuts my hair" or "I cut my hair"), it MUST BE MARKED AS INCORRECT (isCorrect: false), because the student did not use the taught structure!
      * Example: If the unit teaches Present Continuous ("S. + is/am/are + V.ing"), and the student writes simple present ("I do...") or simple past ("I did..."), it MUST BE MARKED AS INCORRECT (isCorrect: false).
      * When incorrect due to wrong structure:
@@ -781,6 +917,7 @@ Do not wrap in markdown code blocks. Return pure raw JSON string only.`;
   const modelAnswer = req.item.model_answer ? `Example Reference Sentence (FOR TEACHER REFERENCE ONLY - DO NOT assume the student used words from this example unless they actually appear in the student's answer): "${req.item.model_answer}"` : '';
   const acceptableAnswers = req.item.acceptable_answers ? `Acceptable Variations: ${JSON.stringify(req.item.acceptable_answers)}` : '';
   const teacherGuidance = req.item.teacher_guidance || req.item.context_hint || req.item.guidance || '';
+  const parsedGuidance = parseItemGuidanceAndContext(req.item);
 
   let prompt = '';
   if (req.exerciseType === 'translation') {
@@ -815,8 +952,6 @@ Task for Exercise 2:
     const exerciseGuidance = req.item.exercise_guidance || '';
     const grammarFocus = req.item.grammar_focus || '';
     const structureRequired = req.item.structure_required ? JSON.stringify(req.item.structure_required) : '';
-
-    const parsedGuidance = parseItemGuidanceAndContext(req.item);
 
     prompt = `Exercise Type: Picture Description & Sentence Construction (Exercise 3: Dual-Core Assessment)
 ${unitTitle ? `Unit Title: "${unitTitle}"\n` : ''}${unitSubtitle ? `Unit Lesson Subtitle & Pattern: "${unitSubtitle}"\n` : ''}${exerciseTitle ? `Exercise Title: "${exerciseTitle}"\n` : ''}${exerciseInstruction ? `Exercise Instructions: "${exerciseInstruction}"\n` : ''}${grammarFocus ? `Grammar Focus: "${grammarFocus}"\n` : ''}${structureRequired ? `Required Structure Blueprint: ${structureRequired}\n` : ''}
@@ -865,6 +1000,18 @@ The teacher has entered the sentence structure, image description prompt, model 
 CRITERION 1: SENTENCE STRUCTURE COMPLIANCE (ความถูกต้องตามสูตรโครงสร้างประโยค)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 - Check whether the student's answer strictly adheres to the TARGET SENTENCE STRUCTURE specified above ("${parsedGuidance.targetSentenceStructure}").
+- In Kru Whan's Sentence Builder courses, EVERY SINGLE SLOT AND PLACEHOLDER IN THE FORMULA IS MANDATORY!
+- ZERO TOLERANCE FOR OMITTING FORMULA SLOTS:
+  * "เวลา" (Time / Timeframe): If the formula contains "เวลา", the student MUST include a time expression (e.g. 'before', 'recently', 'already', 'in the past', 'many times', 'once', 'twice', etc.).
+    CRITICAL EXAMPLE: If formula is "I + have + V.3 + with + คน + เวลา, + [ so I can + V.ไม่ผัน ]" and student writes "I have baked with my mum, so I can help her bake." (omitting 'before' or any time word):
+    -> THIS IS 100% INCORRECT: isCorrect: false!
+    -> statusText: "💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ"
+    -> In feedbackPoints, explain clearly: "• ตามโครงสร้างประโยคที่กำหนด มีการระบุช่วงเวลา (เวลา) เช่น 'before' หรือ 'recently' ด้วยนะคะ แต่ในประโยคของนักเรียนยังขาดคำระบุเวลาไปค่ะ ลองเติม 'before' ต่อท้ายดูนะคะ"
+  * "สถานที่" (Place / Location): If formula contains "สถานที่", the student MUST include a place phrase (e.g. 'in the kitchen', 'at home', 'at the cafe'). Omitting place is INCORRECT: isCorrect: false!
+  * "คน" (Person / Someone): If formula contains "with + คน", student MUST include the person being referred to.
+  * "คำคุณศัพท์" (Adjective): If formula contains "คำคุณศัพท์", student MUST include an adjective (e.g. 'sleepy', 'tired', 'busy').
+  * Connectors & Clauses: If formula contains "even when", "so I can", "to + V", they MUST be present.
+  * Comma before coordinating conjunctions: If formula specifies ", + [ so" or ", so" or ", but", the comma before the conjunction is MANDATORY. If missing, mark isCorrect: false!
 - If the student writes a sentence that fails to use or ignores the required formula (e.g., using active voice when passive voice S. + is/am/are + V.3 is taught, using wrong tense, missing required slots or connectors such as 'to + V', 'even when', 'so', 'but', etc.):
   * MUST mark as INCORRECT: isCorrect: false!
   * Set statusText: "💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ".
@@ -1028,6 +1175,41 @@ CRITERION 2: IMAGE RELEVANCE & ACTION CORRESPONDENCE (ความสอดค�
         sanitizedFeedbackPoints.unshift(
           `• ในภาพเป็นเหตุการณ์${topicText}นะคะ แต่ประโยคของนักเรียนยังไม่สอดคล้องกับสิ่งที่เกิดขึ้นในภาพค่ะ ลองดูภาพแล้วแต่งประโยคใหม่ให้ตรงกับภาพนะคะ`
         );
+      }
+    }
+  }
+
+  // Strict Sentence Structure Slot Compliance Verification
+  // In Kru Whan's curriculum, every formula slot (e.g. 'เวลา', 'สถานที่', 'คน', connectors) is mandatory.
+  const structureCompliance = checkStructureCompliance(
+    parsedGuidance.targetSentenceStructure || req.item.teacher_guidance || '',
+    req.studentAnswer,
+    req.item
+  );
+  if (!structureCompliance.isCompliant) {
+    isCorrect = false;
+    parsed.statusText = '💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ';
+
+    // Remove false praise from previous AI feedback points
+    sanitizedFeedbackPoints = sanitizedFeedbackPoints.filter(pt =>
+      !/(ถูกต้อง|เก่งมาก|เยี่ยมมาก|ยอดเยี่ยม|ดีมาก|สอดคล้องกับบริบทของภาพ)/.test(pt)
+    );
+
+    const hasSlotMismatchPt = sanitizedFeedbackPoints.some(pt =>
+      structureCompliance.missingSlotName && pt.includes(structureCompliance.missingSlotName)
+    );
+
+    if (!hasSlotMismatchPt && structureCompliance.feedbackPoint) {
+      sanitizedFeedbackPoints.unshift(structureCompliance.feedbackPoint);
+    }
+
+    if (cleanBreakdown) {
+      if (structureCompliance.missingSlotName === 'เวลา' || structureCompliance.missingSlotName === 'to + V') {
+        cleanBreakdown.context = false;
+      } else if (structureCompliance.missingSlotName?.includes('so') || structureCompliance.missingSlotName?.includes('even')) {
+        cleanBreakdown.connect = false;
+      } else {
+        cleanBreakdown.core = false;
       }
     }
   }
@@ -1377,6 +1559,20 @@ function evaluatePictureDescriptionLocally(item: any, lower: string, original: s
     }
   }
 
+  // 2. Strict Sentence Structure Slot Compliance Verification
+  const parsedGuidance = parseItemGuidanceAndContext(item);
+  const structureCompliance = checkStructureCompliance(
+    parsedGuidance.targetSentenceStructure || item.teacher_guidance || '',
+    original,
+    item
+  );
+  if (!structureCompliance.isCompliant) {
+    isCorrect = false;
+    if (structureCompliance.feedbackPoint && !points.includes(structureCompliance.feedbackPoint)) {
+      points.push(structureCompliance.feedbackPoint);
+    }
+  }
+
   // Exact or near model answer match check (100% correct by definition)
   const normalizeForMatch = (s: string) => {
     let res = (s || '')
@@ -1512,7 +1708,7 @@ function evaluatePictureDescriptionLocally(item: any, lower: string, original: s
   const hasContext = /\b(to\s+\w+|at|in|on|because|right now|with|for|before|after)\b/i.test(normalizedLower);
   const hasConnect = /\b(even when|because|when|although|so|but|however|to\s+\w+|and)\b/i.test(normalizedLower);
 
-  if (relevance.isRelevant) {
+  if (relevance.isRelevant && structureCompliance.isCompliant) {
     if (hasCore) {
       points.push('• โครงสร้าง Core (ประธาน + กริยาช่วย/กริยาหลัก) ถูกต้องค่ะ');
     } else {
