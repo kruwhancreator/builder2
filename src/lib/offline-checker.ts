@@ -237,6 +237,18 @@ export function checkOfflineGrammarAndSpelling(
     isValid = false;
   }
 
+  // 5.5 STRUCTURE FORMULA SLOT COMPLIANCE ENFORCEMENT
+  const guidance = item?.teacher_guidance || item?.guidance || item?.exercise_guidance || item?.grammar_focus || item?.unit_subtitle || item?.context_hint || '';
+  if (guidance) {
+    const compliance = checkStructureCompliance(guidance, raw, item);
+    if (!compliance.isCompliant) {
+      isValid = false;
+      if (compliance.feedbackPoint && !points.includes(compliance.feedbackPoint)) {
+        points.unshift(compliance.feedbackPoint);
+      }
+    }
+  }
+
   // -------------------------------------------------------------
   // 6. FINAL RESULT ASSEMBLY FOR EXERCISE 1
   // -------------------------------------------------------------
@@ -263,6 +275,260 @@ export function checkOfflineGrammarAndSpelling(
     normalizedStudent,
     normalizedModel
   };
+}
+
+export interface StructureComplianceResult {
+  isCompliant: boolean;
+  missingSlotName?: string;
+  feedbackPoint?: string;
+}
+
+/**
+ * Validates whether the student's answer contains all mandatory slots specified in the target sentence structure formula.
+ * In Kru Whan's curriculum, every placeholder slot (e.g. 'เวลา', 'สถานที่', 'คน', 'คำคุณศัพท์', connectors) is mandatory.
+ */
+export function checkStructureCompliance(
+  inputStructure: string,
+  studentAnswer: string,
+  item?: any
+): StructureComplianceResult {
+  const targetStructure = inputStructure || item?.teacher_guidance || item?.guidance || item?.exercise_guidance || item?.grammar_focus || item?.unit_subtitle || item?.context_hint || '';
+  if (!targetStructure || !studentAnswer) return { isCompliant: true };
+
+  const sLower = studentAnswer.toLowerCase().trim();
+  const rawStructure = targetStructure.replace(/^.*Sentence Structure\s*[:=]\s*/i, '').trim();
+
+  // 1. Time Slot: "เวลา" or "ช่วงเวลา" (e.g. before, recently, in the past, many times, from time to time, every day)
+  const hasTimeSlotInFormula = /(?:^|[^\u0E00-\u0E7Fa-zA-Z0-9])(?:เวลา|ช่วงเวลา|ผลรวมเวลา)(?:[^\u0E00-\u0E7Fa-zA-Z0-9]|$)/i.test(targetStructure) ||
+                               /(?:^|[^\u0E00-\u0E7Fa-zA-Z0-9])(?:เวลา|ช่วงเวลา|ผลรวมเวลา)(?:[^\u0E00-\u0E7Fa-zA-Z0-9]|$)/i.test(rawStructure) ||
+                               /\b(?:time|timeframe)\b/i.test(targetStructure);
+  if (hasTimeSlotInFormula) {
+    const timeExpressionRegex = /\b(before|already|yet|just|recently|lately|in the past|many times|several times|once|twice|three times|often|always|never|ever|earlier|previously|today|tonight|yesterday|tomorrow|this morning|this afternoon|this evening|now|later|soon|every\s+(?:day|week|month|year|morning|night|single\s+day|other\s+day)|each\s+(?:day|week|month|year)|on\s+(?:weekends?|mondays?|tuesdays?|wednesdays?|thursdays?|fridays?|saturdays?|sundays?)|at\s+night|in\s+(?:the\s+morning|the\s+afternoon|the\s+evening)|in\s+\w+\s+minutes?|for\s+\w+\s+(?:hours?|days?|weeks?|months?|years?)|since\s+\w+|from\s+time\s+to\s+time|once\s+in\s+a\s+while|at\s+times|all\s+the\s+time|sometimes|usually|normally|regularly|frequently|rarely|seldom|daily|weekly|monthly|yearly|\d{1,2}(?::\d{2})?\s*(?:a\.?m\.?|p\.?m\.?|o'clock)|midnight|noon)\b/i;
+    if (!timeExpressionRegex.test(sLower)) {
+      let exampleWords = '"before" หรือ "recently"';
+      if (/used\s+to/i.test(targetStructure) || /from\s+time\s+to\s+time/i.test(targetStructure + (item?.model_answer || ''))) {
+        exampleWords = '"from time to time" หรือ "every day"';
+      } else if (/every\s+day/i.test(targetStructure)) {
+        exampleWords = '"every day"';
+      } else if (item?.model_answer && /\b(every day|from time to time|on weekends|regularly|often|always)\b/i.test(item.model_answer)) {
+        exampleWords = '"from time to time" หรือ "every day"';
+      }
+
+      return {
+        isCompliant: false,
+        missingSlotName: 'เวลา',
+        feedbackPoint: `• ตามโครงสร้างประโยคที่กำหนด มีการระบุช่วงเวลา (เวลา) เช่น ${exampleWords} ด้วยนะคะ แต่ในประโยคของนักเรียนยังขาดคำระบุเวลาไปค่ะ ใกล้แล้วค่ะ สู้ๆ นะคะ`
+      };
+    }
+  }
+
+  // 2. Place Slot: "สถานที่" (e.g. in the kitchen, at home, at work, at the cafe)
+  const hasPlaceSlotInFormula = /(?:^|[^\u0E00-\u0E7Fa-zA-Z0-9])สถานที่(?:[^\u0E00-\u0E7Fa-zA-Z0-9]|$)/i.test(targetStructure) ||
+                                /(?:^|[^\u0E00-\u0E7Fa-zA-Z0-9])สถานที่(?:[^\u0E00-\u0E7Fa-zA-Z0-9]|$)/i.test(rawStructure) ||
+                                /\b(?:place|location)\b/i.test(targetStructure);
+  if (hasPlaceSlotInFormula) {
+    const placeExpressionRegex = /\b(at\s+(?:home|work|school|the\s+\w+|a\s+\w+)|in\s+(?:the\s+\w+|my\s+\w+|a\s+\w+)|on\s+the\s+\w+)\b/i;
+    if (!placeExpressionRegex.test(sLower)) {
+      return {
+        isCompliant: false,
+        missingSlotName: 'สถานที่',
+        feedbackPoint: '• ตามโครงสร้างประโยคที่กำหนด มีการระบุสถานที่ เช่น "at home" หรือ "in the kitchen" ด้วยนะคะ แต่ในประโยคของนักเรียนยังขาดคำระบุสถานที่ไปค่ะ'
+      };
+    }
+  }
+
+  // 3. Person Slot: "คน" or "with + คน"
+  const hasWithPersonSlot = /\bwith\s*\+\s*(?:คน|บุคคล|person|someone)\b/i.test(targetStructure) ||
+                            /(?:^|[^\u0E00-\u0E7Fa-zA-Z0-9])with\s*\+\s*คน/i.test(targetStructure) ||
+                            /\bwith\s*\+\s*(?:คน|บุคคล|person|someone)\b/i.test(rawStructure) ||
+                            /(?:^|[^\u0E00-\u0E7Fa-zA-Z0-9])with\s*\+\s*คน/i.test(rawStructure);
+  if (hasWithPersonSlot) {
+    const withPersonRegex = /\bwith\s+(?:my\s+[a-z]+|[A-Z][a-z]+|her|him|them|someone|anyone|everyone|a\s+[a-z]+|the\s+[a-z]+|[a-z]+)\b/i;
+    if (!withPersonRegex.test(studentAnswer)) {
+      return {
+        isCompliant: false,
+        missingSlotName: 'with + คน',
+        feedbackPoint: '• ตามโครงสร้างประโยคที่กำหนด มีการระบุ "with + คน" (เช่น with my mum หรือ with Jane) ด้วยนะคะ แต่ในประโยคของนักเรียนยังขาดส่วนนี้ไปค่ะ'
+      };
+    }
+  }
+
+  // 4. Connector: "even when"
+  if (/even\s+when/i.test(targetStructure) || /even\s+when/i.test(rawStructure)) {
+    if (!/\beven\s+when\b/i.test(sLower)) {
+      return {
+        isCompliant: false,
+        missingSlotName: 'even when',
+        feedbackPoint: '• ในประโยคยังขาดส่วนเชื่อม "even when" ตามโครงสร้างที่กำหนดนะคะ'
+      };
+    }
+  }
+
+  // 5. Connector: "so I can"
+  if (/\[\s*so\s+I\s+can/i.test(targetStructure) || /\+\s*so\s+I\s+can/i.test(targetStructure) || /\[\s*so\s+I\s+can/i.test(rawStructure) || /\+\s*so\s+I\s+can/i.test(rawStructure)) {
+    if (!/\bso\s+(?:that\s+)?I\s+can\b/i.test(sLower)) {
+      return {
+        isCompliant: false,
+        missingSlotName: 'so I can',
+        feedbackPoint: '• ในประโยคยังขาดส่วนเชื่อม "[ so I can + V.ไม่ผัน ]" ตามโครงสร้างที่กำหนดนะคะ'
+      };
+    }
+  }
+
+  // 6. Purpose Slot: "to + V" (เช่น to + V.ไม่ผัน)
+  if (/\+\s*to\s*\+\s*V(?:\.ไม่ผัน|\.inf|[\s,\]])/i.test(targetStructure) || /\+\s*to\s*\+\s*V(?:\.ไม่ผัน|\.inf|[\s,\]])/i.test(rawStructure)) {
+    if (!/\bto\s+[a-z]+\b/i.test(sLower)) {
+      return {
+        isCompliant: false,
+        missingSlotName: 'to + V',
+        feedbackPoint: '• ในประโยคยังขาดส่วนบอกวัตถุประสงค์ "to + V.ไม่ผัน" (เช่น to learn new things) ตามโครงสร้างที่กำหนดนะคะ'
+      };
+    }
+  }
+
+  // 7. Comma before coordinating conjunctions (", so" / ", but")
+  if (/(?:เวลา,|,)\s*\+\s*\[?\s*so/i.test(targetStructure) || /,\s*so\b/i.test(targetStructure) || /(?:เวลา,|,)\s*\+\s*\[?\s*so/i.test(rawStructure) || /,\s*so\b/i.test(rawStructure)) {
+    if (/\bso\b/i.test(sLower) && !/,\s*so\b/i.test(sLower)) {
+      return {
+        isCompliant: false,
+        missingSlotName: 'comma before so',
+        feedbackPoint: '• ขาดเครื่องหมายจุลภาค (Comma ,) หน้าคำเชื่อม "so" นะคะ เมื่อเชื่อมประโยคควรใส่เป็น ", so" ค่ะ'
+      };
+    }
+  }
+  if (/(?:,)\s*\+\s*\[?\s*but/i.test(targetStructure) || /,\s*but\b/i.test(targetStructure) || /(?:,)\s*\+\s*\[?\s*but/i.test(rawStructure) || /,\s*but\b/i.test(rawStructure)) {
+    if (/\bbut\b/i.test(sLower) && !/,\s*but\b/i.test(sLower)) {
+      return {
+        isCompliant: false,
+        missingSlotName: 'comma before but',
+        feedbackPoint: '• ขาดเครื่องหมายจุลภาค (Comma ,) หน้าคำเชื่อม "but" นะคะ เมื่อเชื่อมสองประโยคเข้าด้วยกัน ควรใส่เป็น ", but" ค่ะ'
+      };
+    }
+  }
+
+  // 8. Connector: "but" (e.g. in "[ but I still need to + V.ไม่ผัน ]", "[ but ... ]", "+ but")
+  const hasButConnector = /\[\s*but\b/i.test(targetStructure) || /\+\s*but\b/i.test(targetStructure) || /\[\s*but\b/i.test(rawStructure) || /\+\s*but\b/i.test(rawStructure);
+  if (hasButConnector) {
+    if (!/\bbut\b/i.test(sLower)) {
+      if (/\byet\b/i.test(sLower)) {
+        return {
+          isCompliant: false,
+          missingSlotName: 'but',
+          feedbackPoint: '• ตามโครงสร้างประโยคที่กำหนด [ but I still need to + V.ไม่ผัน ] มีการกำหนดให้ใช้คำเชื่อม "but" (แต่) นะคะ ในประโยคของนักเรียนใช้คำว่า "yet" ซึ่งแม้ความหมายจะใกล้เคียงกัน แต่ยังไม่ตรงกับสูตรโครงสร้างที่กำหนดในบทนี้ค่ะ แนะนำให้เปลี่ยนจาก "yet" เป็น "but" ให้ตรงตามสูตรของบทเรียนนี้นะคะ'
+        };
+      } else if (/\band\b/i.test(sLower)) {
+        return {
+          isCompliant: false,
+          missingSlotName: 'but',
+          feedbackPoint: '• ตามโครงสร้างประโยคที่กำหนดในบทนี้ มีการกำหนดให้ใช้คำเชื่อม "but" (แต่) นะคะ ในประโยคของนักเรียนใช้คำว่า "and" แนะนำให้ปรับเป็น "but" ให้ตรงตามสูตรค่ะ'
+        };
+      } else if (/\bso\b/i.test(sLower)) {
+        return {
+          isCompliant: false,
+          missingSlotName: 'but',
+          feedbackPoint: '• ตามโครงสร้างประโยคที่กำหนดในบทนี้ มีการกำหนดให้ใช้คำเชื่อม "but" (แต่) นะคะ ในประโยคของนักเรียนใช้คำว่า "so" แนะนำให้ปรับเป็น "but" ให้ตรงตามสูตรค่ะ'
+        };
+      } else {
+        return {
+          isCompliant: false,
+          missingSlotName: 'but',
+          feedbackPoint: '• ในประโยคยังขาดคำเชื่อม "but" ตามโครงสร้างที่กำหนด [ but I still need to + V.ไม่ผัน ] นะคะ ลองปรับเป็น ", but..." ดูนะคะ'
+        };
+      }
+    }
+  }
+
+  // 9. Clause Slot: "still need to"
+  if (/still\s+need\s+to/i.test(targetStructure) || /still\s+need\s+to/i.test(rawStructure)) {
+    if (!/\bstill\s+need\s+to\b/i.test(sLower)) {
+      return {
+        isCompliant: false,
+        missingSlotName: 'still need to',
+        feedbackPoint: '• ตามโครงสร้างประโยคที่กำหนด มีการใช้ "[ but I still need to + V.ไม่ผัน ]" นะคะ แต่ในประโยคของนักเรียนยังขาด "still need to" ไปค่ะ'
+      };
+    }
+  }
+
+  // 10. Starting / Core Slot: "about to" (e.g. "I’m about to + V.ไม่ผัน")
+  if (/\babout\s+to\b/i.test(targetStructure) || /\babout\s+to\b/i.test(rawStructure)) {
+    if (!/\babout\s+to\b/i.test(sLower)) {
+      return {
+        isCompliant: false,
+        missingSlotName: 'about to',
+        feedbackPoint: '• ตามโครงสร้างประโยคที่กำหนด มีการใช้สำนวน "I’m about to + V.ไม่ผัน" นะคะ แต่ในประโยคของนักเรียนยังขาด "about to" ไปค่ะ'
+      };
+    }
+  }
+
+  // 11. Time Slot with "in": "in + เวลา"
+  if (/\bin\s*\+\s*(?:เวลา|ช่วงเวลา)/i.test(targetStructure) || /\bin\s*\+\s*(?:เวลา|ช่วงเวลา)/i.test(rawStructure)) {
+    const inTimeRegex = /\bin\s+(?:\w+\s+)?(?:minutes?|hours?|days?|weeks?|months?|years?|a\s+moment|a\s+second|a\s+while|a\s+bit|the\s+morning|the\s+afternoon|the\s+evening)\b/i;
+    if (!inTimeRegex.test(sLower)) {
+      return {
+        isCompliant: false,
+        missingSlotName: 'in + เวลา',
+        feedbackPoint: '• ตามโครงสร้างประโยคที่กำหนด มีการระบุ "in + เวลา" (เช่น in five minutes หรือ in 10 minutes) ด้วยนะคะ แต่ในประโยคของนักเรียนยังขาดส่วนนี้ไปค่ะ'
+      };
+    }
+  }
+
+  // 12. Duration Slot with "for": "for + ผลรวมเวลา"
+  if (/(?:for\s*\+\s*ผลรวมเวลา|ผลรวมเวลา)/i.test(targetStructure) || /(?:for\s*\+\s*ผลรวมเวลา|ผลรวมเวลา)/i.test(rawStructure)) {
+    const forDurationRegex = /\bfor\s+(?:\w+\s+)?(?:hours?|minutes?|days?|weeks?|months?|years?|a\s+long\s+time|a\s+while|a\s+moment|ages|several\s+\w+)\b/i;
+    if (!forDurationRegex.test(sLower)) {
+      return {
+        isCompliant: false,
+        missingSlotName: 'for + ผลรวมเวลา',
+        feedbackPoint: '• ตามโครงสร้างประโยคที่กำหนด มีการระบุช่วงเวลา (for + ผลรวมเวลา) เช่น "for hours" หรือ "for a long time" ด้วยนะคะ แต่ในประโยคของนักเรียนยังขาดส่วนนี้ไปค่ะ ใกล้แล้วค่ะ สู้ๆ นะคะ'
+      };
+    }
+  }
+
+  // 13. Clause Slot: "[ so I'm + คำคุณศัพท์ ]"
+  if (/\[\s*so\s+I(?:'|’)?m\s*\+\s*คำคุณศัพท์/i.test(targetStructure) || /\[\s*so\s+I(?:'|’)?m\s*\+\s*คำคุณศัพท์/i.test(rawStructure)) {
+    if (!/\bso\s+(?:I\s+am|I'm|I’m)\b/i.test(sLower)) {
+      return {
+        isCompliant: false,
+        missingSlotName: "so I'm",
+        feedbackPoint: '• ในประโยคยังขาดส่วนเชื่อม "[ so I’m + คำคุณศัพท์ ]" ตามโครงสร้างที่กำหนดนะคะ ใกล้แล้วค่ะ สู้ๆ นะคะ'
+      };
+    }
+  }
+
+  // 14. Core Slot: "used to + V.ing"
+  if (/used\s+to\s*\+\s*V\.ing/i.test(targetStructure) || /used\s+to.*V\.ing/i.test(targetStructure) || /used\s+to\s*\+\s*V\.ing/i.test(rawStructure) || /used\s+to.*V\.ing/i.test(rawStructure)) {
+    if (!/\bused\s+to\b/i.test(sLower)) {
+      return {
+        isCompliant: false,
+        missingSlotName: 'used to',
+        feedbackPoint: '• ตามโครงสร้างประโยคที่กำหนด มีการใช้สำนวน "I’m used to + V.ing" นะคะ แต่ในประโยคของนักเรียนยังขาด "used to" ไปค่ะ ใกล้แล้วค่ะ สู้ๆ นะคะ'
+      };
+    }
+    const usedToMatch = sLower.match(/\bused\s+to\s+([a-z]+)/i);
+    if (usedToMatch && usedToMatch[1]) {
+      const verbWord = usedToMatch[1];
+      if (!verbWord.endsWith('ing')) {
+        return {
+          isCompliant: false,
+          missingSlotName: 'used to + V.ing',
+          feedbackPoint: `• ตามโครงสร้าง "I’m used to + V.ing" (เคยชินกับการ...) คำกริยาที่ตามหลัง "used to" จะต้องเติม -ing ด้วยนะคะ (เช่น เปลี่ยนจาก "${verbWord}" เป็น "${verbWord}ing") ใกล้แล้วค่ะ สู้ๆ นะคะ`
+        };
+      }
+    }
+  }
+
+  // 15. Clause Slot: "[ but I still get + คำคุณศัพท์ ]"
+  if (/still\s+get\s*\+\s*คำคุณศัพท์/i.test(targetStructure) || /still\s+get\b/i.test(targetStructure) || /still\s+get\s*\+\s*คำคุณศัพท์/i.test(rawStructure) || /still\s+get\b/i.test(rawStructure)) {
+    if (!/\bstill\s+(?:get|feel|become)\b/i.test(sLower)) {
+      return {
+        isCompliant: false,
+        missingSlotName: 'still get',
+        feedbackPoint: '• ในประโยคยังขาดส่วนเชื่อม "[ but I still get + คำคุณศัพท์ ]" ตามโครงสร้างที่กำหนดนะคะ ใกล้แล้วค่ะ สู้ๆ นะคะ'
+      };
+    }
+  }
+
+  return { isCompliant: true };
 }
 
 /**
@@ -358,6 +624,22 @@ export function checkGuidedSentenceExercise(
         '• เช็ค คำในหนังสือ / การสะกดคำ / วรรคตอน / full stop / ความสอดคล้องของความหมาย นะคะ'
       ]
     };
+  }
+
+  // 0.5 STRUCTURE FORMULA SLOT COMPLIANCE ENFORCEMENT
+  const guidance = item?.teacher_guidance || item?.guidance || item?.exercise_guidance || item?.grammar_focus || item?.unit_subtitle || item?.context_hint || '';
+  if (guidance) {
+    const compliance = checkStructureCompliance(guidance, raw, item);
+    if (!compliance.isCompliant) {
+      return {
+        isCorrect: false,
+        message: '💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ',
+        points: [
+          compliance.feedbackPoint || '• ประโยคยังไม่ตรงตามโครงสร้างที่กำหนดนะคะ',
+          '• เช็ค คำในหนังสือ / การสะกดคำ / วรรคตอน / full stop / ความสอดคล้องของความหมาย นะคะ'
+        ]
+      };
+    }
   }
 
   const cleanWord = (w: string) => normalizeTypography(w).toLowerCase().replace(/[^a-z0-9'-]/g, '');

@@ -1,5 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
-import { getLevenshteinDistance } from './offline-checker';
+import { getLevenshteinDistance, checkStructureCompliance, type StructureComplianceResult } from './offline-checker';
+export type { StructureComplianceResult };
+export { checkStructureCompliance };
 
 export interface EvaluationRequest {
   exerciseType: 'translation' | 'guided_sentence' | 'picture_description';
@@ -280,9 +282,10 @@ export function parseItemGuidanceAndContext(item: any): ParsedItemGuidance {
   const allImagePrompts: string[] = [];
   const contextHints: string[] = [];
 
-  const rawTeacherGuidance = item?.teacher_guidance || '';
+  const rawTeacherGuidance = item?.teacher_guidance || item?.guidance || item?.exercise_guidance || '';
   const rawContextHint = item?.context_hint || '';
   const rawImageDesc = item?.image_description || '';
+  const rawInstruction = item?.exercise_instruction || item?.instruction || '';
 
   // Process teacher_guidance column
   if (rawTeacherGuidance) {
@@ -304,6 +307,13 @@ export function parseItemGuidanceAndContext(item: any): ParsedItemGuidance {
   // Process image_description column
   if (rawImageDesc) {
     const res = splitTextIntoStructureAndImage(rawImageDesc);
+    allStructures.push(...res.structureParts);
+    allImagePrompts.push(...res.imageParts);
+  }
+
+  // Process instruction if containing structure markers
+  if (rawInstruction && (STRUCTURE_MARKER_REGEX.test(rawInstruction) || rawInstruction.toLowerCase().includes('structure'))) {
+    const res = splitTextIntoStructureAndImage(rawInstruction);
     allStructures.push(...res.structureParts);
     allImagePrompts.push(...res.imageParts);
   }
@@ -889,255 +899,6 @@ export function detectSpellingAndTypos(
   return errors;
 }
 
-export interface StructureComplianceResult {
-  isCompliant: boolean;
-  missingSlotName?: string;
-  feedbackPoint?: string;
-}
-
-/**
- * Validates whether the student's answer contains all mandatory slots specified in the target sentence structure formula.
- * In Kru Whan's curriculum, every placeholder slot (e.g. 'เวลา', 'สถานที่', 'คน', 'คำคุณศัพท์', connectors) is mandatory.
- */
-export function checkStructureCompliance(
-  targetStructure: string,
-  studentAnswer: string,
-  item?: any
-): StructureComplianceResult {
-  if (!targetStructure || !studentAnswer) return { isCompliant: true };
-
-  const sLower = studentAnswer.toLowerCase().trim();
-  const rawStructure = targetStructure.replace(/^.*Sentence Structure\s*[:=]\s*/i, '').trim();
-
-  // 1. Time Slot: "เวลา" or "ช่วงเวลา" (e.g. before, recently, in the past, many times, from time to time, every day)
-  const hasTimeSlotInFormula = /(?:^|[^\u0E00-\u0E7Fa-zA-Z0-9])(?:เวลา|ช่วงเวลา)(?:[^\u0E00-\u0E7Fa-zA-Z0-9]|$)/i.test(rawStructure) ||
-                               /\b(?:time|timeframe)\b/i.test(rawStructure);
-  if (hasTimeSlotInFormula) {
-    const timeExpressionRegex = /\b(before|already|yet|just|recently|lately|in the past|many times|several times|once|twice|three times|often|always|never|ever|earlier|previously|today|tonight|yesterday|tomorrow|this morning|this afternoon|this evening|now|later|soon|every\s+(?:day|week|month|year|morning|night|single\s+day|other\s+day)|each\s+(?:day|week|month|year)|on\s+(?:weekends?|mondays?|tuesdays?|wednesdays?|thursdays?|fridays?|saturdays?|sundays?)|at\s+night|in\s+(?:the\s+morning|the\s+afternoon|the\s+evening)|in\s+\w+\s+minutes?|for\s+\w+\s+(?:hours?|days?|weeks?|months?|years?)|since\s+\w+|from\s+time\s+to\s+time|once\s+in\s+a\s+while|at\s+times|all\s+the\s+time|sometimes|usually|normally|regularly|frequently|rarely|seldom|daily|weekly|monthly|yearly|\d{1,2}(?::\d{2})?\s*(?:a\.?m\.?|p\.?m\.?|o'clock)|midnight|noon)\b/i;
-    if (!timeExpressionRegex.test(sLower)) {
-      let exampleWords = '"before" หรือ "recently"';
-      if (/used\s+to/i.test(rawStructure) || /from\s+time\s+to\s+time/i.test(rawStructure + (item?.model_answer || ''))) {
-        exampleWords = '"from time to time" หรือ "every day"';
-      } else if (/every\s+day/i.test(rawStructure)) {
-        exampleWords = '"every day"';
-      } else if (item?.model_answer && /\b(every day|from time to time|on weekends|regularly|often|always)\b/i.test(item.model_answer)) {
-        exampleWords = '"from time to time" หรือ "every day"';
-      }
-
-      return {
-        isCompliant: false,
-        missingSlotName: 'เวลา',
-        feedbackPoint: `• ตามโครงสร้างประโยคที่กำหนด มีการระบุช่วงเวลา (เวลา) เช่น ${exampleWords} ด้วยนะคะ แต่ในประโยคของนักเรียนยังขาดคำระบุเวลาไปค่ะ ใกล้แล้วค่ะ สู้ๆ นะคะ`
-      };
-    }
-  }
-
-  // 2. Place Slot: "สถานที่" (e.g. in the kitchen, at home, at work, at the cafe)
-  const hasPlaceSlotInFormula = /(?:^|[^\u0E00-\u0E7Fa-zA-Z0-9])สถานที่(?:[^\u0E00-\u0E7Fa-zA-Z0-9]|$)/i.test(rawStructure) ||
-                                /\b(?:place|location)\b/i.test(rawStructure);
-  if (hasPlaceSlotInFormula) {
-    const placeExpressionRegex = /\b(at\s+(?:home|work|school|the\s+\w+|a\s+\w+)|in\s+(?:the\s+\w+|my\s+\w+|a\s+\w+)|on\s+the\s+\w+)\b/i;
-    if (!placeExpressionRegex.test(sLower)) {
-      return {
-        isCompliant: false,
-        missingSlotName: 'สถานที่',
-        feedbackPoint: '• ตามโครงสร้างประโยคที่กำหนด มีการระบุสถานที่ เช่น "at home" หรือ "in the kitchen" ด้วยนะคะ แต่ในประโยคของนักเรียนยังขาดคำระบุสถานที่ไปค่ะ'
-      };
-    }
-  }
-
-  // 3. Person Slot: "คน" or "with + คน"
-  const hasWithPersonSlot = /\bwith\s*\+\s*(?:คน|บุคคล|person|someone)\b/i.test(rawStructure) ||
-                            /(?:^|[^\u0E00-\u0E7Fa-zA-Z0-9])with\s*\+\s*คน/i.test(rawStructure);
-  if (hasWithPersonSlot) {
-    const withPersonRegex = /\bwith\s+(?:my\s+[a-z]+|[A-Z][a-z]+|her|him|them|someone|anyone|everyone|a\s+[a-z]+|the\s+[a-z]+|[a-z]+)\b/i;
-    if (!withPersonRegex.test(studentAnswer)) {
-      return {
-        isCompliant: false,
-        missingSlotName: 'with + คน',
-        feedbackPoint: '• ตามโครงสร้างประโยคที่กำหนด มีการระบุ "with + คน" (เช่น with my mum หรือ with Jane) ด้วยนะคะ แต่ในประโยคของนักเรียนยังขาดส่วนนี้ไปค่ะ'
-      };
-    }
-  }
-
-  // 4. Connector: "even when"
-  if (/even\s+when/i.test(rawStructure)) {
-    if (!/\beven\s+when\b/i.test(sLower)) {
-      return {
-        isCompliant: false,
-        missingSlotName: 'even when',
-        feedbackPoint: '• ในประโยคยังขาดส่วนเชื่อม "even when" ตามโครงสร้างที่กำหนดนะคะ'
-      };
-    }
-  }
-
-  // 5. Connector: "so I can"
-  if (/\[\s*so\s+I\s+can/i.test(rawStructure) || /\+\s*so\s+I\s+can/i.test(rawStructure)) {
-    if (!/\bso\s+(?:that\s+)?I\s+can\b/i.test(sLower)) {
-      return {
-        isCompliant: false,
-        missingSlotName: 'so I can',
-        feedbackPoint: '• ในประโยคยังขาดส่วนเชื่อม "[ so I can + V.ไม่ผัน ]" ตามโครงสร้างที่กำหนดนะคะ'
-      };
-    }
-  }
-
-  // 6. Purpose Slot: "to + V" (เช่น to + V.ไม่ผัน)
-  if (/\+\s*to\s*\+\s*V(?:\.ไม่ผัน|\.inf|[\s,\]])/i.test(rawStructure)) {
-    if (!/\bto\s+[a-z]+\b/i.test(sLower)) {
-      return {
-        isCompliant: false,
-        missingSlotName: 'to + V',
-        feedbackPoint: '• ในประโยคยังขาดส่วนบอกวัตถุประสงค์ "to + V.ไม่ผัน" (เช่น to learn new things) ตามโครงสร้างที่กำหนดนะคะ'
-      };
-    }
-  }
-
-  // 7. Comma before coordinating conjunctions (", so" / ", but")
-  if (/(?:เวลา,|,)\s*\+\s*\[?\s*so/i.test(rawStructure) || /,\s*so\b/i.test(rawStructure)) {
-    if (/\bso\b/i.test(sLower) && !/,\s*so\b/i.test(sLower)) {
-      return {
-        isCompliant: false,
-        missingSlotName: 'comma before so',
-        feedbackPoint: '• ขาดเครื่องหมายจุลภาค (Comma ,) หน้าคำเชื่อม "so" นะคะ เมื่อเชื่อมประโยคควรใส่เป็น ", so" ค่ะ'
-      };
-    }
-  }
-  if (/(?:,)\s*\+\s*\[?\s*but/i.test(rawStructure) || /,\s*but\b/i.test(rawStructure)) {
-    if (/\bbut\b/i.test(sLower) && !/,\s*but\b/i.test(sLower)) {
-      return {
-        isCompliant: false,
-        missingSlotName: 'comma before but',
-        feedbackPoint: '• ขาดเครื่องหมายจุลภาค (Comma ,) หน้าคำเชื่อม "but" นะคะ เมื่อเชื่อมสองประโยคเข้าด้วยกัน ควรใส่เป็น ", but" ค่ะ'
-      };
-    }
-  }
-
-  // 8. Connector: "but" (e.g. in "[ but I still need to + V.ไม่ผัน ]", "[ but ... ]", "+ but")
-  const hasButConnector = /\[\s*but\b/i.test(rawStructure) || /\+\s*but\b/i.test(rawStructure);
-  if (hasButConnector) {
-    if (!/\bbut\b/i.test(sLower)) {
-      if (/\byet\b/i.test(sLower)) {
-        return {
-          isCompliant: false,
-          missingSlotName: 'but',
-          feedbackPoint: '• ตามโครงสร้างประโยคที่กำหนด [ but I still need to + V.ไม่ผัน ] มีการกำหนดให้ใช้คำเชื่อม "but" (แต่) นะคะ ในประโยคของนักเรียนใช้คำว่า "yet" ซึ่งแม้ความหมายจะใกล้เคียงกัน แต่ยังไม่ตรงกับสูตรโครงสร้างที่กำหนดในบทนี้ค่ะ แนะนำให้เปลี่ยนจาก "yet" เป็น "but" ให้ตรงตามสูตรของบทเรียนนี้นะคะ'
-        };
-      } else if (/\band\b/i.test(sLower)) {
-        return {
-          isCompliant: false,
-          missingSlotName: 'but',
-          feedbackPoint: '• ตามโครงสร้างประโยคที่กำหนดในบทนี้ มีการกำหนดให้ใช้คำเชื่อม "but" (แต่) นะคะ ในประโยคของนักเรียนใช้คำว่า "and" แนะนำให้ปรับเป็น "but" ให้ตรงตามสูตรค่ะ'
-        };
-      } else if (/\bso\b/i.test(sLower)) {
-        return {
-          isCompliant: false,
-          missingSlotName: 'but',
-          feedbackPoint: '• ตามโครงสร้างประโยคที่กำหนดในบทนี้ มีการกำหนดให้ใช้คำเชื่อม "but" (แต่) นะคะ ในประโยคของนักเรียนใช้คำว่า "so" แนะนำให้ปรับเป็น "but" ให้ตรงตามสูตรค่ะ'
-        };
-      } else {
-        return {
-          isCompliant: false,
-          missingSlotName: 'but',
-          feedbackPoint: '• ในประโยคยังขาดคำเชื่อม "but" ตามโครงสร้างที่กำหนด [ but I still need to + V.ไม่ผัน ] นะคะ ลองปรับเป็น ", but..." ดูนะคะ'
-        };
-      }
-    }
-  }
-
-  // 9. Clause Slot: "still need to"
-  if (/still\s+need\s+to/i.test(rawStructure)) {
-    if (!/\bstill\s+need\s+to\b/i.test(sLower)) {
-      return {
-        isCompliant: false,
-        missingSlotName: 'still need to',
-        feedbackPoint: '• ตามโครงสร้างประโยคที่กำหนด มีการใช้ "[ but I still need to + V.ไม่ผัน ]" นะคะ แต่ในประโยคของนักเรียนยังขาด "still need to" ไปค่ะ'
-      };
-    }
-  }
-
-  // 10. Starting / Core Slot: "about to" (e.g. "I’m about to + V.ไม่ผัน")
-  if (/\babout\s+to\b/i.test(rawStructure)) {
-    if (!/\babout\s+to\b/i.test(sLower)) {
-      return {
-        isCompliant: false,
-        missingSlotName: 'about to',
-        feedbackPoint: '• ตามโครงสร้างประโยคที่กำหนด มีการใช้สำนวน "I’m about to + V.ไม่ผัน" นะคะ แต่ในประโยคของนักเรียนยังขาด "about to" ไปค่ะ'
-      };
-    }
-  }
-
-  // 11. Time Slot with "in": "in + เวลา"
-  if (/\bin\s*\+\s*(?:เวลา|ช่วงเวลา)/i.test(rawStructure)) {
-    const inTimeRegex = /\bin\s+(?:\w+\s+)?(?:minutes?|hours?|days?|weeks?|months?|years?|a\s+moment|a\s+second|a\s+while|a\s+bit|the\s+morning|the\s+afternoon|the\s+evening)\b/i;
-    if (!inTimeRegex.test(sLower)) {
-      return {
-        isCompliant: false,
-        missingSlotName: 'in + เวลา',
-        feedbackPoint: '• ตามโครงสร้างประโยคที่กำหนด มีการระบุ "in + เวลา" (เช่น in five minutes หรือ in 10 minutes) ด้วยนะคะ แต่ในประโยคของนักเรียนยังขาดส่วนนี้ไปค่ะ'
-      };
-    }
-  }
-
-  // 12. Duration Slot with "for": "for + ผลรวมเวลา"
-  if (/(?:for\s*\+\s*ผลรวมเวลา|ผลรวมเวลา)/i.test(rawStructure)) {
-    const forDurationRegex = /\bfor\s+(?:\w+\s+)?(?:hours?|minutes?|days?|weeks?|months?|years?|a\s+long\s+time|a\s+while|a\s+moment|ages|several\s+\w+)\b/i;
-    if (!forDurationRegex.test(sLower)) {
-      return {
-        isCompliant: false,
-        missingSlotName: 'for + ผลรวมเวลา',
-        feedbackPoint: '• ตามโครงสร้างประโยคที่กำหนด มีการระบุช่วงเวลา (for + ผลรวมเวลา) เช่น "for hours" หรือ "for a long time" ด้วยนะคะ แต่ในประโยคของนักเรียนยังขาดส่วนนี้ไปค่ะ ใกล้แล้วค่ะ สู้ๆ นะคะ'
-      };
-    }
-  }
-
-  // 13. Clause Slot: "[ so I'm + คำคุณศัพท์ ]"
-  if (/\[\s*so\s+I(?:'|’)?m\s*\+\s*คำคุณศัพท์/i.test(rawStructure)) {
-    if (!/\bso\s+(?:I\s+am|I'm|I’m)\b/i.test(sLower)) {
-      return {
-        isCompliant: false,
-        missingSlotName: "so I'm",
-        feedbackPoint: '• ในประโยคยังขาดส่วนเชื่อม "[ so I’m + คำคุณศัพท์ ]" ตามโครงสร้างที่กำหนดนะคะ ใกล้แล้วค่ะ สู้ๆ นะคะ'
-      };
-    }
-  }
-
-  // 14. Core Slot: "used to + V.ing"
-  if (/used\s+to\s*\+\s*V\.ing/i.test(rawStructure) || /used\s+to.*V\.ing/i.test(rawStructure)) {
-    if (!/\bused\s+to\b/i.test(sLower)) {
-      return {
-        isCompliant: false,
-        missingSlotName: 'used to',
-        feedbackPoint: '• ตามโครงสร้างประโยคที่กำหนด มีการใช้สำนวน "I’m used to + V.ing" นะคะ แต่ในประโยคของนักเรียนยังขาด "used to" ไปค่ะ ใกล้แล้วค่ะ สู้ๆ นะคะ'
-      };
-    }
-    const usedToMatch = sLower.match(/\bused\s+to\s+([a-z]+)/i);
-    if (usedToMatch && usedToMatch[1]) {
-      const verbWord = usedToMatch[1];
-      if (!verbWord.endsWith('ing')) {
-        return {
-          isCompliant: false,
-          missingSlotName: 'used to + V.ing',
-          feedbackPoint: `• ตามโครงสร้าง "I’m used to + V.ing" (เคยชินกับการ...) คำกริยาที่ตามหลัง "used to" จะต้องเติม -ing ด้วยนะคะ (เช่น เปลี่ยนจาก "${verbWord}" เป็น "${verbWord}ing") ใกล้แล้วค่ะ สู้ๆ นะคะ`
-        };
-      }
-    }
-  }
-
-  // 15. Clause Slot: "[ but I still get + คำคุณศัพท์ ]"
-  if (/still\s+get\s*\+\s*คำคุณศัพท์/i.test(rawStructure) || /still\s+get\b/i.test(rawStructure)) {
-    if (!/\bstill\s+(?:get|feel|become)\b/i.test(sLower)) {
-      return {
-        isCompliant: false,
-        missingSlotName: 'still get',
-        feedbackPoint: '• ในประโยคยังขาดส่วนเชื่อม "[ but I still get + คำคุณศัพท์ ]" ตามโครงสร้างที่กำหนดนะคะ ใกล้แล้วค่ะ สู้ๆ นะคะ'
-      };
-    }
-  }
-
-  return { isCompliant: true };
-}
-
 export async function evaluateAnswer(req: EvaluationRequest): Promise<EvaluationResult> {
   const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 
@@ -1457,7 +1218,7 @@ ${parsedGuidance.targetSentenceStructure ? `🎯 TARGET SENTENCE STRUCTURE (ส�
 Student Answer to Evaluate: "${req.studentAnswer}"
 
 Task for Exercise 2:
-1. STRICT FORMULA SLOT ENFORCEMENT: Strictly verify that student's answer adheres to the TARGET SENTENCE STRUCTURE slot by slot (including mandatory slots like 'เวลา', 'สถานที่', 'คน', connectors). If ANY slot is omitted, mark isCorrect: false!
+1. STRICT FORMULA SLOT ENFORCEMENT: Strictly verify that student's answer adheres to the TARGET SENTENCE STRUCTURE slot by slot (including mandatory slots like 'เวลา', 'สถานที่', 'คน', connectors). If ANY slot is omitted (such as omitting 'เวลา' e.g. 'from time to time', 'every day', 'before'), mark isCorrect: false!
 2. Check grammar, sentence structure flow, word choices, spelling, capital first letter, and period '.' at the end.
 3. Provide constructive feedback points in Thai as Kru Whan (using female polite tone ค่ะ/นะคะ, no '!' in Thai text).`;
   } else {
@@ -1518,11 +1279,15 @@ CRITERION 1: SENTENCE STRUCTURE COMPLIANCE (ความถูกต้องต
 - Check whether the student's answer strictly adheres to the TARGET SENTENCE STRUCTURE specified above ("${parsedGuidance.targetSentenceStructure}").
 - In Kru Whan's Sentence Builder courses, EVERY SINGLE SLOT AND PLACEHOLDER IN THE FORMULA IS MANDATORY!
 - ZERO TOLERANCE FOR OMITTING FORMULA SLOTS:
-  * "เวลา" (Time / Timeframe): If the formula contains "เวลา", the student MUST include a time expression (e.g. 'before', 'recently', 'already', 'in the past', 'many times', 'once', 'twice', etc.).
-    CRITICAL EXAMPLE: If formula is "I + have + V.3 + with + คน + เวลา, + [ so I can + V.ไม่ผัน ]" and student writes "I have baked with my mum, so I can help her bake." (omitting 'before' or any time word):
+  * "เวลา" (Time / Timeframe): If the formula contains "เวลา", the student MUST include a time expression (e.g. 'before', 'recently', 'already', 'in the past', 'many times', 'from time to time', 'every day', 'once in a while', 'on weekends', etc.).
+    CRITICAL EXAMPLE 1: If formula is "I + have + V.3 + with + คน + เวลา, + [ so I can + V.ไม่ผัน ]" and student writes "I have baked with my mum, so I can help her bake." (omitting 'before' or any time word):
     -> THIS IS 100% INCORRECT: isCorrect: false!
     -> statusText: "💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ"
     -> In feedbackPoints, explain clearly: "• ตามโครงสร้างประโยคที่กำหนด มีการระบุช่วงเวลา (เวลา) เช่น 'before' หรือ 'recently' ด้วยนะคะ แต่ในประโยคของนักเรียนยังขาดคำระบุเวลาไปค่ะ ลองเติม 'before' ต่อท้ายดูนะคะ"
+    CRITICAL EXAMPLE 2: If formula is "I’m used to + V.ing + เวลา, + [but I still get + คำคุณศัพท์]" (e.g. Model: "I’m used to losing football matches from time to time, but I still get upset.") and student writes "I’m used to losing football matches, but I still get upset." (omitting 'from time to time' or 'every day' or any time expression):
+    -> THIS IS 100% INCORRECT: isCorrect: false!
+    -> statusText: "💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ"
+    -> In feedbackPoints, explain clearly: "• ตามโครงสร้างประโยคที่กำหนด มีการระบุช่วงเวลา (เวลา) เช่น 'from time to time' หรือ 'every day' ด้วยนะคะ แต่ในประโยคของนักเรียนยังขาดคำระบุเวลาไปค่ะ ใกล้แล้วค่ะ สู้ๆ นะคะ"
   * "สถานที่" (Place / Location): If formula contains "สถานที่", the student MUST include a place phrase (e.g. 'in the kitchen', 'at home', 'at the cafe'). Omitting place is INCORRECT: isCorrect: false!
   * "คน" (Person / Someone): If formula contains "with + คน", student MUST include the person being referred to.
   * "คำคุณศัพท์" (Adjective): If formula contains "คำคุณศัพท์", student MUST include an adjective (e.g. 'sleepy', 'tired', 'busy').
@@ -1806,7 +1571,7 @@ CRITERION 2: IMAGE RELEVANCE & ACTION CORRESPONDENCE (ความสอดค�
     (Array.isArray(req.item.acceptable_answers) && req.item.acceptable_answers.some((ans: string) => normalizeForMatch(ans) === studentNorm))
   );
 
-  if (isMatchModel) {
+  if (isMatchModel && structureCompliance.isCompliant) {
     const hasEndingPunctuation = /[.!?]$/.test(req.studentAnswer.trim());
     if (hasEndingPunctuation) {
       isCorrect = true;
@@ -1845,7 +1610,7 @@ CRITERION 2: IMAGE RELEVANCE & ACTION CORRESPONDENCE (ความสอดค�
   const isAboutToOrFuture = /\b(about to|going to)\b/i.test(req.studentAnswer);
   const isRelevantToImage = req.exerciseType !== 'picture_description' || checkImageRelevance(req.item, req.studentAnswer).isRelevant;
 
-  if (isAboutToOrFuture && !isCorrect && !isOver15Min && isRelevantToImage) {
+  if (isAboutToOrFuture && !isCorrect && !isOver15Min && isRelevantToImage && structureCompliance.isCompliant) {
     const hasFalseUpcomingImageMismatch = sanitizedFeedbackPoints.some(pt =>
       /(ไม่สอดคล้องกับภาพ|ไม่ตรงกับภาพ|ไม่ตรงกับสิ่งที่เกิดขึ้นในภาพ)/.test(pt) &&
       /(study|leave|sleep|go|exam|work|read|meet|eat|drink|cook|drive|fifteen|minutes)/i.test(pt)
@@ -2095,7 +1860,24 @@ function evaluateGuidedSentenceLocally(item: any, lower: string, original: strin
   const cleanOriginal = original.replace(/\.{2,}/g, '.');
   const normalizedLower = normalizeContractions(cleanOriginal.toLowerCase());
 
-  // Exact or near model answer match check (100% correct by definition)
+  // 1. Strict Sentence Structure Slot Compliance Verification
+  const parsedGuidance = parseItemGuidanceAndContext(item);
+  let structureCompliance: StructureComplianceResult = { isCompliant: true };
+  if (parsedGuidance.targetSentenceStructure || item?.teacher_guidance || item?.guidance || item?.exercise_guidance || item?.grammar_focus || item?.unit_subtitle || item?.context_hint) {
+    structureCompliance = checkStructureCompliance(
+      parsedGuidance.targetSentenceStructure || item?.teacher_guidance || item?.guidance || item?.exercise_guidance || item?.grammar_focus || item?.unit_subtitle || item?.context_hint || '',
+      cleanOriginal,
+      item
+    );
+    if (!structureCompliance.isCompliant) {
+      isCorrect = false;
+      if (structureCompliance.feedbackPoint && !points.includes(structureCompliance.feedbackPoint)) {
+        points.push(structureCompliance.feedbackPoint);
+      }
+    }
+  }
+
+  // Exact or near model answer match check (100% correct by definition only if structure compliant)
   const normalizeForMatch = (s: string) => {
     let res = (s || '')
       .trim()
@@ -2113,7 +1895,7 @@ function evaluateGuidedSentenceLocally(item: any, lower: string, original: strin
     (Array.isArray(item.acceptable_answers) && item.acceptable_answers.some((ans: string) => normalizeForMatch(ans) === studentNorm))
   );
 
-  if (isMatchModel) {
+  if (isMatchModel && structureCompliance.isCompliant) {
     const hasEndingPunc = /[.!?]$/.test(cleanOriginal.trim());
     if (hasEndingPunc) {
       return {
@@ -2123,23 +1905,6 @@ function evaluateGuidedSentenceLocally(item: any, lower: string, original: strin
         feedbackPoints: ['• โครงสร้างประโยคถูกต้องตามที่กำหนดเรียบร้อยแล้วค่ะ เก่งมากเลยนะคะ'],
         breakdown: { actionValid: true, timeValid: true, purposeValid: true, reasonValid: true }
       };
-    }
-  }
-
-  // 1. Strict Sentence Structure Slot Compliance Verification
-  const parsedGuidance = parseItemGuidanceAndContext(item);
-  let structureCompliance: StructureComplianceResult = { isCompliant: true };
-  if (parsedGuidance.targetSentenceStructure) {
-    structureCompliance = checkStructureCompliance(
-      parsedGuidance.targetSentenceStructure || item.teacher_guidance || '',
-      cleanOriginal,
-      item
-    );
-    if (!structureCompliance.isCompliant) {
-      isCorrect = false;
-      if (structureCompliance.feedbackPoint && !points.includes(structureCompliance.feedbackPoint)) {
-        points.push(structureCompliance.feedbackPoint);
-      }
     }
   }
 
@@ -2213,7 +1978,7 @@ function evaluatePictureDescriptionLocally(item: any, lower: string, original: s
   // 2. Strict Sentence Structure Slot Compliance Verification
   const parsedGuidance = parseItemGuidanceAndContext(item);
   const structureCompliance = checkStructureCompliance(
-    parsedGuidance.targetSentenceStructure || item.teacher_guidance || '',
+    parsedGuidance.targetSentenceStructure || item.teacher_guidance || item.guidance || item.exercise_guidance || item.grammar_focus || item.unit_subtitle || item.context_hint || '',
     original,
     item
   );
@@ -2267,7 +2032,7 @@ function evaluatePictureDescriptionLocally(item: any, lower: string, original: s
     (Array.isArray(item.acceptable_answers) && item.acceptable_answers.some((ans: string) => normalizeForMatch(ans) === studentNorm))
   );
 
-  if (isMatchModel) {
+  if (isMatchModel && structureCompliance.isCompliant) {
     const hasEndingPunc = /[.!?]$/.test(original.trim());
     if (hasEndingPunc) {
       return {
