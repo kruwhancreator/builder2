@@ -35,6 +35,7 @@ import {
   ChevronDown
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { assemblePromptSentence } from '@/lib/offline-checker';
 
 const INITIAL_BOOKS = [
   { 
@@ -2338,19 +2339,7 @@ export default function BackendAdminPage() {
                                     }
 
                                     if (chosenEnWords.length === slotCount) {
-                                      let enSentence = '';
-                                      promptParts.forEach((part: string, pIdx: number) => {
-                                        enSentence += part;
-                                        if (pIdx < chosenEnWords.length) {
-                                          const w = chosenEnWords[pIdx];
-                                          if (enSentence.length > 0 && !enSentence.endsWith(' ') && !w.startsWith(' ') && !w.startsWith(',') && !w.startsWith('.')) {
-                                            enSentence += ' ';
-                                          }
-                                          enSentence += w;
-                                        }
-                                      });
-                                      const cleanEn = enSentence.replace(/\s+/g, ' ').replace(/\s+([,.\?!;:])/g, '$1').trim();
-
+                                      const cleanEn = assemblePromptSentence(promptParts, chosenEnWords);
                                       const normalizedKey = cleanEn.toLowerCase();
                                       if (!seenEnSolutions.has(normalizedKey)) {
                                         seenEnSolutions.add(normalizedKey);

@@ -266,6 +266,53 @@ export function checkOfflineGrammarAndSpelling(
 }
 
 /**
+ * Assembles a sentence from prompt segments (split by blanks /_{2,}/) and filled slot choices.
+ * Intelligent Punctuation & Abbreviation Detector:
+ * If a choice ends with a period (.) such as "3 p.m." or "6 a.m." or "Dr."
+ * and it is placed before a period in the question (e.g. "____."),
+ * one period is automatically removed so we never get duplicate full stops (e.g. "3 p.m..").
+ * Meanwhile, if the choice is placed before a connector or comma (e.g. "____, so..."),
+ * the abbreviation period is preserved (e.g. "3 p.m., so...").
+ */
+export function assemblePromptSentence(parts: string[], slotWords: string[]): string {
+  let res = '';
+  const workingParts = [...parts];
+
+  for (let i = 0; i < workingParts.length; i++) {
+    res += workingParts[i];
+    if (i < slotWords.length) {
+      const w = (slotWords[i] || '').trim();
+      if (!w) continue;
+
+      if (res.length > 0 && !res.endsWith(' ') && !w.startsWith(' ') && !w.startsWith(',') && !w.startsWith('.')) {
+        res += ' ';
+      }
+      res += w;
+
+      // Detector: If choice ends with '.' (e.g. '3 p.m.') and next prompt part starts with '.', remove one period
+      if (i + 1 < workingParts.length) {
+        const nextPart = workingParts[i + 1] || '';
+        if (w.endsWith('.') && /^\s*\./.test(nextPart)) {
+          workingParts[i + 1] = nextPart.replace(/^\s*\./, '');
+        }
+      }
+    }
+  }
+
+  let finalStr = res
+    .replace(/\s+/g, ' ')
+    .replace(/\s+([,.\?!;:])/g, '$1')
+    .replace(/\.{2,}/g, '.')
+    .trim();
+
+  if (finalStr && !finalStr.endsWith('.') && !finalStr.endsWith('?') && !finalStr.endsWith('!')) {
+    finalStr += '.';
+  }
+
+  return finalStr;
+}
+
+/**
  * Smart Modular Grammar & Coherence Checker for Exercise 2 (Choose Provided Word)
  * Features Modular Translation Auto-Assembly from thai_template and word bank {en, th}
  * Tier 1: Completeness check
@@ -278,7 +325,7 @@ export function checkGuidedSentenceExercise(
   studentAnswer: string,
   categories: Array<{ order: number; name?: string; category_name?: string; words?: Array<string | { en: string; th?: string }>; word_bank?: Array<string | { en: string; th?: string }>; }> = []
 ): OfflineCheckResult {
-  const raw = normalizeTypography(studentAnswer || '');
+  const raw = normalizeTypography(studentAnswer || '').replace(/\.{2,}/g, '.');
   if (!raw) {
     return {
       isCorrect: false,
@@ -362,17 +409,9 @@ export function checkGuidedSentenceExercise(
     }
 
     if (rowWords.length === requiredOrders.length) {
-      let candidateEn = '';
-      if (promptParts.length > 1) {
-        promptParts.forEach((part: string, pIdx: number) => {
-          candidateEn += part;
-          if (pIdx < rowWords.length) {
-            candidateEn += rowWords[pIdx].en;
-          }
-        });
-      } else {
-        candidateEn = rowWords.map(w => w.en).join(' ');
-      }
+      const candidateEn = promptParts.length > 1
+        ? assemblePromptSentence(promptParts, rowWords.map(w => w.en))
+        : rowWords.map(w => w.en).join(' ');
 
       const normalizeSentence = (s: string) =>
         normalizeContractions(normalizeTypography(s))

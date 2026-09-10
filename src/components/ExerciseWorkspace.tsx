@@ -17,7 +17,7 @@ import {
   Home
 } from 'lucide-react';
 import { EvaluationResult } from '@/lib/evaluator';
-import { checkOfflineGrammarAndSpelling, checkGuidedSentenceExercise } from '@/lib/offline-checker';
+import { checkOfflineGrammarAndSpelling, checkGuidedSentenceExercise, assemblePromptSentence } from '@/lib/offline-checker';
 
 interface ExerciseWorkspaceProps {
   chapter: string;
@@ -77,25 +77,9 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
     setAnswers(prev => ({ ...prev, [key]: text }));
   };
 
-  // Reconstruct sentence from prompt static segments and placed slot words
+  // Reconstruct sentence from prompt static segments and placed slot words using intelligent abbreviation & punctuation detector
   const reconstructSentence = (parts: string[], slots: string[]) => {
-    let res = '';
-    for (let i = 0; i < parts.length; i++) {
-      res += parts[i];
-      if (i < slots.length && slots[i]) {
-        const slotVal = slots[i].trim();
-        if (res.length > 0 && !res.endsWith(' ') && !slotVal.startsWith(' ') && !slotVal.startsWith(',') && !slotVal.startsWith('.')) {
-          res += ' ';
-        }
-        res += slotVal;
-      }
-    }
-    // Clean up multiple spaces and spaces before punctuation (, . ? !)
-    let finalStr = res.replace(/\s+/g, ' ').replace(/\s+([,.\?!;:])/g, '$1').trim();
-    if (finalStr && !finalStr.endsWith('.') && !finalStr.endsWith('?') && !finalStr.endsWith('!')) {
-      finalStr += '.';
-    }
-    return finalStr;
+    return assemblePromptSentence(parts, slots);
   };
 
   const handleSlotInputChange = (key: string, parts: string[], slotIdx: number, val: string, totalSlots: number) => {
@@ -244,7 +228,7 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
       const points: string[] = [];
 
       if (data.feedbackPoints && data.feedbackPoints.length > 0) {
-        points.push(...data.feedbackPoints.map(p => `• ${p}`));
+        points.push(...data.feedbackPoints.map((p: string) => `• ${p}`));
       }
 
       if (data.correctedSentence && data.correctedSentence.trim() !== studentAns.trim()) {
@@ -554,6 +538,8 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                               }
                               const textContent = cleanPart.trim();
                               const trailingPunc = trailingPuncs[pIdx] || '';
+                              // Detector: If choice already ends with '.' (e.g. 3 p.m. or 6 a.m.) and trailing punctuation is '.', hide the redundant outer dot
+                              const shouldHideTrailingPunc = trailingPunc === '.' && currentVal.trim().endsWith('.');
 
                               return (
                                 <Fragment key={pIdx}>
@@ -567,10 +553,10 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                                         value={currentVal}
                                         onChange={(e) => handleSlotInputChange(key, promptParts, pIdx, e.target.value, slotCount)}
                                         placeholder={placeholderText}
-                                        style={{ width: `${dynamicWidth}px`, maxWidth: trailingPunc ? 'calc(100% - 1.25rem)' : '100%' }}
+                                        style={{ width: `${dynamicWidth}px`, maxWidth: (trailingPunc && !shouldHideTrailingPunc) ? 'calc(100% - 1.25rem)' : '100%' }}
                                         className="inline-block px-2.5 sm:px-3 py-1.5 rounded-xl border-2 border-dashed border-blue-400 bg-blue-50/70 focus:bg-white text-sm sm:text-base font-bold text-[#1e3a8a] text-center outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-all font-mono shadow-2xs placeholder:text-blue-400/80 placeholder:font-sans placeholder:text-xs sm:placeholder:text-sm placeholder:font-semibold max-w-full min-w-[80px] sm:min-w-[120px]"
                                       />
-                                      {trailingPunc && (
+                                      {trailingPunc && !shouldHideTrailingPunc && (
                                         <span className="font-mono font-bold text-[#1e3a8a] text-base ml-1 select-none shrink-0">
                                           {trailingPunc}
                                         </span>
@@ -670,14 +656,7 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                             }
 
                             if (chosenWords.length === slotCount) {
-                              let s = '';
-                              promptParts.forEach((part: string, pIdx: number) => {
-                                s += part;
-                                if (pIdx < chosenWords.length) {
-                                  s += chosenWords[pIdx];
-                                }
-                              });
-                              const cleanSentence = s.replace(/\s+/g, ' ').replace(/\s+([,.\?!;:])/g, '$1').trim();
+                              const cleanSentence = assemblePromptSentence(promptParts, chosenWords);
                               const normalizedKey = cleanSentence.toLowerCase();
 
                               if (!seenEn.has(normalizedKey)) {

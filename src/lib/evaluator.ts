@@ -319,11 +319,15 @@ export function parseItemGuidanceAndContext(item: any): ParsedItemGuidance {
   const uniqueStructures = filterSubstrings(allStructures);
   const uniqueImages = filterSubstrings(allImagePrompts);
 
+  const defaultStructureForPicture = (item?.image_description || item?.exercise_type === 'picture_description' || rawImageDesc)
+    ? `Core: I + do + [ V.ไม่ผัน ]\nContext: [ to + V.ไม่ผัน ]\nConnect: [ even when I'm + คำคุณศัพท์ ]`
+    : '';
+
   const targetSentenceStructure = uniqueStructures.join('\n\n') || 
                                  item?.grammar_focus || 
                                  item?.exercise_guidance || 
                                  item?.unit_subtitle || 
-                                 `Core: I + do + [ V.ไม่ผัน ]\nContext: [ to + V.ไม่ผัน ]\nConnect: [ even when I'm + คำคุณศัพท์ ]`;
+                                 defaultStructureForPicture;
 
   const targetImageDescription = uniqueImages.join('\n\n') || 
                                 rawImageDesc || 
@@ -807,7 +811,8 @@ export const VALID_ENGLISH_WORDS = new Set<string>([
   'sick', 'ill', 'healthy', 'fit', 'beautiful', 'pretty', 'handsome', 'cute', 'ugly',
   'right', 'correct', 'wrong', 'true', 'false', 'ready', 'sure', 'certain', 'important',
   'special', 'popular', 'famous', 'similar', 'different', 'same', 'next', 'last', 'first',
-  'second', 'third', 'final', 'able', 'unable', 'possible', 'impossible', 'likely', 'realistic'
+  'second', 'third', 'final', 'able', 'unable', 'possible', 'impossible', 'likely', 'realistic',
+  'am', 'pm', 'a.m.', 'p.m.', 'p', 'm', "o'clock", 'dr', 'mr', 'mrs', 'ms'
 ]);
 
 /**
@@ -908,7 +913,7 @@ export function checkStructureCompliance(
   const hasTimeSlotInFormula = /(?:^|[^\u0E00-\u0E7Fa-zA-Z0-9])(?:เวลา|ช่วงเวลา)(?:[^\u0E00-\u0E7Fa-zA-Z0-9]|$)/i.test(rawStructure) ||
                                /\b(?:time|timeframe)\b/i.test(rawStructure);
   if (hasTimeSlotInFormula) {
-    const timeExpressionRegex = /\b(before|already|yet|just|recently|lately|in the past|many times|several times|once|twice|three times|often|always|never|ever|earlier|previously|today|tonight|yesterday|tomorrow|this morning|this afternoon|this evening|now|later|soon|every\s+(?:day|week|month|year|morning|night|single\s+day|other\s+day)|each\s+(?:day|week|month|year)|on\s+(?:weekends?|mondays?|tuesdays?|wednesdays?|thursdays?|fridays?|saturdays?|sundays?)|at\s+night|in\s+(?:the\s+morning|the\s+afternoon|the\s+evening)|in\s+\w+\s+minutes?|for\s+\w+\s+(?:hours?|days?|weeks?|months?|years?)|since\s+\w+|from\s+time\s+to\s+time|once\s+in\s+a\s+while|at\s+times|all\s+the\s+time|sometimes|usually|normally|regularly|frequently|rarely|seldom|daily|weekly|monthly|yearly)\b/i;
+    const timeExpressionRegex = /\b(before|already|yet|just|recently|lately|in the past|many times|several times|once|twice|three times|often|always|never|ever|earlier|previously|today|tonight|yesterday|tomorrow|this morning|this afternoon|this evening|now|later|soon|every\s+(?:day|week|month|year|morning|night|single\s+day|other\s+day)|each\s+(?:day|week|month|year)|on\s+(?:weekends?|mondays?|tuesdays?|wednesdays?|thursdays?|fridays?|saturdays?|sundays?)|at\s+night|in\s+(?:the\s+morning|the\s+afternoon|the\s+evening)|in\s+\w+\s+minutes?|for\s+\w+\s+(?:hours?|days?|weeks?|months?|years?)|since\s+\w+|from\s+time\s+to\s+time|once\s+in\s+a\s+while|at\s+times|all\s+the\s+time|sometimes|usually|normally|regularly|frequently|rarely|seldom|daily|weekly|monthly|yearly|\d{1,2}(?::\d{2})?\s*(?:a\.?m\.?|p\.?m\.?|o'clock)|midnight|noon)\b/i;
     if (!timeExpressionRegex.test(sLower)) {
       let exampleWords = '"before" หรือ "recently"';
       if (/used\s+to/i.test(rawStructure) || /from\s+time\s+to\s+time/i.test(rawStructure + (item?.model_answer || ''))) {
@@ -1284,6 +1289,10 @@ UNIVERSAL PEDAGOGICAL EVALUATION FRAMEWORK:
          * Set statusText: "💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ".
          * In feedbackPoints, explain: "• ขาดเครื่องหมายจุลภาค (Comma ,) หน้าคำเชื่อม 'so' นะคะ เมื่อเชื่อมสองประโยคเข้าด้วยกัน ควรใส่เป็น ', so' ค่ะ"
      * Full Stop / Period (.): Every sentence MUST end with a period (.). If missing, set isCorrect: false, and advise: "• อย่าลืมใส่เครื่องหมายจุด Full Stop (.) ท้ายประโยคด้วยนะคะ"
+      * ABBREVIATIONS AT END OF SENTENCE (e.g. '3 p.m.', '6 a.m.', 'p.m.', 'a.m.', 'etc.'):
+        - By standard English grammar and punctuation rules, when a sentence ends with an abbreviation that has a period (such as '3 p.m.' or '6 a.m.'), a single period serves both as the abbreviation dot and the end-of-sentence full stop (e.g. "I wake up at 6 a.m.").
+        - NEVER demand two periods ("3 p.m.."). If the student writes "3 p.m." at the end, it is 100% CORRECT!
+        - If software template concatenation produced "3 p.m..", treat it as "3 p.m." and NEVER penalize the student!
      * Capitalization: The first letter of the sentence MUST be capitalized (e.g. "I'm", "He", "The").
    - DETERMINERS & COLLOCATIONS:
      * Specific objects and household chores require appropriate articles/determiners (e.g. "do the dishes" or "wash the dishes", NOT "do dishes"; "make the bed", NOT "make bed"; "take out the trash", NOT "take out trash").
@@ -2011,7 +2020,7 @@ function sanitizeThaiStudentPronouns(text: string): string {
 }
 
 function evaluateLocally(req: EvaluationRequest): EvaluationResult {
-  const cleanAnswer = req.studentAnswer.trim();
+  const cleanAnswer = req.studentAnswer.trim().replace(/\.{2,}/g, '.');
   const lowerAnswer = cleanAnswer.toLowerCase();
 
   if (!cleanAnswer) {
@@ -2083,24 +2092,59 @@ function evaluateTranslationLocally(item: any, lower: string, original: string):
 function evaluateGuidedSentenceLocally(item: any, lower: string, original: string): EvaluationResult {
   const points: string[] = [];
   let isCorrect = true;
-  const normalizedLower = normalizeContractions(lower);
+  const cleanOriginal = original.replace(/\.{2,}/g, '.');
+  const normalizedLower = normalizeContractions(cleanOriginal.toLowerCase());
+
+  // Exact or near model answer match check (100% correct by definition)
+  const normalizeForMatch = (s: string) => {
+    let res = (s || '')
+      .trim()
+      .replace(/[.!?]+$/, '')
+      .replace(/['’]/g, "'")
+      .replace(/\s+/g, ' ')
+      .toLowerCase();
+    return res;
+  };
+
+  const studentNorm = normalizeForMatch(cleanOriginal);
+  const modelNorm = normalizeForMatch(item.model_answer);
+  const isMatchModel = modelNorm.length > 0 && (
+    studentNorm === modelNorm ||
+    (Array.isArray(item.acceptable_answers) && item.acceptable_answers.some((ans: string) => normalizeForMatch(ans) === studentNorm))
+  );
+
+  if (isMatchModel) {
+    const hasEndingPunc = /[.!?]$/.test(cleanOriginal.trim());
+    if (hasEndingPunc) {
+      return {
+        isCorrect: true,
+        statusText: 'ถูกต้องเลยค่ะ เก่งมากเลย 👏',
+        correctedSentence: item.model_answer || cleanOriginal,
+        feedbackPoints: ['• โครงสร้างประโยคถูกต้องตามที่กำหนดเรียบร้อยแล้วค่ะ เก่งมากเลยนะคะ'],
+        breakdown: { actionValid: true, timeValid: true, purposeValid: true, reasonValid: true }
+      };
+    }
+  }
 
   // 1. Strict Sentence Structure Slot Compliance Verification
   const parsedGuidance = parseItemGuidanceAndContext(item);
-  const structureCompliance = checkStructureCompliance(
-    parsedGuidance.targetSentenceStructure || item.teacher_guidance || '',
-    original,
-    item
-  );
-  if (!structureCompliance.isCompliant) {
-    isCorrect = false;
-    if (structureCompliance.feedbackPoint && !points.includes(structureCompliance.feedbackPoint)) {
-      points.push(structureCompliance.feedbackPoint);
+  let structureCompliance: StructureComplianceResult = { isCompliant: true };
+  if (parsedGuidance.targetSentenceStructure) {
+    structureCompliance = checkStructureCompliance(
+      parsedGuidance.targetSentenceStructure || item.teacher_guidance || '',
+      cleanOriginal,
+      item
+    );
+    if (!structureCompliance.isCompliant) {
+      isCorrect = false;
+      if (structureCompliance.feedbackPoint && !points.includes(structureCompliance.feedbackPoint)) {
+        points.push(structureCompliance.feedbackPoint);
+      }
     }
   }
 
   // 2. Strict Spelling & Typo Enforcement
-  const typos = detectSpellingAndTypos(original, item.model_answer, item.acceptable_answers);
+  const typos = detectSpellingAndTypos(cleanOriginal, item.model_answer, item.acceptable_answers);
   if (typos.length > 0) {
     isCorrect = false;
     for (const err of typos) {
@@ -2110,8 +2154,8 @@ function evaluateGuidedSentenceLocally(item: any, lower: string, original: strin
     }
   }
 
-  let fixedSentence = original;
-  if (/\bmakeing\b/i.test(original)) {
+  let fixedSentence = cleanOriginal;
+  if (/\bmakeing\b/i.test(cleanOriginal)) {
     isCorrect = false;
     if (!points.some(pt => pt.includes('makeing'))) {
       points.push('• สะกดคำผิด: "makeing" ควรแก้เป็น "making" (ตัด e ก่อนเติม -ing นะคะ)');
@@ -2119,7 +2163,7 @@ function evaluateGuidedSentenceLocally(item: any, lower: string, original: strin
     fixedSentence = fixedSentence.replace(/\bmakeing\b/gi, 'making');
   }
 
-  const hasFullStop = original.endsWith('.');
+  const hasFullStop = cleanOriginal.endsWith('.');
   if (!hasFullStop) {
     isCorrect = false;
     points.push('• อย่าลืมใส่เครื่องหมายจุด Full Stop (.) ท้ายประโยคด้วยนะคะ');
