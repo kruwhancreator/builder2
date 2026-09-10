@@ -205,7 +205,7 @@ export interface ParsedItemGuidance {
   rawContextHint: string;
 }
 
-const STRUCTURE_MARKER_REGEX = /(?:^|\n|\b)(?:Core:|Context:|Connect:|Structure:|Pattern:|Blueprint:|สูตรโครงสร้าง:|โครงสร้างประโยค:|โครงสร้าง:|S\s*\+|Subject\s*\+|I\s*\+|V\.ไม่ผัน|V\.ing|V\.3|V\.inf|Base Verb|Past Participle|about to|\.\.\.,\s*but)\b/i;
+const STRUCTURE_MARKER_REGEX = /(?:^|\n|\b)(?:Sentence\s+Structure|Core|Context|Connect|Structure|Pattern|Blueprint|สูตรโครงสร้าง|โครงสร้างประโยค|โครงสร้าง)\s*[:=]|(?:^|\n|\b)(?:S\s*\+|Subject\s*\+|I\s*\+|I['’]?(?:m|ve|have|do)\b.*?[\+\[]|V\.ไม่ผัน|V\.ing|V\.3|V\.inf|Base\s+Verb|Past\s+Participle|about\s+to|\.\.\.,\s*but|กริยาเติม|\+\s*for\s*\+|ผลรวมเวลา|\+\s*\[\s*so)/i;
 
 function splitTextIntoStructureAndImage(text: string): { structureParts: string[]; imageParts: string[] } {
   const structureParts: string[] = [];
@@ -1065,6 +1065,29 @@ export function checkStructureCompliance(
     }
   }
 
+  // 12. Duration Slot with "for": "for + ผลรวมเวลา"
+  if (/(?:for\s*\+\s*ผลรวมเวลา|ผลรวมเวลา)/i.test(rawStructure)) {
+    const forDurationRegex = /\bfor\s+(?:\w+\s+)?(?:hours?|minutes?|days?|weeks?|months?|years?|a\s+long\s+time|a\s+while|a\s+moment|ages|several\s+\w+)\b/i;
+    if (!forDurationRegex.test(sLower)) {
+      return {
+        isCompliant: false,
+        missingSlotName: 'for + ผลรวมเวลา',
+        feedbackPoint: '• ตามโครงสร้างประโยคที่กำหนด มีการระบุช่วงเวลา (for + ผลรวมเวลา) เช่น "for hours" หรือ "for a long time" ด้วยนะคะ แต่ในประโยคของนักเรียนยังขาดส่วนนี้ไปค่ะ ใกล้แล้วค่ะ สู้ๆ นะคะ'
+      };
+    }
+  }
+
+  // 13. Clause Slot: "[ so I'm + คำคุณศัพท์ ]"
+  if (/\[\s*so\s+I(?:'|’)?m\s*\+\s*คำคุณศัพท์/i.test(rawStructure)) {
+    if (!/\bso\s+(?:I\s+am|I'm|I’m)\b/i.test(sLower)) {
+      return {
+        isCompliant: false,
+        missingSlotName: "so I'm",
+        feedbackPoint: '• ในประโยคยังขาดส่วนเชื่อม "[ so I’m + คำคุณศัพท์ ]" ตามโครงสร้างที่กำหนดนะคะ ใกล้แล้วค่ะ สู้ๆ นะคะ'
+      };
+    }
+  }
+
   return { isCompliant: true };
 }
 
@@ -1106,6 +1129,10 @@ TONE, POLITE PARTICLES & PRONOUNS (STRICT RULES):
   * In Thai writing, we do NOT use exclamation marks ("!").
   * NEVER put "!" in Thai feedback, encouragement, or sentence endings (e.g. NEVER write "เก่งแล้วค่ะ!", "สู้ๆ นะคะ!", "ถูกต้องเลยค่ะ!", "ลองดูนะคะ!").
   * Always write "เก่งแล้วค่ะ", "สู้ๆ นะคะ", "ถูกต้องเลยค่ะ" without any "!" in Thai text!
+
+- NATURAL THAI ENCOURAGEMENT PHRASING (CRITICAL):
+  * When encouraging a student who is close to getting the sentence right, always use natural Thai phrasing: "ใกล้แล้วค่ะ สู้ๆ นะคะ".
+  * NEVER say or write unnatural phrasing like "เก่งใกล้แล้วค่ะ" or "เก่งใกล้แล้ว"! Always write "ใกล้แล้วค่ะ สู้ๆ นะคะ".
 
 CRITICAL DISTINCTION: CALLING THE USER VS TRANSLATING EXERCISE CONTENT:
 1. CALLING / ADDRESSING THE USER (การเรียกตัวผู้ใช้งาน / คุยกับผู้เรียน):
@@ -1923,7 +1950,11 @@ function sanitizeThaiStudentPronouns(text: string): string {
     .replace(/ข้อความของคุณ/g, 'ข้อความของนักเรียน')
     .replace(/การบ้านของคุณ/g, 'การบ้านของนักเรียน')
     .replace(/ของตัวคุณ/g, 'ของตัวนักเรียน')
-    .replace(/ตัวคุณ/g, 'ตัวนักเรียน');
+    .replace(/ตัวคุณ/g, 'ตัวนักเรียน')
+    .replace(/เก่งใกล้แล้วค่ะ\s*สู้ๆ\s*นะคะ/g, 'ใกล้แล้วค่ะ สู้ๆ นะคะ')
+    .replace(/เก่งใกล้แล้วค่ะ/g, 'ใกล้แล้วค่ะ')
+    .replace(/เก่งใกล้แล้วนะคะ/g, 'ใกล้แล้วนะคะ')
+    .replace(/เก่งใกล้แล้ว/g, 'ใกล้แล้ว');
   return stripThaiExclamationMarks(sanitized);
 }
 
