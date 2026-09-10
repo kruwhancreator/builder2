@@ -1,4 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
+import { getLevenshteinDistance } from './offline-checker';
 
 export interface EvaluationRequest {
   exerciseType: 'translation' | 'guided_sentence' | 'picture_description';
@@ -533,6 +534,160 @@ export function checkImageRelevance(item: any, studentAnswer: string): ImageRele
   };
 }
 
+export interface SpellingError {
+  typed: string;
+  correction: string;
+}
+
+export const COMMON_TYPOS: Record<string, string> = {
+  // Family & People
+  'mu': 'mum',
+  'mome': 'mom',
+  'mommy': 'mom',
+  'fathr': 'father',
+  'mothr': 'mother',
+  'brothr': 'brother',
+  'sistr': 'sister',
+  'freind': 'friend',
+  'freinds': 'friends',
+  'frind': 'friend',
+  'frinds': 'friends',
+  'peaple': 'people',
+  'pepole': 'people',
+  'custmer': 'customer',
+  'custmers': 'customers',
+  'customr': 'customer',
+  'techer': 'teacher',
+  'studnt': 'student',
+  'studnts': 'students',
+  
+  // Verbs & Suffixes (-ing, -ed)
+  'makeing': 'making',
+  'takeing': 'taking',
+  'haveing': 'having',
+  'comeing': 'coming',
+  'bakeing': 'baking',
+  'cookeing': 'cooking',
+  'writeing': 'writing',
+  'writting': 'writing',
+  'studing': 'studying',
+  'runing': 'running',
+  'swimmin': 'swimming',
+  'swiming': 'swimming',
+  'stoped': 'stopped',
+  'buring': 'burning',
+  'drived': 'drove',
+  'eated': 'ate',
+  'drinked': 'drank',
+  
+  // Common Connectors & Adverbs
+  'becuase': 'because',
+  'becasue': 'because',
+  'becaus': 'because',
+  'alway': 'always',
+  'alwayes': 'always',
+  'sometime': 'sometimes',
+  'untill': 'until',
+  'realy': 'really',
+  'alot': 'a lot',
+  'everyweek': 'every week',
+  'everday': 'every day',
+  'befor': 'before',
+  'befoer': 'before',
+  'alredy': 'already',
+  'recentlyy': 'recently',
+  'tomorow': 'tomorrow',
+  'tommorrow': 'tomorrow',
+  'yesturday': 'yesterday',
+  'yesterdy': 'yesterday',
+  
+  // Common Nouns & Adjectives
+  'coffe': 'coffee',
+  'coffie': 'coffee',
+  'dishess': 'dishes',
+  'bok': 'book',
+  'boks': 'books',
+  'shool': 'school',
+  'restarant': 'restaurant',
+  'restraunt': 'restaurant',
+  'resturant': 'restaurant',
+  'beutiful': 'beautiful',
+  'beatiful': 'beautiful',
+  'tiired': 'tired',
+  'slepy': 'sleepy',
+  'sleepi': 'sleepy',
+  'exhasted': 'exhausted',
+  'hungrey': 'hungry',
+  'helpfull': 'helpful'
+};
+
+/**
+ * Detects misspelled words or typos in student answer by checking known common errors
+ * and comparing words against the target model answer and acceptable variations.
+ */
+export function detectSpellingAndTypos(
+  studentAnswer: string,
+  modelAnswer?: string,
+  acceptableAnswers?: string[]
+): SpellingError[] {
+  if (!studentAnswer) return [];
+  const errors: SpellingError[] = [];
+  const cleanTokens = studentAnswer.toLowerCase().replace(/[.,!?;:()[\]{}"'’]/g, ' ').split(/\s+/).filter(Boolean);
+
+  // 1. Check known common typos dictionary
+  for (const tok of cleanTokens) {
+    if (COMMON_TYPOS[tok]) {
+      if (!errors.some(e => e.typed.toLowerCase() === tok)) {
+        errors.push({ typed: tok, correction: COMMON_TYPOS[tok] });
+      }
+    }
+  }
+
+  // 2. Align with model answer & acceptable answers
+  if (modelAnswer) {
+    const allTargets = [modelAnswer, ...(acceptableAnswers || [])];
+    const targetWordPool = new Set(
+      allTargets.join(' ').toLowerCase().replace(/[.,!?;:()[\]{}"'’]/g, ' ').split(/\s+/).filter(Boolean)
+    );
+
+    const studentWords = studentAnswer.toLowerCase().replace(/[.,!?;:()[\]{}"'’]/g, ' ').split(/\s+/).filter(Boolean);
+    const modelWords = modelAnswer.toLowerCase().replace(/[.,!?;:()[\]{}"'’]/g, ' ').split(/\s+/).filter(Boolean);
+
+    for (let i = 0; i < studentWords.length; i++) {
+      const sw = studentWords[i];
+      if (targetWordPool.has(sw) || errors.some(e => e.typed.toLowerCase() === sw)) continue;
+
+      // Collocation / adjacent position check (e.g. "my mu" -> next word in model is "mum")
+      if (i > 0) {
+        const prevSw = studentWords[i - 1];
+        const modelIdx = modelWords.indexOf(prevSw);
+        if (modelIdx !== -1 && modelIdx + 1 < modelWords.length) {
+          const expectedNext = modelWords[modelIdx + 1];
+          const dist = getLevenshteinDistance(sw, expectedNext);
+          if (dist > 0 && dist <= 2 && Math.abs(sw.length - expectedNext.length) <= 2) {
+            if (!errors.some(e => e.typed.toLowerCase() === sw)) {
+              errors.push({ typed: sw, correction: expectedNext });
+              continue;
+            }
+          }
+        }
+      }
+
+      // General distance check against target pool words
+      for (const tw of Array.from(targetWordPool)) {
+        if (tw.length >= 3 && Math.abs(sw.length - tw.length) <= 1) {
+          const dist = getLevenshteinDistance(sw, tw);
+          if (dist === 1 && !errors.some(e => e.typed.toLowerCase() === sw)) {
+            errors.push({ typed: sw, correction: tw });
+          }
+        }
+      }
+    }
+  }
+
+  return errors;
+}
+
 export interface StructureComplianceResult {
   isCompliant: boolean;
   missingSlotName?: string;
@@ -768,6 +923,15 @@ UNIVERSAL PEDAGOGICAL EVALUATION FRAMEWORK:
      * Subject-Verb Agreement: Ensure the subject matches the auxiliary/verb (e.g. "He is" vs "He are").
      * Verb Forms: Check that the verb is in the exact required form (e.g. Past Participle V.3, V.ing, Base form).
      * Prepositions, Articles (a/an/the), Punctuation (Capital start, period '.' at end), and Spelling must all be strictly verified.
+     * STRICT SPELLING & TYPO AUDIT (ZERO TOLERANCE FOR MISSPELLED/DROPPED WORDS):
+       - Audit EVERY SINGLE WORD the student wrote for spelling errors, typos, or dropped letters (e.g. 'mu' for 'mum'/'mom', 'makeing' for 'making', 'studing' for 'studying', 'freind' for 'friend', 'becuase' for 'because', 'writting' for 'writing', 'buring' for 'burning', 'coffe' for 'coffee').
+       - If the student has ANY typo or misspelled word:
+         1) MUST mark as INCORRECT: isCorrect: false!
+         2) Set statusText: "💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ"
+         3) In "spellingErrors", list the error: [{ "typed": "mu", "correction": "mum" }]
+         4) In "feedbackPoints", EXPLICITLY call out the exact typo and explain:
+            "• สะกดคำผิด: คำว่า '[คำที่พิมพ์ผิด เช่น mu]' น่าจะพิมพ์ตกหรือสะกดผิดมาจากคำว่า '[คำที่ถูกต้อง เช่น mum]' นะคะ อย่าลืมตรวจสอบตัวสะกดด้วยนะคะ"
+         5) NEVER quietly autocorrect the typo in your mind or translation without alerting the student!
      * If there is ANY grammatical error, mark isCorrect: false and explain the error kindly.
 
 3. STRICT PUNCTUATION MARKS, DETERMINERS & PRONOUN-ANTECEDENT AGREEMENT (TEACHER'S RIGOROUS CHECK):
@@ -910,6 +1074,7 @@ CRITICAL RESPONSE FORMAT: Respond ONLY with valid raw JSON matching this schema:
   "studentTranslation": "string in Thai translating what the student wrote",
   "correctedSentence": "string (A natural, fully correct sentence conforming to the target formula)",
   "feedbackPoints": ["string in Thai", "string in Thai"],
+  "spellingErrors": [{ "typed": "string", "correction": "string" }],
   "breakdown": { "core": boolean, "context": boolean, "connect": boolean }
 }
 Do not wrap in markdown code blocks. Return pure raw JSON string only.`;
@@ -1081,10 +1246,18 @@ CRITERION 2: IMAGE RELEVANCE & ACTION CORRESPONDENCE (ความสอดค�
       * In feedbackPoints, praise the grammar first, then add advice:
         "• คำแนะนำเพิ่มเติมเพื่อความเป็นธรรมชาติ: ท่อนหลังที่ว่า 'now I do that' แนะนำให้ปรับเป็น 'now I do it regularly' หรือ 'now I enjoy doing so' จะสละสลวยกว่านะคะ"
       * In correctedSentence, provide the polished phrasing.
-13. If the sentence is 100% grammatically correct, adheres strictly to the target sentence structure, logically matches the image elements and gender, and is plausible in real life:
+14. STRICT SPELLING & TYPO AUDIT:
+    - Audit every single word in the student answer for typos or dropped letters (e.g. 'mu' for 'mum'/'mom', 'makeing' for 'making', 'freind' for 'friend', 'studing' for 'studying', 'becuase' for 'because', 'writting' for 'writing', 'buring' for 'burning', 'coffe' for 'coffee').
+    - If ANY word is misspelled or truncated:
+      * Mark isCorrect: false!
+      * statusText: "💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ"
+      * List in "spellingErrors": [{ "typed": "...", "correction": "..." }]
+      * Explain in feedbackPoints: "• สะกดคำผิด: คำว่า '[คำที่พิมพ์ผิด]' น่าจะสะกดผิดหรือพิมพ์ตกมาจากคำว่า '[คำที่ถูกต้อง]' นะคะ อย่าลืมตรวจสอบตัวสะกดด้วยนะคะ"
+      * Never quietly autocorrect typos without advising the student!
+15. If the sentence is 100% grammatically correct, has no typos, adheres strictly to the target sentence structure, logically matches the image elements and gender, and is plausible in real life:
     - Set isCorrect: true, statusText: "ถูกต้องเลยค่ะ เก่งมากเลย 👏", and praise their sentence in feedbackPoints.
-14. If there are errors (image mismatch, structure mismatch, missing comma, determiner error, pronoun mismatch, grammatical error, unrealistic habit, entity mismatch, gender mismatch), explain kindly in feedbackPoints using the term "นักเรียน" and provide the best corrected sentence conforming to the target formula in "correctedSentence".
-15. Use Kru Whan's female polite tone (ค่ะ/นะคะ/เลยค่ะ) throughout all feedbackPoints.`;
+16. If there are errors (typos, image mismatch, structure mismatch, missing comma, determiner error, pronoun mismatch, grammatical error, unrealistic habit, entity mismatch, gender mismatch), explain kindly in feedbackPoints using the term "นักเรียน" and provide the best corrected sentence conforming to the target formula in "correctedSentence".
+17. Use Kru Whan's female polite tone (ค่ะ/นะคะ/เลยค่ะ) throughout all feedbackPoints.`;
   }
 
   const modelsToTry = [
@@ -1210,6 +1383,37 @@ CRITERION 2: IMAGE RELEVANCE & ACTION CORRESPONDENCE (ความสอดค�
         cleanBreakdown.connect = false;
       } else {
         cleanBreakdown.core = false;
+      }
+    }
+  }
+
+  // Strict Spelling & Typo Enforcement
+  const codeDetectedTypos = detectSpellingAndTypos(req.studentAnswer, req.item.model_answer, req.item.acceptable_answers);
+  const geminiSpellingErrors: Array<{ typed?: string; correction?: string }> = Array.isArray(parsed.spellingErrors) ? parsed.spellingErrors : [];
+  const allTypos = [...codeDetectedTypos];
+  for (const gErr of geminiSpellingErrors) {
+    if (gErr?.typed && gErr?.correction && !allTypos.some(t => t.typed.toLowerCase() === gErr.typed?.toLowerCase())) {
+      allTypos.push({ typed: gErr.typed, correction: gErr.correction });
+    }
+  }
+
+  if (allTypos.length > 0) {
+    isCorrect = false;
+    parsed.statusText = '💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ';
+
+    // Remove false praise from previous AI feedback points
+    sanitizedFeedbackPoints = sanitizedFeedbackPoints.filter(pt =>
+      !/(ถูกต้อง|เก่งมาก|เยี่ยมมาก|ยอดเยี่ยม|ดีมาก|สอดคล้องกับบริบทของภาพ)/.test(pt)
+    );
+
+    for (const err of allTypos) {
+      const alreadyMentioned = sanitizedFeedbackPoints.some(pt =>
+        pt.toLowerCase().includes(err.typed.toLowerCase()) && (pt.includes('สะกด') || pt.includes('พิมพ์ตก'))
+      );
+      if (!alreadyMentioned) {
+        sanitizedFeedbackPoints.unshift(
+          `• สะกดคำผิด: คำว่า "${err.typed}" น่าจะพิมพ์ตกหรือสะกดผิดมาจากคำว่า "${err.correction}" นะคะ อย่าลืมตรวจสอบตัวสะกดด้วยนะคะ`
+        );
       }
     }
   }
@@ -1573,6 +1777,17 @@ function evaluatePictureDescriptionLocally(item: any, lower: string, original: s
     }
   }
 
+  // 3. Strict Spelling & Typo Enforcement
+  const typos = detectSpellingAndTypos(original, item.model_answer, item.acceptable_answers);
+  if (typos.length > 0) {
+    isCorrect = false;
+    for (const err of typos) {
+      if (!points.some(pt => pt.includes(err.typed))) {
+        points.unshift(`• สะกดคำผิด: คำว่า "${err.typed}" น่าจะพิมพ์ตกหรือสะกดผิดมาจากคำว่า "${err.correction}" นะคะ อย่าลืมตรวจสอบตัวสะกดด้วยนะคะ`);
+      }
+    }
+  }
+
   // Exact or near model answer match check (100% correct by definition)
   const normalizeForMatch = (s: string) => {
     let res = (s || '')
@@ -1708,7 +1923,7 @@ function evaluatePictureDescriptionLocally(item: any, lower: string, original: s
   const hasContext = /\b(to\s+\w+|at|in|on|because|right now|with|for|before|after)\b/i.test(normalizedLower);
   const hasConnect = /\b(even when|because|when|although|so|but|however|to\s+\w+|and)\b/i.test(normalizedLower);
 
-  if (relevance.isRelevant && structureCompliance.isCompliant) {
+  if (relevance.isRelevant && structureCompliance.isCompliant && typos.length === 0) {
     if (hasCore) {
       points.push('• โครงสร้าง Core (ประธาน + กริยาช่วย/กริยาหลัก) ถูกต้องค่ะ');
     } else {

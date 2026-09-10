@@ -196,7 +196,7 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
         ...prev,
         [key]: {
           ...prev[key],
-          message: '💡 คุณได้ตรวจประโยคนี้ไปแล้วค่ะ หากต้องการตรวจใหม่ กรุณาลองปรับแก้ประโยคก่อนกดส่งตรวจนะคะ'
+          message: '💡 นักเรียนได้ตรวจประโยคนี้ไปแล้วนะคะ หากต้องการตรวจใหม่ กรุณาลองปรับแก้ประโยคก่อนกดส่งตรวจค่ะ'
         }
       }));
       return;
