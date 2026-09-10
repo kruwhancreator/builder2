@@ -338,6 +338,32 @@ export function parseItemGuidanceAndContext(item: any): ParsedItemGuidance {
   };
 }
 
+export function getAccurateTopicThai(item: any, parsed?: any): string {
+  // 1. Direct from context_hint first slot (e.g. 'อ่านหนังสือ')
+  const hintText = parsed?.contextHints || item?.context_hint || '';
+  if (hintText) {
+    const rawHint = hintText.replace(/^.*context_hint\s*[:=]\s*/i, '').trim();
+    const firstPart = rawHint.split(/[\/\n]/)[0].trim();
+    if (firstPart && /[\u0E00-\u0E7F]/.test(firstPart)) {
+      return firstPart;
+    }
+  }
+
+  // 2. Derive from model_answer core action
+  const model = (item?.model_answer || '').toLowerCase();
+  if (/\b(read|book|books|study|studying|homework|lesson|notes)\b/.test(model)) return 'อ่านหนังสือ/ศึกษาเล่าเรียนอยู่ที่โต๊ะ';
+  if (/\b(turn off|switch off|lights?)\b/.test(model)) return 'ปิดไฟเพื่อประหยัดพลังงาน';
+  if (/\b(coffee|drink coffee|sip coffee)\b/.test(model)) return 'ดื่มกาแฟ';
+  if (/\b(water|drink water)\b/.test(model)) return 'ดื่มน้ำ';
+  if (/\b(cook|cooking|meal|food|kitchen)\b/.test(model)) return 'ทำอาหารที่บ้าน';
+  if (/\b(wash car|car)\b/.test(model)) return 'ล้างรถ';
+  if (/\b(run|running|jog|jogging|park)\b/.test(model)) return 'วิ่งออกกำลังกายในสวนสาธารณะ';
+  if (/\b(dishes|wash dishes)\b/.test(model)) return 'ล้างจาน';
+  if (/\b(haircut|cut.*hair)\b/.test(model)) return 'ตัดผม';
+
+  return '';
+}
+
 /**
  * Validates whether the student's answer has semantic relevance to the image description / context hint.
  * Prevents completely unrelated sentences (e.g. washing a car on a coffee picture) from passing.
@@ -349,10 +375,11 @@ export function checkImageRelevance(item: any, studentAnswer: string): ImageRele
 
   const parsed = parseItemGuidanceAndContext(item);
 
-  const contextCombined = [
-    parsed.targetImageDescription,
+  // Match semantic predefined themes against core action only (model_answer, acceptable_answers, context_hint),
+  // NEVER against the full image prompt which may contain background props like 'coffee mug', 'lamp', 'sweater'
+  const coreActionContext = [
     parsed.contextHints,
-    item.image_description || '',
+    item.context_hint || '',
     item.model_answer || '',
     ...(item.acceptable_answers || [])
   ].join(' ').toLowerCase();
@@ -364,9 +391,9 @@ export function checkImageRelevance(item: any, studentAnswer: string): ImageRele
     theme.triggers.some(trig => {
       const t = trig.toLowerCase();
       if (/^[a-z0-9\s]+$/i.test(t)) {
-        return new RegExp(`\\b${t.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'i').test(contextCombined);
+        return new RegExp(`\\b${t.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'i').test(coreActionContext);
       }
-      return contextCombined.includes(t);
+      return coreActionContext.includes(t);
     })
   );
 
@@ -482,10 +509,12 @@ export function checkImageRelevance(item: any, studentAnswer: string): ImageRele
     !matchedThemes.some(t => t.triggers.includes('tv') || t.triggers.includes('series') || t.triggers.includes('movie'));
 
   const isRelevant = nonGenericMatches.length > 0 && !hasUnrelatedEntertainment;
-  const topicThai = matchedThemes[0]?.topicThai || 
+  const accurateTopic = getAccurateTopicThai(item, parsed);
+  const topicThai = accurateTopic || 
                     (parsed.contextHints ? parsed.contextHints.split('/')[0].trim() : '') || 
                     (item.context_hint ? item.context_hint.split('/')[0].trim() : '') || 
-                    'ในภาพ';
+                    matchedThemes[0]?.topicThai ||
+                    'ที่ปรากฏในภาพ';
   const cleanCandidateWords = rawContentWords.filter(w => !ANCILLARY_OR_STATE_WORDS.has(w.toLowerCase())).length > 0
     ? Array.from(new Set(rawContentWords.filter(w => !ANCILLARY_OR_STATE_WORDS.has(w.toLowerCase()))))
     : (matchedThemes[0]?.keywords || Array.from(allExpectedKeywords)).filter(w => !ANCILLARY_OR_STATE_WORDS.has(w.toLowerCase()));
@@ -981,15 +1010,21 @@ CRITERION 2: IMAGE RELEVANCE & ACTION CORRESPONDENCE (ความสอดค�
       isCorrect = false;
       parsed.statusText = '💡 ประโยคยังไม่สอดคล้องกับภาพค่ะ';
 
-      // Remove false praise
-      sanitizedFeedbackPoints = sanitizedFeedbackPoints.filter(pt => !/(ถูกต้องเลยค่ะ|เก่งมาก)/.test(pt));
+      // Remove false praise from previous AI feedback points
+      sanitizedFeedbackPoints = sanitizedFeedbackPoints.filter(pt =>
+        !/(ถูกต้อง|เก่งมาก|เยี่ยมมาก|ยอดเยี่ยม|ดีมาก|สอดคล้องกับบริบทของภาพ)/.test(pt)
+      );
 
       const hasImageMismatchPt = sanitizedFeedbackPoints.some(pt =>
         /(ไม่สอดคล้องกับภาพ|ไม่ตรงกับภาพ|ไม่ตรงกับสิ่งที่เกิดขึ้นในภาพ|(?:ในภาพ|ภาพนี้|ภาพ).*เป็นเหตุการณ์)/.test(pt)
       );
 
       if (!hasImageMismatchPt) {
-        const topicText = relevance.topicThai ? `ที่เกี่ยวกับ${relevance.topicThai}` : 'ที่ปรากฏในภาพ';
+        const topicText = relevance.topicThai
+          ? (relevance.topicThai.startsWith('อ่าน') || relevance.topicThai.startsWith('ทำ') || relevance.topicThai.startsWith('ปิด') || relevance.topicThai.startsWith('วิ่ง') || relevance.topicThai.startsWith('ล้าง') || relevance.topicThai.startsWith('ดื่ม')
+              ? `ที่ตัวละครกำลัง${relevance.topicThai}`
+              : `ที่เกี่ยวกับ${relevance.topicThai}`)
+          : 'ที่ปรากฏในภาพ';
         sanitizedFeedbackPoints.unshift(
           `• ในภาพเป็นเหตุการณ์${topicText}นะคะ แต่ประโยคของนักเรียนยังไม่สอดคล้องกับสิ่งที่เกิดขึ้นในภาพค่ะ ลองดูภาพแล้วแต่งประโยคใหม่ให้ตรงกับภาพนะคะ`
         );
@@ -1331,7 +1366,11 @@ function evaluatePictureDescriptionLocally(item: any, lower: string, original: s
   const relevance = checkImageRelevance(item, original);
   if (!relevance.isRelevant) {
     isCorrect = false;
-    const topicText = relevance.topicThai ? `ที่เกี่ยวกับ${relevance.topicThai}` : 'ที่ปรากฏในภาพ';
+    const topicText = relevance.topicThai
+      ? (relevance.topicThai.startsWith('อ่าน') || relevance.topicThai.startsWith('ทำ') || relevance.topicThai.startsWith('ปิด') || relevance.topicThai.startsWith('วิ่ง') || relevance.topicThai.startsWith('ล้าง') || relevance.topicThai.startsWith('ดื่ม')
+          ? `ที่ตัวละครกำลัง${relevance.topicThai}`
+          : `ที่เกี่ยวกับ${relevance.topicThai}`)
+      : 'ที่ปรากฏในภาพ';
     points.push(`• ในภาพเป็นเหตุการณ์${topicText}นะคะ แต่ประโยคที่นักเรียนแต่งยังไม่สอดคล้องกับสิ่งที่เกิดขึ้นในภาพค่ะ`);
     if (relevance.suggestedWords) {
       points.push(`• นักเรียนลองสังเกตภาพอีกครั้ง แล้วลองแต่งประโยคโดยเลือกใช้คำศัพท์ที่ตรงกับภาพ เช่น "${relevance.suggestedWords}" ดูนะคะ`);
