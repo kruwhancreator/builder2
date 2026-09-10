@@ -214,12 +214,13 @@ function splitTextIntoStructureAndImage(text: string): { structureParts: string[
 
   const trimmed = text.trim();
 
-  // 1. Check if text has an explicit split point like "Detailed Image Generation Prompt", "Image Description", etc.
-  const imageHeaderMatch = trimmed.search(/(?:Detailed Image Generation Prompt|Detailed Image Prompt|Image Generation Prompt|Image Description|Image Prompt|Visual Description|คำอธิบายภาพ|รายละเอียดภาพ|Key Subject & Style Tags)/i);
+  // 1. Check if text has an explicit split point like "Detailed Image Generation Prompt", "the image prompt is", etc.
+  const imageHeaderRegex = /(?:^|\n)\s*(?:(?:the\s+)?(?:image\s+prompt\s+is|image\s+description\s+is|image\s+prompt|image\s+description|detailed\s+image\s+(?:generation\s+)?prompt|visual\s+description|คำอธิบายภาพ|รายละเอียดภาพ|key\s+subject\s*&\s*style\s+tags))\s*[:\n]?/i;
+  const match = trimmed.match(imageHeaderRegex);
 
-  if (imageHeaderMatch >= 0) {
-    const before = trimmed.substring(0, imageHeaderMatch).trim();
-    const after = trimmed.substring(imageHeaderMatch).trim();
+  if (match && typeof match.index === 'number') {
+    const before = trimmed.substring(0, match.index).trim();
+    const after = trimmed.substring(match.index + match[0].length).trim();
 
     if (before && (STRUCTURE_MARKER_REGEX.test(before) || before.length > 20)) {
       structureParts.push(before);
@@ -806,13 +807,18 @@ ${parsedGuidance.contextHints || 'None provided'}
 - Teacher's Primary Model Answer: "${req.item.model_answer}"
 ${req.item.acceptable_answers ? `- Acceptable Variations: ${JSON.stringify(req.item.acceptable_answers)}` : ''}
 
-CRITICAL: CORE PHYSICAL ACTION & OBJECT GROUNDING (กริยาการกระทำและสิ่งของหลักต้องตรงกับภาพ):
-- The Model Answer, Acceptable Variations, and Image Description define the ACTUAL PHYSICAL ACTION and OBJECT depicted in the picture (e.g. reading books at a desk, drinking coffee in a cafe, turning off lights).
-- The student's primary action verb and direct object MUST describe what the character is physically doing in the image (e.g. "read books", "read a book", "study", "review my notes", "do homework").
-- If the student writes an action that is NOT depicted in the image and NOT equivalent in meaning to the Model Answer (e.g. writing an unrelated activity not visible in the picture):
+CRITICAL PEDAGOGY RULE - STUDENT CREATIVE FREEDOM WITH STRICT BOUNDARIES:
+- The student DOES NOT have to write the exact same words as the Model Answer.
+- The student can write ANY sentence that relates to what is depicted in the visual image (the character, setting, objects, and activities), PROVIDED they satisfy ALL 5 Core Criteria:
+  1) Strictly follows the TARGET SENTENCE STRUCTURE slot by slot.
+  2) Relates to what is shown in the image (activities, objects, setting, character state).
+  3) 100% grammatically correct, proper capitalization ('I' at start), and ends with a period '.'.
+  4) The meaning of the sentence makes sense and is logically coherent in real life.
+  5) Pragmatic & time period constraints make sense (e.g. 'be about to' is strictly for timeframes <= 15 minutes).
+- If the student writes an action that is NOT depicted in the image and NOT related to the visual scene (e.g. writing "watch series", "wash car", "cook dinner" when the image shows studying at a desk):
   * MUST MARK AS INCORRECT: isCorrect: false!
   * Set statusText: "💡 ประโยคยังไม่สอดคล้องกับภาพค่ะ"
-  * In feedbackPoints, explain clearly in polite Kru Whan Thai: state what the character in the picture is physically doing (matching "${req.item.model_answer}" and the image description), point out that they are not doing the student's activity, and kindly encourage the student to use a verb that matches the picture.
+  * In feedbackPoints, explain clearly in polite Kru Whan Thai: state what the character in the picture is physically doing, point out that they are not doing the student's activity, and kindly encourage the student to use an action that matches the picture.
   * In correctedSentence, provide the Model Answer ("${req.item.model_answer}").
 - NEVER mark an answer as correct just because an emotional/physical state adjective (like 'sleepy' or 'tired') or a purpose clause matches, if the main action verb contradicts what is visually happening in the picture!
 
