@@ -1,12 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/admin-auth';
-import { requireDatabase } from '@/lib/server-db';
+import { adminDb, requireDatabase } from '@/lib/server-db';
+import { supabase } from '@/lib/supabase';
 import { readJson, validSlug } from '@/lib/api-validation';
 
 export async function GET(req: NextRequest) {
   const denied = requireAdmin(req); if (denied) return denied;
   try {
-    const db = requireDatabase();
+    const db = adminDb || supabase;
+    if (!db) {
+      return NextResponse.json({
+        books: [{
+          id: 'sentence-builder-vol-2',
+          slug: 'sentence-builder-vol-2',
+          title: 'Sentence Builder Vol. 2',
+          subtitle: 'แบบฝึกหัดแต่งประโยคและขยายประโยค (Core + Context + Connect)',
+          total_units: 1,
+        }]
+      }, { headers: { 'Cache-Control': 'no-store' } });
+    }
     const { data, error } = await db.from('books').select('*,units(count)').order('created_at', { ascending: false });
     if (error) throw error;
     return NextResponse.json({ books: (data || []).map(b => ({ ...b, total_units: b.units?.[0]?.count || 0 })) }, { headers: { 'Cache-Control': 'no-store' } });

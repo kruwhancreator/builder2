@@ -1,4 +1,3 @@
-import 'server-only';
 import { supabase } from './supabase';
 import chapter1Fallback from '@/data/sentence-builder-vol-2/chapter-1.json';
 import { validSlug, positiveInteger } from './api-validation';

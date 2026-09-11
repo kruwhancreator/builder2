@@ -1,4 +1,3 @@
-import 'server-only';
 import { adminDb } from './server-db';
 
 export async function trackBookScan(book: string) {
