@@ -27,12 +27,11 @@ export function AnalyticsTracker() {
     const bookSessionKey = `sb_track_book_${bookSlug}`;
     try {
       if (!sessionStorage.getItem(bookSessionKey)) {
-        sessionStorage.setItem(bookSessionKey, '1');
         fetch('/api/analytics/track', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ type: 'book', bookName: bookSlug })
-        }).catch(() => {});
+        }).then(res => { if (res.ok) sessionStorage.setItem(bookSessionKey, '1'); }).catch(() => {});
       }
     } catch {
       // ignore storage access errors (private mode)
@@ -46,12 +45,11 @@ export function AnalyticsTracker() {
         const unitSessionKey = `sb_track_unit_${bookSlug}_${unitNumber}`;
         try {
           if (!sessionStorage.getItem(unitSessionKey)) {
-            sessionStorage.setItem(unitSessionKey, '1');
             fetch('/api/analytics/track', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ type: 'unit', bookName: bookSlug, unitNumber })
-            }).catch(() => {});
+            }).then(res => { if (res.ok) sessionStorage.setItem(unitSessionKey, '1'); }).catch(() => {});
           }
         } catch {
           // ignore storage access errors

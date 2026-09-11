@@ -1,481 +1,88 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase';
-import { clearDataManagerCache } from '@/lib/data-manager';
-import chapter1Fallback from '@/data/sentence-builder-vol-2/chapter-1.json';
+import { requireAdmin } from '@/lib/admin-auth';
+import { requireDatabase } from '@/lib/server-db';
+import { getBookDataFromDb, getChapterDataFromDb, clearDataManagerCache } from '@/lib/data-manager';
+import { readJson, validSlug, positiveInteger } from '@/lib/api-validation';
 
+const fail = (error: string, status = 400) => NextResponse.json({ error }, { status });
+const record = (v: unknown): Record<string, unknown> => v && typeof v === 'object' && !Array.isArray(v) ? v as Record<string, unknown> : {};
+const string = (v: unknown) => typeof v === 'string' ? v : '';
+const uuid = (v: unknown): v is string => typeof v === 'string' && /^[a-f0-9-]{36}$/i.test(v);
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const bookName = searchParams.get('book') || 'sentence-builder-vol-2';
-
-  if (isSupabaseConfigured() && supabase) {
-    try {
-      const client = supabase;
-
-      // 0. Fetch Book metadata from 'books' table
-      const { data: bookRow } = await client
-        .from('books')
-        .select('*')
-        .or(`id.eq.${bookName},slug.eq.${bookName}`)
-        .maybeSingle();
-
-      const bookInfo = {
-        id: bookRow?.id || bookName,
-        title: bookRow?.title || 'Sentence Builder Vol. 2',
-        subtitle: bookRow?.subtitle || 'แบบฝึกหัดแต่งประโยคและขยายประโยค Vol. 2 (Core + Context + Connect)'
-      };
-
-      // 1. Fetch all units for this book
-      const bookIds = Array.from(new Set([bookName, bookRow?.id, bookRow?.slug].filter(Boolean)));
-      const orFilter = bookIds.map(id => `book_name.eq.${id}`).join(',');
-
-      const { data: unitsData, error: unitErr } = await client
-        .from('units')
-        .select('*')
-        .or(orFilter)
-        .order('unit_number', { ascending: true });
-
-      if (!unitErr && unitsData && unitsData.length > 0) {
-        const unitIds = unitsData.map(u => u.id);
-
-        // 2. Fetch exercises configuration from 'exercises' table
-        const { data: exercisesData } = await client
-          .from('exercises')
-          .select('*')
-          .in('unit_id', unitIds)
-          .order('created_at', { ascending: true });
-
-        // 3. Fetch exercise items from 'exercise_items' table
-        const { data: itemsData } = await client
-          .from('exercise_items')
-          .select('*')
-          .in('unit_id', unitIds)
-          .order('item_number', { ascending: true });
-
-        const formattedUnits = unitsData.map(unit => {
-          const unitExercises = (exercisesData || []).filter(ex => ex.unit_id === unit.id);
-          const unitItems = (itemsData || []).filter(item => item.unit_id === unit.id);
-
-          let exercises = unitExercises.map(ex => {
-            const exItems = unitItems.filter(i => i.exercise_code === ex.exercise_code);
-            const inferredType = ex.exercise_type || (ex.exercise_code === 'ex-2' || ex.categories || ex.word_bank ? 'guided_sentence' : (ex.exercise_code === 'ex-3' ? 'picture_description' : 'translation'));
-            return {
-              id: ex.id,
-              code: ex.exercise_code,
-              order_index: typeof ex.order_index === 'number' ? ex.order_index : (parseInt((ex.exercise_code || '').replace(/\D/g, ''), 10) || 1),
-              title: ex.title,
-              type: inferredType,
-              use_ai_check: ex.use_ai_check !== false,
-              instruction: ex.instruction || '',
-              guidance: ex.guidance || '',
-              categories: ex.categories || (unit.unit_number === 1 && (inferredType === 'guided_sentence' || ex.exercise_code === 'ex-2') ? (chapter1Fallback.exercises['ex-2'] as any)?.categories : null),
-              word_bank: ex.word_bank || (unit.unit_number === 1 && (inferredType === 'guided_sentence' || ex.exercise_code === 'ex-2') ? (chapter1Fallback.exercises['ex-2'] as any)?.word_bank : null),
-              itemCount: exItems.length,
-              items: exItems.map(i => ({
-                id: i.item_number,
-                item_number: i.item_number,
-                thai_prompt: i.thai_prompt,
-                thai: i.thai_prompt,
-                prompt: i.prompt,
-                thai_template: i.thai_template,
-                required_orders: i.required_orders || [1],
-                model_answer: i.model_answer,
-                acceptable_answers: i.acceptable_answers || [i.model_answer],
-                translations: i.translations || null,
-                image_description: i.image_description,
-                context_hint: i.context_hint,
-                teacher_guidance: i.teacher_guidance || null,
-                image_url: i.image_url
-              }))
-            };
-          });
-
-          // Sort exercises by order_index, falling back to code number
-          exercises.sort((a, b) => {
-            if (typeof a.order_index === 'number' && typeof b.order_index === 'number') {
-              if (a.order_index !== b.order_index) return a.order_index - b.order_index;
-            }
-            const numA = parseInt((a.code || '').replace(/\D/g, ''), 10) || 0;
-            const numB = parseInt((b.code || '').replace(/\D/g, ''), 10) || 0;
-            if (numA !== numB) return numA - numB;
-            return (a.code || '').localeCompare(b.code || '');
-          });
-
-          // Fallback to default 3 exercises ONLY for Unit 1 if nothing is configured yet in Supabase
-          if (exercises.length === 0 && unit.unit_number === 1) {
-            const ex1Items = unitItems.filter(i => i.exercise_code === 'ex-1');
-            const ex2Items = unitItems.filter(i => i.exercise_code === 'ex-2');
-            const ex3Items = unitItems.filter(i => i.exercise_code === 'ex-3');
-
-            exercises = [
-              {
-                id: 'ex-1',
-                code: 'ex-1',
-                order_index: 1,
-                title: 'Exercise 1: แปลประโยคภาษาอังกฤษ',
-                type: 'translation',
-                use_ai_check: true,
-                instruction: 'แปลประโยคภาษาไทยเป็นภาษาอังกฤษ',
-                guidance: 'ตรวจสอบ Subject-Verb Agreement และการเติม -ing',
-                categories: null,
-                word_bank: null,
-                itemCount: ex1Items.length,
-                items: ex1Items.length > 0 ? ex1Items : chapter1Fallback.exercises['ex-1'].items
-              },
-              {
-                id: 'ex-2',
-                code: 'ex-2',
-                order_index: 2,
-                title: 'Exercise 2: เลือกคำจากตารางมาแต่งประโยค',
-                type: 'guided_sentence',
-                use_ai_check: true,
-                instruction: 'เลือกคำที่กำหนดให้มาเติมลงในประโยค',
-                guidance: 'ตรวจคำศัพท์ที่เลือกและการวางตำแหน่งในประโยค',
-                categories: (chapter1Fallback.exercises['ex-2'] as any)?.categories,
-                word_bank: null,
-                itemCount: ex2Items.length,
-                items: ex2Items.length > 0 ? ex2Items : chapter1Fallback.exercises['ex-2'].items
-              },
-              {
-                id: 'ex-3',
-                code: 'ex-3',
-                order_index: 3,
-                title: 'Exercise 3: ดูภาพแล้วแต่งประโยค (Core + Context + Connect)',
-                type: 'picture_description',
-                use_ai_check: true,
-                instruction: 'ดูภาพแล้วแต่งประโยคตามโครงสร้างที่กำหนด',
-                guidance: 'ตรวจ 3 องค์ประกอบ: Core + Context + Connect',
-                categories: null,
-                word_bank: null,
-                itemCount: ex3Items.length,
-                items: ex3Items.length > 0 ? ex3Items : chapter1Fallback.exercises['ex-3'].items
-              }
-            ];
-          }
-
-          return {
-            id: unit.id,
-            unit_number: unit.unit_number,
-            title: unit.title,
-            subtitle: unit.subtitle,
-            exercises
-          };
-        });
-
-        return NextResponse.json({ book: bookName, bookInfo, units: formattedUnits });
-      }
-    } catch (err) {
-      console.warn('Error fetching curriculum from Supabase:', err);
-    }
-  }
-
-  // Fallback initial dataset (1 unit with 3 exercises)
-  const defaultUnits = [
-    {
-      id: 'unit-1',
-      unit_number: 1,
-      title: 'Present Continuous & Sentence Expansion',
-      subtitle: 'บทที่ 1 : ฉันกำลัง… [ I + am + กริยาเติม -ing ]',
-      exercises: [
-        {
-          id: 'ex-1',
-          code: 'ex-1',
-          title: 'Exercise 1: แปลประโยคภาษาอังกฤษ',
-          type: 'translation',
-          use_ai_check: true,
-          instruction: 'แปลประโยคภาษาไทยเป็นภาษาอังกฤษ',
-          guidance: 'ตรวจสอบ Subject-Verb Agreement และการเติม -ing',
-          itemCount: 4,
-          items: chapter1Fallback.exercises['ex-1'].items
-        },
-        {
-          id: 'ex-2',
-          code: 'ex-2',
-          title: 'Exercise 2: เลือกคำจากตารางมาแต่งประโยค',
-          type: 'guided_sentence',
-          use_ai_check: true,
-          instruction: 'เลือกคำที่กำหนดให้มาเติมลงในประโยค',
-          guidance: 'ตรวจคำศัพท์ที่เลือกและการวางตำแหน่งในประโยค',
-          categories: (chapter1Fallback.exercises['ex-2'] as any)?.categories,
-          itemCount: 4,
-          items: chapter1Fallback.exercises['ex-2'].items
-        },
-        {
-          id: 'ex-3',
-          code: 'ex-3',
-          title: 'Exercise 3: ดูภาพแล้วแต่งประโยค (Core + Context + Connect)',
-          type: 'picture_description',
-          use_ai_check: true,
-          instruction: 'ดูภาพแล้วแต่งประโยคตามโครงสร้างที่กำหนด',
-          guidance: 'ตรวจ 3 องค์ประกอบ: Core + Context + Connect',
-          itemCount: 3,
-          items: chapter1Fallback.exercises['ex-3'].items
-        }
-      ]
-    }
-  ];
-  const fallbackBookInfo = {
-    id: bookName,
-    title: bookName === 'sentence-builder-vol-2' ? 'Sentence Builder Vol. 2' : bookName.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-    subtitle: 'แบบฝึกหัดแต่งประโยคและขยายประโยค Vol. 2 (Core + Context + Connect)'
-  };
-
-  return NextResponse.json({ book: bookName, bookInfo: fallbackBookInfo, units: defaultUnits });
-}
-
-export async function POST(req: NextRequest) {
+  const denied = requireAdmin(req); if (denied) return denied;
+  const bookName = req.nextUrl.searchParams.get('book');
+  if (!validSlug(bookName)) return fail('Invalid book');
   try {
-    const body = await req.json();
-    const { action, bookName, unitData, exerciseData, items, categories } = body;
-
-    // 1. SAVE UNIT
+    const book = await getBookDataFromDb(bookName);
+    if (!book) return fail('Book not found', 404);
+    const units = await Promise.all(book.units.map(async u => {
+      const chapter = await getChapterDataFromDb(book.id, u.unit_number);
+      return { ...u, exercises: Object.values(chapter?.exercises || {}).map(ex => ({ ...ex, itemCount: ex.items.length })) };
+    }));
+    return NextResponse.json({ book: book.id, bookInfo: book, units }, { headers: { 'Cache-Control': 'no-store' } });
+  } catch { return fail('Unable to load curriculum', 503); }
+}
+export async function POST(req: NextRequest) {
+  const denied = requireAdmin(req); if (denied) return denied;
+  let body: Record<string, unknown>;
+  try { body = await readJson(req); } catch { return fail('Invalid request or request too large'); }
+  const { action, bookName } = body;
+  try {
+    const db = requireDatabase();
     if (action === 'save_unit') {
-      const { unit_number, title, subtitle } = unitData;
-      if (!title) {
-        return NextResponse.json({ error: 'กรุณากรอกชื่อ Unit' }, { status: 400 });
+      const u = record(body.unitData); const number = Number(u.unit_number);
+      if (!validSlug(bookName) || !positiveInteger(number) || !string(u.title).trim()) return fail('Invalid unit');
+      const { error } = await db.from('units').upsert({ book_name: bookName, unit_number: number, title: string(u.title), subtitle: string(u.subtitle) }, { onConflict: 'book_name,unit_number' });
+      if (error) throw error;
+    } else if (action === 'save_exercise') {
+      const ex = record(body.exerciseData);
+      if (!validSlug(bookName) || !string(ex.title).trim() || !['translation','guided_sentence','picture_description'].includes(string(ex.exercise_type))) return fail('Invalid exercise');
+      let unit = ex.unit_id;
+      if (!uuid(unit)) {
+        const { data, error } = await db.from('units').select('id').eq('book_name', bookName).eq('unit_number', Number(ex.unit_number)).single();
+        if (error || !data) return fail('Unit not found', 404); unit = data.id;
       }
-
-      if (isSupabaseConfigured() && supabase) {
-        const { error } = await supabase.from('units').upsert({
-          book_name: bookName,
-          unit_number: Number(unit_number),
-          title,
-          subtitle: subtitle || `บทที่ ${unit_number}`
-        }, { onConflict: 'book_name,unit_number' });
-
-        if (error) {
-          return NextResponse.json({ error: error.message }, { status: 500 });
-        }
-      }
-
-      return NextResponse.json({ success: true, message: `บันทึก Unit ${unit_number} เรียบร้อยแล้ว!` });
-    }
-
-    // 2. SAVE EXERCISE (CREATE / EDIT EXERCISE CONFIGURATION)
-    if (action === 'save_exercise') {
-      const { unit_id, unit_number, exercise_code, title, exercise_type, use_ai_check, instruction, guidance, categories: exCats, order_index } = exerciseData;
-
-      if (!title) {
-        return NextResponse.json({ error: 'กรุณากรอกชื่อแบบฝึกหัด (Exercise Title)' }, { status: 400 });
-      }
-
-      const generatedCode = exercise_code || `ex-${Date.now().toString().slice(-4)}`;
-
-      if (isSupabaseConfigured() && supabase) {
-        let resolvedUnitId = unit_id;
-        if (!resolvedUnitId || resolvedUnitId.startsWith('unit-')) {
-          const { data: uRow } = await supabase
-            .from('units')
-            .select('id')
-            .eq('book_name', bookName)
-            .eq('unit_number', Number(unit_number))
-            .single();
-          if (uRow) resolvedUnitId = uRow.id;
-        }
-
-        if (resolvedUnitId) {
-          const payload: any = {
-            unit_id: resolvedUnitId,
-            exercise_code: generatedCode,
-            title,
-            exercise_type: exercise_type || 'translation',
-            use_ai_check: use_ai_check !== false,
-            instruction: instruction || null,
-            guidance: guidance || null,
-            categories: exCats || null
-          };
-
-          if (typeof order_index === 'number') {
-            payload.order_index = order_index;
-          }
-
-          let { error: exErr } = await supabase.from('exercises').upsert(payload, { onConflict: 'unit_id,exercise_code' });
-
-          // If order_index column is not yet in Supabase schema cache, retry without order_index
-          if (exErr && exErr.message?.includes('order_index')) {
-            delete payload.order_index;
-            const retry = await supabase.from('exercises').upsert(payload, { onConflict: 'unit_id,exercise_code' });
-            exErr = retry.error;
-          }
-
-          if (exErr) {
-            return NextResponse.json({ error: exErr.message }, { status: 500 });
-          }
-        }
-      }
-
-      return NextResponse.json({ success: true, message: `บันทึกแบบฝึกหัด "${title}" เรียบร้อยแล้ว!` });
-    }
-
-    // 2.5 REORDER EXERCISES IN UNIT
-    if (action === 'reorder_exercises') {
-      const { unit_id, exercise_orders } = body;
-
-      if (Array.isArray(exercise_orders) && isSupabaseConfigured() && supabase) {
-        let resolvedUnitId = unit_id;
-        if (resolvedUnitId && !resolvedUnitId.startsWith('unit-')) {
-          for (const item of exercise_orders) {
-            try {
-              await supabase
-                .from('exercises')
-                .update({ order_index: item.order_index })
-                .eq('unit_id', resolvedUnitId)
-                .eq('exercise_code', item.exercise_code);
-            } catch (ignoreErr) {
-              console.warn('Could not update order_index:', ignoreErr);
-            }
-          }
-        }
-      }
-
-      return NextResponse.json({ success: true, message: 'บันทึกลำดับแบบฝึกหัดใหม่เรียบร้อยแล้ว!' });
-    }
-
-    // 3. SAVE QUIZ ITEMS & CATEGORIES
-    if (action === 'save_quiz_items') {
-      const { unit_id, unit_number, exercise_code } = body;
-
-      if (isSupabaseConfigured() && supabase) {
-        let resolvedUnitId = unit_id;
-        if (!resolvedUnitId || resolvedUnitId.startsWith('unit-')) {
-          const { data: uRow } = await supabase
-            .from('units')
-            .select('id')
-            .eq('book_name', bookName)
-            .eq('unit_number', Number(unit_number))
-            .single();
-          if (uRow) resolvedUnitId = uRow.id;
-        }
-
-        if (resolvedUnitId) {
-          // If categories are passed (for guided_sentence), update exercises.categories or upsert if not exists
-          if (Array.isArray(categories)) {
-            const { data: existingEx } = await supabase
-              .from('exercises')
-              .select('id, title, exercise_type')
-              .eq('unit_id', resolvedUnitId)
-              .eq('exercise_code', exercise_code)
-              .maybeSingle();
-
-            if (existingEx) {
-              await supabase
-                .from('exercises')
-                .update({ 
-                  categories, 
-                  exercise_type: existingEx.exercise_type || 'guided_sentence' 
-                })
-                .eq('unit_id', resolvedUnitId)
-                .eq('exercise_code', exercise_code);
-            } else {
-              await supabase
-                .from('exercises')
-                .upsert({
-                  unit_id: resolvedUnitId,
-                  exercise_code,
-                  title: 'Exercise 2: เลือกคำจากตารางมาแต่งประโยค',
-                  exercise_type: 'guided_sentence',
-                  categories
-                }, { onConflict: 'unit_id,exercise_code' });
-            }
-          }
-
-          // Delete existing items for this exercise to cleanly re-insert
-          await supabase
-            .from('exercise_items')
-            .delete()
-            .eq('unit_id', resolvedUnitId)
-            .eq('exercise_code', exercise_code);
-
-          // Insert updated items
-          if (Array.isArray(items) && items.length > 0) {
-            const rowsToInsert = items.map((item: any, idx: number) => ({
-              unit_id: resolvedUnitId,
-              exercise_code,
-              item_number: idx + 1,
-              thai_prompt: item.thai || item.thai_prompt || null,
-              prompt: item.prompt || null,
-              thai_template: item.thai_template || null,
-              required_orders: item.required_orders || [1],
-              model_answer: item.model_answer || '',
-              acceptable_answers: item.acceptable_answers || [item.model_answer],
-              translations: item.translations || null,
-              image_description: item.image_description || null,
-              context_hint: item.context_hint || null,
-              teacher_guidance: item.teacher_guidance || null,
-              image_url: item.image_url || null
-            }));
-
-            const { error: insertErr } = await supabase.from('exercise_items').insert(rowsToInsert);
-            if (insertErr) {
-              return NextResponse.json({ error: insertErr.message }, { status: 500 });
-            }
-          }
-        }
-      }
-
-      if (exercise_code && (chapter1Fallback.exercises as any)?.[exercise_code]) {
-        (chapter1Fallback.exercises as any)[exercise_code].items = items;
-      }
-      clearDataManagerCache();
-
-      return NextResponse.json({ success: true, message: 'บันทึกรายการคำถามและเฉลยเรียบร้อยแล้ว!' });
-    }
-
+      const code = ex.exercise_code || `ex-${crypto.randomUUID().slice(0,8)}`;
+      if (!validSlug(code)) return fail('Invalid exercise code');
+      const { error } = await db.from('exercises').upsert({ unit_id: unit, exercise_code: code, title: string(ex.title), exercise_type: ex.exercise_type,
+        use_ai_check: ex.use_ai_check !== false, instruction: string(ex.instruction), guidance: string(ex.guidance),
+        ...(Array.isArray(ex.categories) ? { categories: ex.categories } : {}),
+        ...(positiveInteger(ex.order_index) ? { order_index: ex.order_index } : {}),
+      }, { onConflict: 'unit_id,exercise_code' });
+      if (error) throw error;
+    } else if (action === 'save_quiz_items') {
+      const { unit_id, exercise_code, items, categories } = body;
+      if (!uuid(unit_id) || !validSlug(exercise_code) || !Array.isArray(items) || items.length > 500 ||
+          items.some(i => typeof record(i).model_answer !== 'string') || (categories !== undefined && !Array.isArray(categories))) return fail('Invalid questions');
+      const { error } = await db.rpc('replace_exercise_items', { p_unit: unit_id, p_exercise: exercise_code, p_items: items, p_categories: categories ?? null });
+      if (error) throw error;
+    } else if (action === 'reorder_exercises') {
+      if (!uuid(body.unit_id) || !Array.isArray(body.exercise_orders) || body.exercise_orders.some(e => !validSlug(record(e).exercise_code) || !positiveInteger(record(e).order_index))) return fail('Invalid order');
+      const { error } = await db.rpc('reorder_workbook_exercises', { p_unit: body.unit_id, p_orders: body.exercise_orders });
+      if (error) throw error;
+    } else return fail('Unknown action');
     clearDataManagerCache();
     return NextResponse.json({ success: true });
-  } catch (err: any) {
-    console.error('Curriculum POST error:', err);
-    return NextResponse.json({ error: err.message || 'เกิดข้อผิดพลาดในการบันทึก' }, { status: 500 });
-  }
+  } catch { return fail('บันทึกไม่สำเร็จค่ะ ตรวจการตั้งค่าฐานข้อมูลและรัน SQL migration ก่อน แล้วลองใหม่อีกครั้ง', 503); }
 }
-
 export async function DELETE(req: NextRequest) {
+  const denied = requireAdmin(req); if (denied) return denied;
+  const q = req.nextUrl.searchParams;
   try {
-    const { searchParams } = new URL(req.url);
-    const action = searchParams.get('action');
-    const bookName = searchParams.get('book');
-    const unitNumber = searchParams.get('unit');
-    const unitId = searchParams.get('unit_id');
-    const exerciseCode = searchParams.get('exercise_code');
-
-    // 1. DELETE UNIT
-    if (action === 'delete_unit' && bookName && unitNumber) {
-      if (isSupabaseConfigured() && supabase) {
-        const { error } = await supabase
-          .from('units')
-          .delete()
-          .eq('book_name', bookName)
-          .eq('unit_number', Number(unitNumber));
-
-        if (error) {
-          return NextResponse.json({ error: error.message }, { status: 500 });
-        }
-      }
-      return NextResponse.json({ success: true, message: `ลบ Unit ${unitNumber} เรียบร้อยแล้ว!` });
-    }
-
-    // 2. DELETE EXERCISE
-    if (action === 'delete_exercise' && exerciseCode) {
-      if (isSupabaseConfigured() && supabase) {
-        if (unitId) {
-          await supabase
-            .from('exercises')
-            .delete()
-            .eq('unit_id', unitId)
-            .eq('exercise_code', exerciseCode);
-
-          await supabase
-            .from('exercise_items')
-            .delete()
-            .eq('unit_id', unitId)
-            .eq('exercise_code', exerciseCode);
-        }
-      }
-      return NextResponse.json({ success: true, message: `ลบแบบฝึกหัด ${exerciseCode} เรียบร้อยแล้ว!` });
-    }
-
-    return NextResponse.json({ error: 'Invalid delete action' }, { status: 400 });
-  } catch (err: any) {
-    console.error('Curriculum DELETE error:', err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
-  }
+    const db = requireDatabase();
+    if (q.get('action') === 'delete_unit') {
+      const book = q.get('book'); const number = Number(q.get('unit'));
+      if (!validSlug(book) || !positiveInteger(number)) return fail('Invalid unit');
+      const { data, error } = await db.from('units').delete().eq('book_name', book).eq('unit_number', number).select('id');
+      if (error) throw error;
+      if (!data?.length) return fail('Unit not found', 404);
+    } else if (q.get('action') === 'delete_exercise') {
+      const unit = q.get('unit_id'); const exercise = q.get('exercise_code');
+      if (!uuid(unit) || !validSlug(exercise)) return fail('Invalid exercise');
+      const { error } = await db.rpc('delete_workbook_exercise', { p_unit: unit, p_exercise: exercise });
+      if (error) throw error;
+    } else return fail('Unknown action');
+    clearDataManagerCache();
+    return NextResponse.json({ success: true });
+  } catch { return fail('Unable to delete content', 503); }
 }

@@ -1,4 +1,4 @@
-import nlp from 'compromise';
+import type { ExerciseItem, Word } from './types';
 
 /**
  * Smart Universal NLP & Sequence Alignment Grammar Engine
@@ -43,8 +43,6 @@ export function getWordSimilarity(a: string, b: string): number {
   return (maxLen - distance) / maxLen;
 }
 
-// Common Phrasal Verbs and Collocations
-const PHRASAL_PARTICLES = new Set(['up', 'out', 'in', 'on', 'off', 'down', 'for', 'to', 'with', 'at', 'into', 'about', 'after', 'away']);
 
 export interface OfflineCheckResult {
   isCorrect: boolean;
@@ -148,9 +146,8 @@ export function normalizeContractions(text: string): string {
  * Universal NLP Grammar and Spell Checker
  */
 export function checkOfflineGrammarAndSpelling(
-  item: any,
-  studentAnswer: string,
-  exerciseType: 'translation' | 'guided_sentence' | 'picture_description' = 'translation'
+  item: ExerciseItem,
+  studentAnswer: string
 ): OfflineCheckResult {
   const raw = normalizeTypography(studentAnswer || '');
   if (!raw) {
@@ -187,9 +184,7 @@ export function checkOfflineGrammarAndSpelling(
   // -------------------------------------------------------------
   // 3. TARGET SENTENCE NORMALIZATION & ALIGNMENT
   // -------------------------------------------------------------
-  const cleanWord = (w: string) => normalizeTypography(w).toLowerCase().replace(/[^a-z0-9'-]/g, '');
   const studentTokens = raw.split(/\s+/);
-  const studentWords = studentTokens.map(cleanWord).filter(Boolean);
 
   const modelAnswer = normalizeTypography(item.model_answer || '');
   const acceptableAnswers: string[] = (item.acceptable_answers || [modelAnswer]).map(normalizeTypography);
@@ -290,7 +285,7 @@ export interface StructureComplianceResult {
 export function checkStructureCompliance(
   inputStructure: string,
   studentAnswer: string,
-  item?: any
+  item?: ExerciseItem
 ): StructureComplianceResult {
   const targetStructure = inputStructure || item?.teacher_guidance || item?.guidance || item?.exercise_guidance || item?.grammar_focus || item?.unit_subtitle || item?.context_hint || '';
   if (!targetStructure || !studentAnswer) return { isCompliant: true };
@@ -587,7 +582,7 @@ export function assemblePromptSentence(parts: string[], slotWords: string[]): st
  * + Instant Dynamic Thai Translation Assembly
  */
 export function checkGuidedSentenceExercise(
-  item: any,
+  item: ExerciseItem,
   studentAnswer: string,
   categories: Array<{ order: number; name?: string; category_name?: string; words?: Array<string | { en: string; th?: string }>; word_bank?: Array<string | { en: string; th?: string }>; }> = []
 ): OfflineCheckResult {
@@ -649,7 +644,7 @@ export function checkGuidedSentenceExercise(
   // 1. NORMALIZE CATEGORIES & WORD CHOICES (with id, next_valid_ids, and row index)
   const parsedCategories = (categories || []).map((cat, cIdx) => {
     const rawWords = Array.isArray(cat.words) ? cat.words : (cat.word_bank || []);
-    const wordList = rawWords.map((w: any, idx: number) => {
+    const wordList = rawWords.map((w: string | Word, idx: number) => {
       const defaultId = `${cat.order || cIdx + 1}${String.fromCharCode(97 + idx)}`;
       if (typeof w === 'string') {
         const enStr = normalizeTypography(w);

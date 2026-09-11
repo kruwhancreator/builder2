@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronDown, Check, BookOpen } from 'lucide-react';
+import { ChevronDown, Check } from 'lucide-react';
 
 interface UnitItem {
   id?: string;
@@ -40,17 +40,10 @@ export function HeaderWrapper() {
 
     // Use in-memory cache as immediate initial display, but still revalidate fresh
     const memoryCached = headerCache.get(bookSlug);
-    if (memoryCached) {
-      setBookInfo(memoryCached.bookInfo);
-      setUnits(memoryCached.units);
-      setIsLoading(false);
-    } else {
-      setIsLoading(true);
-    }
 
     async function loadCurriculum() {
       try {
-        const res = await fetch(`/api/admin/curriculum?book=${bookSlug}&_t=${Date.now()}`);
+        const res = await fetch(`/api/navigation?book=${encodeURIComponent(bookSlug)}`);
         if (res.ok && isMounted) {
           const data = await res.json();
           const info = data.bookInfo || {

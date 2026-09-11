@@ -12,11 +12,11 @@ interface PageProps {
 export default async function DynamicChapterPage({ params }: PageProps) {
   const { bookSlug, chapter } = await params;
 
-  if (!chapter.startsWith('chapter-')) {
+  if (!/^chapter-[1-9]\d*$/.test(chapter)) {
     notFound();
   }
 
-  const unitNum = Number(chapter.replace('chapter-', '')) || 1;
+  const unitNum = Number(chapter.replace('chapter-', ''));
   const chapterData = await getChapterDataFromDb(bookSlug, unitNum);
 
   if (!chapterData) {
@@ -24,6 +24,6 @@ export default async function DynamicChapterPage({ params }: PageProps) {
   }
 
   return (
-    <ExerciseWorkspace chapter={chapter} chapterData={chapterData} />
+    <ExerciseWorkspace key={`${bookSlug}/${chapter}`} chapter={chapter} chapterData={chapterData} />
   );
 }

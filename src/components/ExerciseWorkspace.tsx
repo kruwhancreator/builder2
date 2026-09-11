@@ -1,38 +1,64 @@
 'use client';
 
-import { useState, useEffect, Fragment } from 'react';
+import { useState, useEffect, useRef, Fragment } from 'react';
 import Link from 'next/link';
 import { 
   CheckCircle2, 
   XCircle, 
   Sparkles, 
-  ExternalLink,
   RefreshCw,
-  GripHorizontal,
-  RotateCcw,
-  Sparkle,
   Clock,
   ArrowLeft,
   ChevronRight,
   Home
 } from 'lucide-react';
-import { EvaluationResult } from '@/lib/evaluator';
-import { checkOfflineGrammarAndSpelling, checkGuidedSentenceExercise, assemblePromptSentence } from '@/lib/offline-checker';
+import type { EvaluationResult } from '@/lib/evaluator';
+import type { Chapter, Exercise, ExerciseItem } from '@/lib/types';
+import { assemblePromptSentence } from '@/lib/offline-checker';
 
 interface ExerciseWorkspaceProps {
   chapter: string;
-  chapterData: any;
+  chapterData: Chapter;
+  selectedExercise?: string;
 }
 
-export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWorkspaceProps) {
+export default function ExerciseWorkspace({ chapterData, selectedExercise }: ExerciseWorkspaceProps) {
   // State per question item: answers, feedback, solution visibility, loading state
   const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [feedbacks, setFeedbacks] = useState<Record<string, { isCorrect: boolean; message: string; points: string[]; translation?: string; studentTranslation?: string }>>({});
+  const [feedbacks, setFeedbacks] = useState<Record<string, { isCorrect: boolean; message: string; points: string[]; translation?: string; studentTranslation?: string; pending?: boolean; method?: string }>>({});
   const [revealedSolutions, setRevealedSolutions] = useState<Record<string, boolean>>({});
   const [dragSlots, setDragSlots] = useState<Record<string, string[]>>({});
   const [aiLoading, setAiLoading] = useState<Record<string, boolean>>({});
   const [cooldowns, setCooldowns] = useState<Record<string, number>>({});
-  const [lastCheckedAnswers, setLastCheckedAnswers] = useState<Record<string, string>>({});
+  const requests = useRef<Record<string, AbortController>>({});
+  const draftReady = useRef(false);
+  const draftKey = `sb_draft_${chapterData.book}_${chapterData.chapter}`;
+  const contentVersion = JSON.stringify(chapterData.exercises);
+  useEffect(() => {
+    let active = true;
+    Promise.resolve().then(() => {
+      if (!active) return;
+      try {
+        const draft = JSON.parse(localStorage.getItem(draftKey) || 'null');
+        if (draft?.version === contentVersion && draft.answers && draft.slots) {
+          setAnswers(draft.answers); setDragSlots(draft.slots);
+        }
+      } catch { /* Private browsing or expired draft: start empty. */ }
+      draftReady.current = true;
+    });
+    const pending = requests.current;
+    return () => { active = false; Object.values(pending).forEach(r => r.abort()); };
+  }, [draftKey, contentVersion]);
+  useEffect(() => {
+    if (!draftReady.current) return;
+    try { localStorage.setItem(draftKey, JSON.stringify({ version: contentVersion, answers, slots: dragSlots })); } catch { /* Storage is optional. */ }
+  }, [answers, dragSlots, draftKey, contentVersion]);
+  const clearFeedback = (key: string) => {
+    requests.current[key]?.abort();
+    delete requests.current[key];
+    setAiLoading(prev => ({ ...prev, [key]: false }));
+    setFeedbacks(prev => { const next = { ...prev }; delete next[key]; return next; });
+  };
 
   const toggleRevealSolution = (key: string) => {
     setRevealedSolutions(prev => ({ ...prev, [key]: !prev[key] }));
@@ -41,20 +67,20 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
   const unitNumber = chapterData.chapter || chapterData.unit_number || 1;
 
   // Extract exercise categories dynamically for guided_sentence
-  const getExerciseCategories = (exercise: any) => {
+  const getExerciseCategories = (exercise: Exercise) => {
     if (!exercise) return [];
     if (Array.isArray(exercise.categories) && exercise.categories.length > 0) {
-      return exercise.categories.map((c: any, idx: number) => ({
+      return exercise.categories.map((c, idx) => ({
         order: c.order || idx + 1,
         name: c.name || c.category_name || `หมวดที่ ${c.order || idx + 1}`,
-        words: (c.words || c.word_bank || []).map((w: any) => typeof w === 'string' ? { en: w, th: '' } : { en: w.en || '', th: w.th || '' })
+        words: (c.words || c.word_bank || []).map(w => typeof w === 'string' ? { en: w, th: '' } : { en: w.en || '', th: w.th || '' })
       }));
     }
     if (exercise.word_bank) {
-      return Object.entries(exercise.word_bank).map(([catKey, words]: [string, any], idx: number) => ({
+      return Object.entries(exercise.word_bank).map(([catKey, words], idx) => ({
         order: idx + 1,
         name: catKey === 'action' ? 'กำลังทำอะไร' : catKey === 'purpose' ? 'เพื่ออะไร (to...)' : catKey === 'time' ? 'เมื่อไหร่' : catKey === 'reason' ? 'เพราะอะไร (because...)' : catKey,
-        words: (Array.isArray(words) ? words : []).map((w: any) => typeof w === 'string' ? { en: w, th: '' } : { en: w.en || '', th: w.th || '' })
+        words: (Array.isArray(words) ? words : []).map(w => typeof w === 'string' ? { en: w, th: '' } : { en: w.en || '', th: w.th || '' })
       }));
     }
     return [];
@@ -62,11 +88,11 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
 
   // Convert exercises into an ordered list respecting order_index or natural order
   const rawExercises = chapterData.exercises || {};
-  const exercisesList: any[] = (Array.isArray(rawExercises) ? rawExercises : Object.entries(rawExercises).map(([code, ex]: [string, any]) => ({
+  const exercisesList: Exercise[] = (Array.isArray(rawExercises) ? rawExercises : Object.entries(rawExercises).map(([code, ex]) => ({
     ...ex,
     code: ex.code || code,
     id: ex.id || code
-  }))).sort((a: any, b: any) => {
+  }))).sort((a: Exercise, b: Exercise) => {
     const orderA = typeof a.order_index === 'number' ? a.order_index : (parseInt((a.code || '').replace(/\D/g, ''), 10) || 99);
     const orderB = typeof b.order_index === 'number' ? b.order_index : (parseInt((b.code || '').replace(/\D/g, ''), 10) || 99);
     if (orderA !== orderB) return orderA - orderB;
@@ -74,6 +100,7 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
   });
 
   const handleAnswerChange = (key: string, text: string) => {
+    clearFeedback(key);
     setAnswers(prev => ({ ...prev, [key]: text }));
   };
 
@@ -83,35 +110,13 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
   };
 
   const handleSlotInputChange = (key: string, parts: string[], slotIdx: number, val: string, totalSlots: number) => {
+    clearFeedback(key);
     const cur = [...(dragSlots[key] || Array(totalSlots).fill(''))];
     while (cur.length < totalSlots) cur.push('');
     cur[slotIdx] = val;
     setDragSlots(prev => ({ ...prev, [key]: cur }));
     const sentence = reconstructSentence(parts, cur);
     setAnswers(prev => ({ ...prev, [key]: sentence }));
-  };
-
-  const handleResetSlots = (key: string) => {
-    setDragSlots(prev => ({ ...prev, [key]: [] }));
-    setAnswers(prev => ({ ...prev, [key]: '' }));
-  };
-
-  // SMART OFFLINE GRAMMAR & SPELL CHECKER (NO AI CALL, 0ms LATENCY)
-  const handleOfflineCheck = (item: any, key: string, exerciseType: string, categories?: any[]) => {
-    const studentAns = answers[key] || '';
-    const result = exerciseType === 'guided_sentence'
-      ? checkGuidedSentenceExercise(item, studentAns, categories || [])
-      : checkOfflineGrammarAndSpelling(item, studentAns, 'translation');
-
-    setFeedbacks(prev => ({
-      ...prev,
-      [key]: {
-        isCorrect: result.isCorrect,
-        message: result.message,
-        points: result.points,
-        translation: result.translation
-      }
-    }));
   };
 
   // Cooldown countdown effect (decrement every 1 second)
@@ -139,144 +144,46 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
     return () => clearInterval(timer);
   }, [cooldowns]);
 
-  // Handle AI Check (for picture_description or any exercise with use_ai_check)
-  const handleAiCheck = async (item: any, key: string, idx: number, exercise: any) => {
-    // 1. Check if button is currently in cooldown
-    if ((cooldowns[key] || 0) > 0) {
+  const handleAiCheck = async (item: ExerciseItem, key: string, _idx: number, exercise: Exercise) => {
+    if (requests.current[key] || (cooldowns[key] || 0) > 0) return;
+    const answer = answers[key] || '';
+    if (!answer.trim()) {
+      setFeedbacks(prev => ({ ...prev, [key]: { isCorrect: false, pending: true, message: 'กรุณาพิมพ์คำตอบก่อนส่งตรวจค่ะ', points: [] } }));
       return;
     }
-
-    const studentAns = answers[key] || '';
-
-    // 2. Empty input check
-    if (!studentAns.trim()) {
-      setFeedbacks(prev => ({
-        ...prev,
-        [key]: {
-          isCorrect: false,
-          message: '❌ กรุณาพิมพ์คำตอบภาษาอังกฤษก่อนกดตรวจค่ะ',
-          points: ['ยังไม่ได้พิมพ์คำตอบในช่องข้อความ']
-        }
-      }));
-      return;
-    }
-
-    // 3. Minimum length and word check (prevent accidental or single-letter spam)
-    if (studentAns.trim().length < 4 || !studentAns.trim().includes(' ')) {
-      setFeedbacks(prev => ({
-        ...prev,
-        [key]: {
-          isCorrect: false,
-          message: '✍️ กรุณาแต่งประโยคให้สมบูรณ์ก่อนกดตรวจค่ะ',
-          points: ['กรุณาพิมพ์ประโยคที่มีประธานและกริยา (อย่างน้อย 2 คำขึ้นไป) ก่อนกดส่งตรวจนะคะ']
-        }
-      }));
-      return;
-    }
-
-    // 4. Duplicate Answer Guard: Prevent resending the exact same answer
-    if (lastCheckedAnswers[key] && lastCheckedAnswers[key].trim().toLowerCase() === studentAns.trim().toLowerCase()) {
-      setFeedbacks(prev => ({
-        ...prev,
-        [key]: {
-          ...prev[key],
-          message: '💡 นักเรียนได้ตรวจประโยคนี้ไปแล้วนะคะ หากต้องการตรวจใหม่ กรุณาลองปรับแก้ประโยคก่อนกดส่งตรวจค่ะ'
-        }
-      }));
-      return;
-    }
-
-    // Activate 6-second cooldown and remember this answer
-    setCooldowns(prev => ({ ...prev, [key]: 6 }));
-    setLastCheckedAnswers(prev => ({ ...prev, [key]: studentAns }));
+    const controller = new AbortController(); requests.current[key] = controller;
     setAiLoading(prev => ({ ...prev, [key]: true }));
-
+    const timeout = setTimeout(() => controller.abort(), 35000);
     try {
-      const res = await fetch('/api/check', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          bookName: chapterData.book || chapterData.slug || 'sentence-builder-vol-2',
-          chapter: unitNumber,
-          exerciseType: exercise.type || 'picture_description',
-          item: {
-            ...item,
-            book_name: chapterData.book || chapterData.slug || 'sentence-builder-vol-2',
-            unit_number: unitNumber,
-            image_description: item.image_description || '',
-            context_hint: item.context_hint || '',
-            teacher_guidance: (item.teacher_guidance || exercise?.guidance || exercise?.instruction || chapterData.subtitle || '').replace(/ไม่มีถูกไม่มีผิด(?:นะคะ|นะ|ค่ะ)?/g, 'แต่งประโยคให้สอดคล้องกับภาพ'),
-            unit_title: chapterData.title || '',
-            unit_subtitle: chapterData.subtitle || '',
-            exercise_title: exercise?.title || '',
-            exercise_instruction: exercise?.instruction || '',
-            exercise_guidance: exercise?.guidance || '',
-            grammar_focus: exercise?.grammar_focus || '',
-            structure_required: exercise?.structure_required || null,
-            model_answer: item.model_answer || ''
-          },
-          studentAnswer: studentAns
-        })
+      const response = await fetch('/api/check', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: controller.signal,
+        body: JSON.stringify({ bookName: chapterData.book, chapter: unitNumber, exerciseId: exercise.code,
+          itemId: item.id, studentAnswer: answer }),
       });
-
-      const data: EvaluationResult = await res.json();
-
-      const isCorrect = typeof data.isCorrect === 'boolean'
-        ? data.isCorrect
-        : (data.score ? data.score >= 95 : false);
-
-      const points: string[] = [];
-
-      if (data.feedbackPoints && data.feedbackPoints.length > 0) {
-        points.push(...data.feedbackPoints.map((p: string) => `• ${p}`));
+      const data = await response.json();
+      if (!response.ok) {
+        if (response.status === 429) setCooldowns(prev => ({ ...prev, [key]: Number(response.headers.get('Retry-After')) || 60 }));
+        throw new Error(data.error || 'ระบบยังตรวจคำตอบไม่ได้ค่ะ กรุณาลองใหม่');
       }
-
-      if (data.correctedSentence && data.correctedSentence.trim() !== studentAns.trim()) {
-        points.push(`✨ ประโยคตัวอย่างที่แนะนำ: "${data.correctedSentence}"`);
-      }
-
-      const finalMessage = isCorrect
-        ? 'ถูกต้องเลยค่ะ เก่งมากเลย 👏'
-        : (data.statusText || '💡 โครงสร้างประโยคยังไม่สมบูรณ์ค่ะ');
-
-      setFeedbacks(prev => ({
-        ...prev,
-        [key]: {
-          isCorrect,
-          message: finalMessage,
-          studentTranslation: data.studentTranslation || '',
-          points: points.length > 0 ? points : ['ประโยคถูกต้องตามโครงสร้างที่กำหนดค่ะ']
-        }
-      }));
-    } catch (err) {
-      console.error('AI check error:', err);
-      // Fallback local check
-      const raw = studentAns.trim();
-      const hasUpper = /^[A-Z]/.test(raw);
-      const hasPeriod = raw.endsWith('.');
-      const hasIng = /\b\w+ing\b/i.test(raw);
-
-      const points: string[] = [];
-      if (!hasUpper) points.push('• ตัวแรกของประโยคต้องเป็นตัวพิมพ์ใหญ่');
-      if (!hasPeriod) points.push('• อย่าลืมใส่จุด Full stop (.) ท้ายประโยค');
-      if (!hasIng) points.push('• ต้องใช้คำกริยาเติม -ing (Present Continuous)');
-
-      setFeedbacks(prev => ({
-        ...prev,
-        [key]: {
-          isCorrect: points.length === 0,
-          message: points.length === 0 
-            ? '🎉 ตรวจสอบเบื้องต้นถูกต้องค่ะ' 
-            : '⚡ คำแนะนำเบื้องต้น:',
-          points: points.length > 0 ? points : ['ประโยคมีโครงสร้างไวยากรณ์ถูกต้อง']
-        }
-      }));
+      if (requests.current[key] !== controller) return;
+      const result = data as EvaluationResult;
+      const points = [...result.feedbackPoints];
+      if (result.correctedSentence) points.push(`ตัวอย่างการปรับประโยค: "${result.correctedSentence}"`);
+      setFeedbacks(prev => ({ ...prev, [key]: { isCorrect: result.isCorrect, pending: result.verdict === 'needs_review',
+        message: result.statusText, points, translation: result.studentTranslation, studentTranslation: result.studentTranslation,
+        method: result.isLiveGemini ? 'ตรวจด้วย AI' : result.verdict === 'needs_review' ? 'รอการตรวจความหมาย' : 'ตรวจตามกติกาแบบฝึกหัด' } }));
+    } catch (error) {
+      if (requests.current[key] !== controller) return;
+      setFeedbacks(prev => ({ ...prev, [key]: { isCorrect: false, pending: true,
+        message: controller.signal.aborted ? 'การตรวจใช้เวลานานเกินไปค่ะ ลองใหม่อีกครั้งนะคะ' : error instanceof Error ? error.message : 'ระบบยังตรวจคำตอบไม่ได้ค่ะ',
+        points: ['ยังไม่ตัดสินว่าคำตอบถูกหรือผิดค่ะ สามารถส่งคำตอบเดิมเพื่อลองตรวจอีกครั้งได้'] } }));
     } finally {
-      setAiLoading(prev => ({ ...prev, [key]: false }));
+      clearTimeout(timeout);
+      if (requests.current[key] === controller) { delete requests.current[key]; setAiLoading(prev => ({ ...prev, [key]: false })); }
     }
   };
 
-  const bookSlug = chapterData.book || chapterData.slug || 'sentence-builder-vol-2';
+  const bookSlug = chapterData.slug || chapterData.book || 'sentence-builder-vol-2';
   const bookTitle = chapterData.book_title || (bookSlug === 'sentence-builder-vol-2' ? 'Sentence Builder Vol. 2' : bookSlug.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()));
 
   return (
@@ -330,8 +237,15 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
 
       {/* ========================================================= */}
       {/* DYNAMIC EXERCISES LIST (IN CUSTOM CONFIGURED ORDER) */}
+      <nav aria-label="เลือกแบบฝึกหัด" className="flex flex-wrap gap-2 mb-5">
+        <Link className="px-3 py-2 rounded-lg border bg-white" href={`/${bookSlug}/chapter-${unitNumber}`}>ทั้งหมด</Link>
+        {exercisesList.map(ex => <Link key={ex.code} aria-current={selectedExercise === ex.code ? 'page' : undefined}
+          className="px-3 py-2 rounded-lg border bg-white text-blue-800" href={`/${bookSlug}/chapter-${unitNumber}/${ex.code}`}>{ex.title}</Link>)}
+      </nav>
+      <p className="mb-4 text-sm text-slate-600">ตรวจแล้ว {Object.keys(feedbacks).length} ข้อในหน้านี้ · บันทึกคำตอบที่พิมพ์ไว้บนอุปกรณ์นี้อัตโนมัติ</p>
+
       {/* ========================================================= */}
-      {exercisesList.map((exercise: any, exIdx: number) => {
+      {exercisesList.filter(ex => !selectedExercise || ex.code === selectedExercise).map((exercise: Exercise, exIdx: number) => {
         const exType = exercise.type || (exercise.code === 'ex-2' || (exercise.categories && exercise.categories.length > 0) || exercise.word_bank ? 'guided_sentence' : (exercise.code === 'ex-3' ? 'picture_description' : 'translation'));
         const exKeyPrefix = exercise.code || `ex_${exIdx + 1}`;
         const exCategories = getExerciseCategories(exercise);
@@ -357,7 +271,7 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
               </div>
 
               <div className="quiz-items-list space-y-6">
-                {exercise.items?.map((item: any, idx: number) => {
+                {exercise.items?.map((item: ExerciseItem, idx: number) => {
                   const key = `${exKeyPrefix}_${item.id || idx + 1}`;
                   const fb = feedbacks[key];
 
@@ -369,6 +283,8 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
 
                       <div className="quiz-input-wrapper mb-3">
                         <input
+                          maxLength={1500}
+                          aria-label={`คำตอบข้อที่ ${idx + 1}`}
                           type="text"
                           value={answers[key] || ''}
                           onChange={(e) => handleAnswerChange(key, e.target.value)}
@@ -380,7 +296,8 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
 
                       <div className="quiz-action-group flex flex-wrap items-center gap-2.5 mb-3">
                         <button
-                          onClick={() => handleOfflineCheck(item, key, 'translation')}
+                          onClick={() => handleAiCheck(item, key, idx, exercise)}
+                          disabled={aiLoading[key] || (cooldowns[key] || 0) > 0}
                           className="btn-check-answer bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all shadow-2xs cursor-pointer min-h-[42px]"
                         >
                           🔍 ตรวจคำตอบ
@@ -398,18 +315,18 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
 
                       {/* Feedback Box */}
                       {fb && (
-                        <div className={`feedback-result-box p-3.5 rounded-xl text-xs sm:text-sm transition-all animate-in fade-in duration-200 mb-3 ${
-                          fb.isCorrect 
+                        <div role="status" aria-live="polite" className={`feedback-result-box p-3.5 rounded-xl text-xs sm:text-sm transition-all animate-in fade-in duration-200 mb-3 ${
+                          fb.pending ? 'bg-amber-50 text-amber-900 border border-amber-200' : fb.isCorrect 
                             ? 'feedback-correct bg-[#ecfdf5] text-[#065f46] border border-[#a7f3d0]' 
                             : 'feedback-incorrect bg-[#fef2f2] text-[#991b1b] border border-[#fecaca]'
                         }`}>
                           <div className="feedback-message-title font-bold flex items-center gap-1.5 mb-1 text-sm sm:text-base">
-                            {fb.isCorrect ? (
+                            {fb.pending ? <Clock className="w-4 h-4 shrink-0" /> : fb.isCorrect ? (
                               <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                             ) : (
                               <XCircle className="w-4 h-4 text-red-600 shrink-0" />
                             )}
-                            <span>{fb.message}</span>
+                            <span>{fb.message}{fb.method && <small className="block font-normal mt-1">{fb.method}</small>}</span>
                           </div>
 
                           {fb.points && fb.points.length > 0 && (
@@ -434,7 +351,7 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                           {(item.thai || item.thai_prompt) && (
                             <div className="text-xs sm:text-sm font-medium text-emerald-800 mt-2 flex items-center gap-1.5 bg-emerald-50 px-2.5 py-1.5 rounded-lg border border-emerald-200">
                               <span className="font-bold text-emerald-950">📖 คำแปลโจทย์:</span>
-                              <span>"{item.thai || item.thai_prompt}"</span>
+                              <span>&quot;{item.thai || item.thai_prompt}&quot;</span>
                             </div>
                           )}
                           {item.acceptable_answers && item.acceptable_answers.length > 1 && (
@@ -478,7 +395,7 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
               </div>
 
               <div className="quiz-items-list space-y-6">
-                {exercise.items?.map((item: any, idx: number) => {
+                {exercise.items?.map((item: ExerciseItem, idx: number) => {
                   const key = `${exKeyPrefix}_${item.id || idx + 1}`;
                   const fb = feedbacks[key];
                   const blankRegex = /_{2,}/g;
@@ -490,11 +407,6 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                   const requiredOrders: number[] = rawOrders.slice(0, slotCount);
                   const currentSlots = dragSlots[key] || Array(slotCount).fill('');
                   const currentConstructed = answers[key] || '';
-
-                  // Visible categories strictly for the active slots in this item
-                  const visibleCategories = requiredOrders
-                    .map(ord => exCategories.find((cat: any) => cat.order === ord))
-                    .filter(Boolean) as typeof exCategories;
 
                   return (
                     <div key={key} className="quiz-item-card bg-[#f8fafc] border border-slate-200 rounded-xl p-3.5 sm:p-5 shadow-2xs overflow-hidden max-w-full">
@@ -526,7 +438,7 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                             return promptParts.map((part: string, pIdx: number) => {
                               const currentVal = currentSlots[pIdx] || '';
                               const slotOrder = requiredOrders[pIdx] ?? (pIdx + 1);
-                              const targetCat = exCategories.find((c: any) => c.order === slotOrder);
+                              const targetCat = exCategories.find(c => c.order === slotOrder);
                               const placeholderText = targetCat?.name ? `(${targetCat.name})` : `(ช่องที่ ${pIdx + 1})`;
                               const baseWidth = Math.max(100, (placeholderText.length + 2) * 9);
                               const dynamicWidth = Math.max(baseWidth, (currentVal.length + 2) * 10);
@@ -549,6 +461,8 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                                   {pIdx < slotCount && (
                                     <span className="inline-flex items-center max-w-full min-w-0 shrink">
                                       <input
+                          maxLength={1500}
+                          aria-label={`ข้อที่ ${idx + 1} ช่องที่ ${pIdx + 1}`}
                                         type="text"
                                         value={currentVal}
                                         onChange={(e) => handleSlotInputChange(key, promptParts, pIdx, e.target.value, slotCount)}
@@ -585,7 +499,8 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                       {/* 4. Action Buttons */}
                       <div className="quiz-action-group flex flex-wrap items-center gap-2.5 mb-3">
                         <button
-                          onClick={() => handleOfflineCheck(item, key, 'guided_sentence', exCategories)}
+                          onClick={() => handleAiCheck(item, key, idx, exercise)}
+                          disabled={aiLoading[key] || (cooldowns[key] || 0) > 0}
                           className="btn-check-answer bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all shadow-2xs cursor-pointer min-h-[42px]"
                         >
                           🔍 ตรวจคำตอบ
@@ -601,25 +516,25 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
 
                       {/* 5. Feedback Box */}
                       {fb && (
-                        <div className={`feedback-result-box p-3.5 rounded-xl text-xs sm:text-sm transition-all animate-in fade-in duration-200 mb-3 ${
-                          fb.isCorrect 
+                        <div role="status" aria-live="polite" className={`feedback-result-box p-3.5 rounded-xl text-xs sm:text-sm transition-all animate-in fade-in duration-200 mb-3 ${
+                          fb.pending ? 'bg-amber-50 text-amber-900 border border-amber-200' : fb.isCorrect 
                             ? 'feedback-correct bg-[#ecfdf5] text-[#065f46] border border-[#a7f3d0]' 
                             : 'feedback-incorrect bg-[#fef2f2] text-[#991b1b] border border-[#fecaca]'
                         }`}>
                           <div className="feedback-message-title font-bold flex items-center gap-1.5 mb-1 text-sm sm:text-base">
-                            {fb.isCorrect ? (
+                            {fb.pending ? <Clock className="w-4 h-4 shrink-0" /> : fb.isCorrect ? (
                               <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                             ) : (
                               <XCircle className="w-4 h-4 text-red-600 shrink-0" />
                             )}
-                            <span>{fb.message}</span>
+                            <span>{fb.message}{fb.method && <small className="block font-normal mt-1">{fb.method}</small>}</span>
                           </div>
 
                           {/* 📖 คำแปลประโยคภาษาไทย */}
                           {fb.translation && (
                             <div className="feedback-thai-translation my-2 p-2.5 bg-white/90 rounded-lg border border-emerald-200 text-xs sm:text-sm text-emerald-950 font-medium flex items-center gap-1.5 shadow-2xs">
                               <span className="font-bold text-emerald-900 shrink-0">📖 คำแปล:</span>
-                              <span>"{fb.translation}"</span>
+                              <span>&quot;{fb.translation}&quot;</span>
                             </div>
                           )}
 
@@ -638,7 +553,7 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                       {/* 6. 💡 ดูเฉลยคำตอบที่เป็นไปได้ (Revealed Solution Matrix) */}
                       {revealedSolutions[key] &&
                         (() => {
-                          const maxRows = Math.max(1, ...exCategories.map((c: any) => (c.words || []).length));
+                          const maxRows = Math.max(1, ...exCategories.map(c => (c.words || []).length));
                           const possibleSentences: Array<{ en: string; th: string }> = [];
                           const seenEn = new Set<string>();
 
@@ -647,7 +562,7 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                             const chosenTh: Record<number, string> = {};
 
                             for (const ord of requiredOrders) {
-                              const cat = exCategories.find((c: any) => c.order === ord);
+                              const cat = exCategories.find(c => c.order === ord);
                               const w = cat?.words[r];
                               if (w && w.en) {
                                 chosenWords.push(w.en);
@@ -737,7 +652,7 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
               </div>
 
               <div className="quiz-items-list space-y-6 mt-6">
-                {exercise.items?.map((item: any, idx: number) => {
+                {exercise.items?.map((item: ExerciseItem, idx: number) => {
                   const key = `${exKeyPrefix}_${item.id || idx + 1}`;
                   const fb = feedbacks[key];
                   const isLoading = aiLoading[key];
@@ -748,12 +663,14 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                         ภาพที่ {idx + 1} :
                       </div>
 
+                      {!item.image_url && <p className="mb-3 text-sm text-slate-600">ยังไม่มีภาพบนเว็บค่ะ โปรดดูภาพข้อที่ {idx + 1} ในหนังสือประกอบ</p>}
                       {/* Render uploaded image if available */}
                       {item.image_url && (
                         <div className="quiz-image-preview self-center w-full mb-4 overflow-hidden rounded-xl border border-slate-200 bg-white p-2 shadow-2xs max-w-md">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={item.image_url}
-                            alt={`ภาพที่ ${idx + 1}`}
+                            alt={item.context_hint || `ภาพประกอบข้อที่ ${idx + 1}`}
                             className="w-full h-auto max-h-72 object-contain rounded-lg"
                             loading="lazy"
                           />
@@ -762,6 +679,8 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
 
                       <div className="quiz-input-wrapper mb-3">
                         <input
+                          maxLength={1500}
+                          aria-label={`คำตอบข้อที่ ${idx + 1}`}
                           type="text"
                           value={answers[key] || ''}
                           onChange={(e) => handleAnswerChange(key, e.target.value)}
@@ -788,7 +707,7 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
                               {isLoading ? (
                                 <>
                                   <RefreshCw className="w-4 h-4 animate-spin" />
-                                  <span>กำลัง AI ตรวจทาน...</span>
+                                  <span>กำลังตรวจทาน...</span>
                                 </>
                               ) : isCooldown ? (
                                 <>
@@ -817,25 +736,25 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
 
                       {/* Feedback Box */}
                       {fb && (
-                        <div className={`feedback-result-box p-3.5 rounded-xl text-xs sm:text-sm transition-all animate-in fade-in duration-200 mb-3 ${
-                          fb.isCorrect 
+                        <div role="status" aria-live="polite" className={`feedback-result-box p-3.5 rounded-xl text-xs sm:text-sm transition-all animate-in fade-in duration-200 mb-3 ${
+                          fb.pending ? 'bg-amber-50 text-amber-900 border border-amber-200' : fb.isCorrect 
                             ? 'feedback-correct bg-[#ecfdf5] text-[#065f46] border border-[#a7f3d0]' 
                             : 'feedback-incorrect bg-[#fef2f2] text-[#991b1b] border border-[#fecaca]'
                         }`}>
                           <div className="feedback-message-title font-bold flex items-center gap-1.5 mb-1 text-sm sm:text-base">
-                            {fb.isCorrect ? (
+                            {fb.pending ? <Clock className="w-4 h-4 shrink-0" /> : fb.isCorrect ? (
                               <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                             ) : (
                               <XCircle className="w-4 h-4 text-red-600 shrink-0" />
                             )}
-                            <span>{fb.message}</span>
+                            <span>{fb.message}{fb.method && <small className="block font-normal mt-1">{fb.method}</small>}</span>
                           </div>
 
                           {/* 📖 คำแปลประโยคของนักเรียน */}
                           {fb.studentTranslation && (
                             <div className="feedback-student-translation my-2 p-2.5 bg-white/95 rounded-lg border border-slate-200 text-xs sm:text-sm">
                               <span className="font-bold text-slate-800">📖 คำแปลประโยคของนักเรียน:</span>
-                              <span className="ml-1.5 text-slate-700 font-medium">"{fb.studentTranslation}"</span>
+                              <span className="ml-1.5 text-slate-700 font-medium">&quot;{fb.studentTranslation}&quot;</span>
                             </div>
                           )}
 
@@ -875,61 +794,6 @@ export default function ExerciseWorkspace({ chapter, chapterData }: ExerciseWork
         return null;
       })}
     </div>
-  );
-}
-
-/**
- * DropSlot Component for Drag & Drop Sentence Builder
- */
-function DropSlot({
-  slotIdx,
-  value,
-  categoryHint,
-  onPlace,
-  onRemove
-}: {
-  slotIdx: number;
-  value?: string;
-  categoryHint?: string;
-  onPlace: (word: string) => void;
-  onRemove: () => void;
-}) {
-  const [isOver, setIsOver] = useState(false);
-
-  if (value) {
-    return (
-      <span
-        onClick={onRemove}
-        title="คลิกเพื่อนำคำนี้ออก"
-        className="inline-flex items-center gap-1.5 px-3.5 py-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-sm sm:text-base font-bold shadow-xs cursor-pointer hover:from-rose-500 hover:to-red-600 transition-all select-none group"
-      >
-        <span>{value}</span>
-        <span className="text-white/80 group-hover:text-white text-xs font-mono ml-0.5">✕</span>
-      </span>
-    );
-  }
-
-  return (
-    <span
-      onDragOver={(e) => {
-        e.preventDefault();
-        setIsOver(true);
-      }}
-      onDragLeave={() => setIsOver(false)}
-      onDrop={(e) => {
-        e.preventDefault();
-        setIsOver(false);
-        const word = e.dataTransfer.getData('text/plain');
-        if (word) onPlace(word);
-      }}
-      className={`inline-flex items-center justify-center min-w-[130px] px-3.5 py-1 border-2 border-dashed rounded-xl text-xs sm:text-sm font-semibold transition-all select-none ${
-        isOver
-          ? 'border-[#2563eb] bg-blue-100 text-[#2563eb] scale-105 shadow-xs'
-          : 'border-slate-300 bg-slate-50 text-slate-600 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 cursor-pointer'
-      }`}
-    >
-      {categoryHint ? `(${categoryHint})` : '(เลือกคำศัพท์)'}
-    </span>
   );
 }
 

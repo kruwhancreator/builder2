@@ -1,27 +1,12 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { requireAdmin } from '@/lib/admin-auth';
 import { getAnalyticsSummary } from '@/lib/analytics-store';
 import { getBookDataFromDb } from '@/lib/data-manager';
-
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
+  const denied = requireAdmin(req); if (denied) return denied;
   try {
-    const { searchParams } = new URL(req.url);
-    const bookName = searchParams.get('book') || 'sentence-builder-vol-2';
-
-    // Get total units count dynamically from book if available
-    let totalUnits = 30;
-    try {
-      const bookData = await getBookDataFromDb(bookName);
-      if (Array.isArray(bookData?.units) && bookData.units.length > 0) {
-        totalUnits = Math.max(30, bookData.units.length);
-      }
-    } catch {
-      // fallback to 30
-    }
-
-    const summary = await getAnalyticsSummary(bookName, totalUnits);
-    return NextResponse.json(summary);
-  } catch (err) {
-    console.error('Analytics summary error:', err);
-    return NextResponse.json({ error: 'Failed to fetch analytics summary' }, { status: 500 });
-  }
+    const book = await getBookDataFromDb(req.nextUrl.searchParams.get('book') || '');
+    if (!book) return NextResponse.json({ error: 'Book not found' }, { status: 404 });
+    return NextResponse.json(await getAnalyticsSummary(book.id, book.units.map(u => u.unit_number)), { headers: { 'Cache-Control': 'no-store' } });
+  } catch { return NextResponse.json({ error: 'Analytics unavailable' }, { status: 503 }); }
 }

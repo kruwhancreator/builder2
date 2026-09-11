@@ -69,7 +69,7 @@ export default async function DynamicBookLandingPage({ params }: PageProps) {
 
       {unitsList.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
-          {unitsList.map((u: any) => (
+          {unitsList.map((u) => (
             <Link
               key={u.unit_number}
               href={`/${bookSlug}/chapter-${u.unit_number}`}

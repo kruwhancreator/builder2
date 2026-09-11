@@ -28,13 +28,10 @@ import {
   TrendingUp,
   Users,
   Award,
-  Eye,
-  ArrowUpRight,
   Upload,
   ChevronUp,
   ChevronDown
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
 import { assemblePromptSentence } from '@/lib/offline-checker';
 
 const INITIAL_BOOKS = [
@@ -108,7 +105,7 @@ export default function BackendAdminPage() {
   // Fetch dynamic Books List (with calculated unit counts and custom slug)
   const fetchBooksList = () => {
     fetch('/api/admin/books')
-      .then(res => res.json())
+      .then(res => { if (!res.ok) throw new Error('Unable to load data'); return res.json(); })
       .then(resData => {
         const books = Array.isArray(resData) ? resData : (resData?.books || []);
         if (Array.isArray(books) && books.length > 0) {
@@ -122,7 +119,7 @@ export default function BackendAdminPage() {
   const fetchCurriculum = (bookId: string) => {
     setIsLoadingCurriculum(true);
     fetch(`/api/admin/curriculum?book=${bookId}`)
-      .then(res => res.json())
+      .then(res => { if (!res.ok) throw new Error('Unable to load data'); return res.json(); })
       .then(data => {
         if (data && Array.isArray(data.units)) {
           setCurriculumUnits(data.units);
@@ -136,7 +133,7 @@ export default function BackendAdminPage() {
   const fetchAnalytics = (bookId: string) => {
     setIsLoadingAnalytics(true);
     fetch(`/api/analytics/summary?book=${encodeURIComponent(bookId)}`)
-      .then(res => res.json())
+      .then(res => { if (!res.ok) throw new Error('Unable to load data'); return res.json(); })
       .then(data => {
         setAnalyticsData(data);
       })
@@ -145,18 +142,18 @@ export default function BackendAdminPage() {
   };
 
   useEffect(() => {
-    try {
-      if (sessionStorage.getItem('admin_authenticated') === '1') {
-        setIsAuthenticated(true);
-      }
-    } catch {}
-    fetchBooksList();
+    fetch('/api/admin/auth', { cache: 'no-store' }).then(res => {
+      if (res.ok) { setIsAuthenticated(true); fetchBooksList(); }
+    }).catch(() => {});
   }, []);
 
   useEffect(() => {
     if (selectedBook && isAuthenticated) {
-      fetchCurriculum(selectedBook);
-      fetchAnalytics(selectedBook);
+      const timer = setTimeout(() => {
+        fetchCurriculum(selectedBook);
+        fetchAnalytics(selectedBook);
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [selectedBook, isAuthenticated]);
 
@@ -176,9 +173,7 @@ export default function BackendAdminPage() {
       if (res.ok && data.success) {
         setIsAuthenticated(true);
         setAuthError('');
-        try {
-          sessionStorage.setItem('admin_authenticated', '1');
-        } catch {}
+        fetchBooksList();
       } else {
         setAuthError(data.error || 'Passcode ไม่ถูกต้อง');
       }
@@ -189,12 +184,9 @@ export default function BackendAdminPage() {
     }
   };
 
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    setPasscode('');
-    try {
-      sessionStorage.removeItem('admin_authenticated');
-    } catch {}
+  const handleLogout = async () => {
+    const res = await fetch('/api/admin/auth', { method: 'DELETE' });
+    if (res.ok || res.status === 401) { setIsAuthenticated(false); setPasscode(''); }
   };
 
   // Book Handlers
@@ -340,7 +332,7 @@ export default function BackendAdminPage() {
   // Exercise Config Handlers (CRUD)
   const openAddExerciseModal = (unit: any) => {
     const nextIdx = (unit.exercises?.length || 0) + 1;
-    const nextCode = `ex-${Date.now().toString().slice(-4)}`;
+    const nextCode = `ex-${nextIdx}`;
     setExerciseModalContext({ unit, isEditing: false });
     setExerciseFormData({
       exercise_code: nextCode,
@@ -780,36 +772,9 @@ export default function BackendAdminPage() {
         return;
       }
 
-      // 2. Direct client-side Supabase storage attempt
-      if (supabase) {
-        const fileExt = file.name.split('.').pop() || 'png';
-        const fileName = `ex3_${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
-        const { error } = await supabase.storage
-          .from('exercise-images')
-          .upload(fileName, file, { upsert: true });
-
-        if (!error) {
-          const { data: publicUrlData } = supabase.storage
-            .from('exercise-images')
-            .getPublicUrl(fileName);
-          if (publicUrlData?.publicUrl) {
-            handleUpdateQuestion(qIdx, 'image_url', publicUrlData.publicUrl);
-            setIsUploadingImage(prev => ({ ...prev, [qIdx]: false }));
-            return;
-          }
-        }
-      }
-
-      // 3. Fallback: Read as base64 data URL
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const base64Url = e.target?.result as string;
-        handleUpdateQuestion(qIdx, 'image_url', base64Url);
-        setIsUploadingImage(prev => ({ ...prev, [qIdx]: false }));
-      };
-      reader.readAsDataURL(file);
+      throw new Error(resData.error || 'Upload failed');
     } catch (err) {
-      console.error('Image upload failed:', err);
+      setSaveMessage({ type: 'error', text: err instanceof Error ? err.message : 'Upload failed' });
       setIsUploadingImage(prev => ({ ...prev, [qIdx]: false }));
     }
   };
@@ -1197,6 +1162,7 @@ export default function BackendAdminPage() {
           {/* ========================================================= */}
           {activeView === 'analytics_dashboard' && (
             <section className="analytics-dashboard-section w-full">
+              <p className="p-3 mb-4 bg-amber-50 rounded-xl text-sm text-amber-900">สถิตินี้นับการเข้าชมและการส่งตรวจ ไม่ใช่จำนวนผู้เรียนที่เรียนจบค่ะ ข้อมูลก่อนอัปเดตระบบอาจนับเฉพาะบางประเภทแบบฝึกหัด</p>
               {/* Top Navigation / Breadcrumb */}
               <div className="back-navigation-bar mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <button
@@ -1224,48 +1190,6 @@ export default function BackendAdminPage() {
                       ))}
                     </select>
                   </div>
-
-                  {/* Test Scan Button */}
-                  <button
-                    onClick={async () => {
-                      try {
-                        await fetch('/api/analytics/track', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ type: 'book', bookName: selectedBook })
-                        });
-                        fetchAnalytics(selectedBook);
-                      } catch (e) {
-                        console.error('Test scan error:', e);
-                      }
-                    }}
-                    title="จำลองการสแกน QR Code เพื่อทดสอบการนับสถิติจริง"
-                    className="p-2 px-3 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-2xl border border-purple-200 shadow-2xs transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>ทดสอบ Scan (+1)</span>
-                  </button>
-
-                  {/* Test AI Check Button */}
-                  <button
-                    onClick={async () => {
-                      try {
-                        await fetch('/api/analytics/track', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ type: 'check', bookName: selectedBook, unitNumber: 1, isCorrect: true })
-                        });
-                        fetchAnalytics(selectedBook);
-                      } catch (e) {
-                        console.error('Test AI check error:', e);
-                      }
-                    }}
-                    title="จำลองการส่งตรวจ AI (+1) เพื่อทดสอบสถิติ AI Checks และ Accuracy"
-                    className="p-2 px-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-2xl border border-indigo-200 shadow-2xs transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold"
-                  >
-                    <Bot className="w-3.5 h-3.5" />
-                    <span>ทดสอบ AI Check (+1)</span>
-                  </button>
 
                   {/* Refresh Button */}
                   <button
@@ -1315,10 +1239,10 @@ export default function BackendAdminPage() {
 
               {/* 6 KPI Metrics Grid */}
               <div className="kpi-metrics-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
-                {/* Metric 1: Total QR Scans */}
+                {/* Metric 1: Book Visits */}
                 <div className="kpi-card bg-white rounded-3xl p-5 border border-slate-200 shadow-xs relative overflow-hidden">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total QR Scans</span>
+                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Book Visits</span>
                     <div className="w-8 h-8 rounded-xl bg-blue-50 text-[#2563eb] flex items-center justify-center font-bold">
                       <QrCode className="w-4 h-4" />
                     </div>
@@ -1327,7 +1251,7 @@ export default function BackendAdminPage() {
                     {analyticsData?.totalQrScans?.toLocaleString() || 0}
                   </div>
                   <div className="text-xs text-slate-400 mt-1 flex items-center gap-1 font-medium">
-                    <span className="text-blue-600 font-bold">● สแกนหลังปก</span> จาก QR Code ทั้งหมด
+                    <span className="text-blue-600 font-bold">● เข้าชมหนังสือ</span> จากทุกแหล่งที่มา
                   </div>
                 </div>
 
@@ -1350,7 +1274,7 @@ export default function BackendAdminPage() {
                 {/* Metric 3: QR to Unit 1 Conversion */}
                 <div className="kpi-card bg-white rounded-3xl p-5 border border-slate-200 shadow-xs relative overflow-hidden">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">QR ➔ Unit 1</span>
+                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Visits ➔ First Unit</span>
                     <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold">
                       <TrendingUp className="w-4 h-4" />
                     </div>
@@ -1359,30 +1283,30 @@ export default function BackendAdminPage() {
                     {analyticsData?.qrToUnit1Conversion || 0}%
                   </div>
                   <div className="text-xs text-slate-400 mt-1 flex items-center gap-1 font-medium">
-                    <span className="text-purple-600 font-bold">Conversion Rate</span> สแกนแล้วกดเริ่มทำ
+                    <span className="text-purple-600 font-bold">Conversion Rate</span> เข้าชมแล้วเปิดบทแรก
                   </div>
                 </div>
 
                 {/* Metric 4: Course Completion */}
                 <div className="kpi-card bg-white rounded-3xl p-5 border border-slate-200 shadow-xs relative overflow-hidden">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Completion Rate</span>
+                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Last Unit Reach</span>
                     <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
                       <Award className="w-4 h-4" />
                     </div>
                   </div>
                   <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-heading">
-                    {analyticsData?.courseCompletionRate || 0}%
+                    {analyticsData?.lastUnitReachRate || 0}%
                   </div>
                   <div className="text-xs text-slate-400 mt-1 flex items-center gap-1 font-medium">
-                    <span className="text-amber-600 font-bold">● สำเร็จการเรียน</span> ทำครบถึงบทสุดท้าย
+                    <span className="text-amber-600 font-bold">● เปิดบทสุดท้าย</span> เป็นสถิติการเข้าชม ไม่ใช่การทำแบบฝึกหัดครบ
                   </div>
                 </div>
 
                 {/* Metric 5: Total AI Checks */}
                 <div className="kpi-card bg-white rounded-3xl p-5 border border-slate-200 shadow-xs relative overflow-hidden">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">AI Checks</span>
+                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Answer Checks</span>
                     <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
                       <Bot className="w-4 h-4" />
                     </div>
@@ -1930,7 +1854,7 @@ export default function BackendAdminPage() {
                         </h4>
                       </div>
                       <p className="text-xs text-slate-600 mt-1">
-                        💡 <b>คำอธิบายการจับคู่:</b> คำศัพท์ใน <b>"แถวเดียวกัน (ชุดเดียวกัน)"</b> จะถือเป็นคู่คำที่มีความหมายเชื่อมโยงกันอย่างสมบูรณ์
+                        💡 <b>คำอธิบายการจับคู่:</b> คำศัพท์ใน <b>&quot;แถวเดียวกัน (ชุดเดียวกัน)&quot;</b> จะถือเป็นคู่คำที่มีความหมายเชื่อมโยงกันอย่างสมบูรณ์
                       </p>
                     </div>
 
@@ -2311,7 +2235,7 @@ export default function BackendAdminPage() {
                                     <div className="pt-2 border-t border-emerald-200/60 text-xs text-emerald-900">
                                       <span className="font-bold">ตัวอย่างคำแปลเมื่อตอบถูก:</span>{' '}
                                       <span className="font-medium bg-white/90 px-2 py-0.5 rounded border border-emerald-300">
-                                        "{livePreview}"
+                                        &quot;{livePreview}&quot;
                                       </span>
                                     </div>
                                   )}
@@ -2451,6 +2375,7 @@ export default function BackendAdminPage() {
                                   {q.image_url && (
                                     <div className="pt-2 border-t border-slate-200 flex items-center gap-4">
                                       <div className="relative w-28 h-28 rounded-xl border border-slate-300 bg-white p-1 overflow-hidden shrink-0 shadow-2xs">
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
                                         <img
                                           src={q.image_url}
                                           alt={`ภาพที่ ${idx + 1}`}
