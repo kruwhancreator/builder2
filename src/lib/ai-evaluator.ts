@@ -141,18 +141,33 @@ export function refineAssessment(
 
   let hallucinationCleared = false;
 
-  // 4. Time Slot Recognition (e.g. "before bed", "in the morning", "at weekends", "after work")
-  const hasValidTimeSlot = /\b(before\s+(?:bed|sleep|going\s+to\s+bed)|at\s+bedtime|after\s+(?:work|school|class|dinner|lunch)|in\s+the\s+(?:morning|afternoon|evening)|at\s+night|at\s+weekends|on\s+weekends|on\s+weekdays|every\s+(?:day|weekend|morning|evening|night)|from\s+time\s+to\s+time|once\s+in\s+a\s+while)\b/i.test(text);
+  // 4. Time Slot Recognition (e.g. "before", "recently", "before bed", "in the morning", "at weekends", "many times")
+  const hasValidTimeSlot = /\b(before\s+(?:bed|sleep|going\s+to\s+bed)|at\s+bedtime|after\s+(?:work|school|class|dinner|lunch)|before|already|yet|just|recently|lately|in\s+the\s+past|many\s+times|several\s+times|once|twice|three\s+times|often|always|never|ever|earlier|previously|today|tonight|yesterday|tomorrow|this\s+morning|this\s+afternoon|this\s+evening|now|later|soon|every\s+(?:day|week|month|year|morning|night|weekend|weekends|weekday|weekdays)|in\s+the\s+(?:morning|afternoon|evening)|at\s+night|at\s+noon|at\s+midnight|at\s+weekends|on\s+weekends|on\s+weekdays|from\s+time\s+to\s+time|once\s+in\s+a\s+while)\b/i.test(text);
 
   if (hasValidTimeSlot) {
-    // Filter out hallucinated complaints claiming time slot is missing
-    const filteredPoints = points.filter(p => !p.includes('คำบอกเวลา') && !p.includes('ช่วงเวลาก่อนคำเชื่อม') && !p.includes('ขาดคำระบุเวลา'));
+    // Filter out hallucinated complaints claiming time slot is missing or misplaced
+    const filteredPoints = points.filter(p =>
+      !p.includes('คำบอกเวลา') &&
+      !p.includes('ช่วงเวลาก่อนคำเชื่อม') &&
+      !p.includes('ขาดคำระบุเวลา') &&
+      !p.includes('ขาดส่วนระบุเวลา') &&
+      !p.includes('ระบุช่วงเวลาหรือความถี่') &&
+      !p.includes('ต้องใช้คำบอกเวลา') &&
+      !p.includes('เพื่อบอกเวลาที่เคยทำมาก่อน') &&
+      !p.includes('แทนการใช้ so') &&
+      !p.includes('แทน so') &&
+      !p.includes('หลังคำว่า "คน"') &&
+      !p.includes('หลังจากคำว่า "คน"') &&
+      !p.includes('หลังคำว่า \'คน\'') &&
+      !p.includes('หลังจากคำว่า \'คน\'') &&
+      !(p.includes('เวลา') && (p.includes('ขาด') || p.includes('แนะนำให้ใช้คำว่า') || p.includes('เช่น before') || p.includes('แทนการใช้')))
+    );
     if (filteredPoints.length !== points.length) {
       hallucinationCleared = true;
       points.length = 0;
       points.push(...filteredPoints);
       // If no other structural problems exist, mark structure as valid
-      if (!points.some(p => p.includes('โครงสร้าง'))) {
+      if (!points.some(p => p.includes('โครงสร้าง') && !p.includes('สูตร') && !p.includes('ถูกต้องแล้ว'))) {
         structureValid = true;
       }
     }
@@ -314,14 +329,29 @@ STRICT SENTENCE STRUCTURE PRIORITY:
 - CRITICAL: Any and all hints, advice, feedbackPoints, and suggested corrections MUST STRICTLY ADHERE TO AND PRESERVE THE GIVEN SENTENCE STRUCTURE. Never suggest clauses, words, or alternative formulas that violate the lesson's target structure!
 
 TIME PHRASE RECOGNITION (เวลา / ช่วงเวลา):
-- When a sentence pattern specifies a "เวลา" (Time phrase) slot (such as before "because", before "[but...]", or at the end):
-- Prepositional and adverbial time expressions MUST BE RECOGNIZED AS 100% VALID TIME SLOTS ("เวลา"), including:
-  * "before bed", "before sleep", "before going to bed", "at bedtime"
-  * "in the morning", "in the afternoon", "in the evening", "at night", "at noon", "at midnight"
-  * "at weekends", "on weekends", "on weekdays", "every weekend", "every day", "from time to time", "once in a while"
-  * "after work", "after school", "after dinner", "after lunch"
-- CRITICAL: If the student wrote a valid time phrase such as "before bed", "in the morning", "at weekends", etc., the "เวลา" slot IS SATISFIED!
-- NEVER claim that the sentence is missing a time phrase or period of time when the student wrote "before bed" or similar! (e.g. In "I prefer reading a book to listening to music before bed because I can relax.", "before bed" is the valid time phrase!).
+- When a sentence pattern specifies a "เวลา" (Time phrase) slot (such as in "I + have + V.3 + with + คน + เวลา, + [ so I can + V.ไม่ผัน ]", "I prefer + สิ่งแรก + to + สิ่งที่สอง + เวลา + [ because I can + V.ไม่ผัน ]", or similar):
+- You MUST recognize that standard time expressions and time adverbs ARE 100% VALID TIME SLOTS ("เวลา"), including:
+  * Single-word time adverbs & experience words: "before", "already", "recently", "lately", "often", "always", "today", "tonight", "yesterday", "tomorrow", "now", "later", "soon"
+  * Frequency & repetition phrases: "many times", "several times", "once", "twice", "three times"
+  * Prepositional time phrases: "before bed", "before sleep", "before going to bed", "at bedtime", "after work", "after school", "after dinner", "after lunch"
+  * Period / recurrence phrases: "in the morning", "in the afternoon", "in the evening", "at night", "at noon", "at midnight", "at weekends", "on weekends", "on weekdays", "every weekend", "every day", "from time to time", "once in a while"
+- CRITICAL FOR PRESENT PERFECT: In formulas like "I + have + V.3 + with + คน + เวลา, + [ so I can + V.ไม่ผัน ]":
+  * In "I have baked with my mum before, so I can help her.":
+    - "I" = I
+    - "have" = have
+    - "baked" = V.3
+    - "with my mum" = with + คน
+    - "before" = เวลา (100% VALID TIME ADVERB!)
+    - ", so I can help her" = , + [ so I can + V.ไม่ผัน ]
+    - THIS SENTENCE IS 100% CORRECT! (isCorrect: true, structureValid: true, grammarValid: true).
+  * In "I have played tennis with my friend before, so I can enjoy.":
+    - "before" = เวลา (100% VALID TIME ADVERB!)
+    - THIS SENTENCE IS 100% CORRECT! (isCorrect: true, structureValid: true, grammarValid: true).
+  * In "I have worked with Jane before, so I can ask her for help.":
+    - "before" = เวลา (100% VALID TIME ADVERB!)
+    - THIS SENTENCE IS 100% CORRECT!
+- NEVER claim that the sentence is missing a time phrase or period ("โครงสร้างประโยคยังขาดส่วนระบุเวลา") when the student wrote "before", "recently", "many times", "before bed", "in the morning", etc.!
+- NEVER confuse "before" with "so", and never claim that "before" was replaced by "so" when both "before" and "so" are present (e.g. "...with my mum before, so I can...")!
 
 PLACE / LOCATION RECOGNITION (สถานที่):
 - When a sentence pattern specifies a "สถานที่" (Place / Location) slot (e.g. "S. + might be + V.ing + สถานที่ + [ but + S. + วลีแสดงความไม่แน่ใจ ]" or similar):
