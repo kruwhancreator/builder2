@@ -215,6 +215,33 @@ export function refineAssessment(
     }
   }
 
+  // 7. Past Experience Partner Guardrail (e.g. "baked with my dad before, so I can help my mum")
+  // In Present Perfect, the person in "with + คน + before" is a past learning/experience partner,
+  // who does NOT have to be the person visible in the picture today.
+  const hasPastPartnerWithResult = /\bhave\s+\w+(?:ed|en|t)?\s+with\s+(?:my\s+)?(\w+)\s+(?:before|already|in\s+the\s+past|previously)[^,]*,\s*so\s+i\s+can\s+(?:help|assist|cook|bake|play|ask|join|teach|guide)\b/i.test(text);
+  if (hasPastPartnerWithResult) {
+    const filteredPoints = points.filter(p =>
+      !p.includes('ไม่ใช่คุณพ่อ') &&
+      !p.includes('ไม่ใช่คุณแม่') &&
+      !p.includes('ไม่ใช่พ่อ') &&
+      !p.includes('ไม่ใช่แม่') &&
+      !p.includes('ไม่ใช่ dad') &&
+      !p.includes('ไม่ใช่ mum') &&
+      !p.includes('ไม่ใช่ mom') &&
+      !p.includes('บุคคลในภาพคือ') &&
+      !p.includes('ในภาพคือคุณ') &&
+      !(p.includes('ในภาพ') && (p.includes('dad') || p.includes('พ่อ') || p.includes('แม่') || p.includes('mum') || p.includes('mom')))
+    );
+    if (filteredPoints.length !== points.length) {
+      hallucinationCleared = true;
+      points.length = 0;
+      points.push(...filteredPoints);
+      imageRelevant = true;
+      meaningValid = true;
+      structureValid = true;
+    }
+  }
+
   // 7. Concessive Guardrail for Washing Hands / Preparing food + "even when I'm hungry"
   const isWashOrPrep = /\b(?:wash|washing|clean|cleaning|cook|cooking|prepare|preparing)\b/i.test(text);
   if (isWashOrPrep && /\beven when\s+(?:i\s*am|i['’]m)\s+(?:very\s+|really\s+|so\s+)?hungry\b/i.test(text)) {
@@ -387,6 +414,19 @@ CRITICAL - RELATION TO THE IMAGE & SETTING COHERENCE (ความสอดค�
 - When an image depicts outdoor activities (e.g. running in a park, boy on a soccer field):
   * Outdoor locations ("in the park", "on the soccer field", "outside") are valid.
   * Indoor locations ("in the bedroom", "in the kitchen", "indoors") contradict the image and MUST be marked imageRelevant: false.
+
+- PRESENT PERFECT EXPERIENCES VS. VISIBLE PICTURE PARTICIPANTS:
+  * When a sentence pattern expresses past experience/learning leading to a current ability or action (e.g. "I + have + V.3 + with + คน + เวลา, + [ so I can + V.ไม่ผัน ]"):
+  * The person in the past clause ("with + คน") represents a PAST EXPERIENCE PARTNER (who the speaker practiced/did something with in the past before).
+  * This person in the past DOES NOT NEED to be physically present in the picture!
+  * For example, in an image depicting a mother and son baking together in the kitchen:
+    - If the student writes: "I have baked with my dad before, so I can help my mum."
+      * "baked with my dad before" = The speaker gained baking experience with their father in the past!
+      * "so I can help my mum" = The speaker is currently applying this skill to help their mother (who is in the picture)!
+      * This sentence is 100% LOGICAL, REALISTIC, AND PERFECTLY COHERENT WITH THE PICTURE!
+      * It MUST BE MARKED 100% CORRECT (isCorrect: true, imageRelevant: true, meaningValid: true, grammarValid: true, structureValid: true)!
+    - Similarly: "I have baked with my friend before, so I can help her." or "I have baked with my grandma before, so I can help my mum." are 100% CORRECT!
+  * NEVER claim that "บุคคลในภาพคือคุณแม่ ไม่ใช่คุณพ่อ" when the student mentions a past learning partner in "have + V.3 + with [person] before" and connects it to helping someone in the picture ("so I can help my mum / her")!
 
 COLLOCATION & GRAMMAR RULES (COMMON THAI LEARNER PITFALLS):
 1. Electrical Appliances & Devices ("เปิด/ปิด แอร์ ไฟ ทีวี พัดลม คอมพิวเตอร์"):
