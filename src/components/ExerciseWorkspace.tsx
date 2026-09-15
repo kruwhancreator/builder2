@@ -22,7 +22,7 @@ interface ExerciseWorkspaceProps {
   selectedExercise?: string;
 }
 
-export default function ExerciseWorkspace({ chapterData, selectedExercise }: ExerciseWorkspaceProps) {
+export default function ExerciseWorkspace({ chapter, chapterData, selectedExercise }: ExerciseWorkspaceProps) {
   // State per question item: answers, feedback, solution visibility, loading state
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [feedbacks, setFeedbacks] = useState<Record<string, { isCorrect: boolean; message: string; points: string[]; translation?: string; studentTranslation?: string; pending?: boolean; method?: string }>>({});
@@ -33,10 +33,30 @@ export default function ExerciseWorkspace({ chapterData, selectedExercise }: Exe
   const [lastCheckedAnswers, setLastCheckedAnswers] = useState<Record<string, string>>({});
   const requests = useRef<Record<string, AbortController>>({});
   const draftReady = useRef(false);
-  const draftKey = `sb_draft_${chapterData.book}_${chapterData.chapter}`;
+
+  const unitNumber = chapterData.chapter || chapterData.unit_number || (chapter ? Number(chapter.replace(/\D/g, '')) : 1);
+  const bookSlug = chapterData.slug || chapterData.book || 'sentence-builder-vol-2';
+  const draftKey = `sb_draft_${bookSlug}_unit_${unitNumber}`;
   const contentVersion = JSON.stringify(chapterData.exercises);
+
   useEffect(() => {
     let active = true;
+    // Disarm auto-save immediately during unit transitions
+    draftReady.current = false;
+
+    // Abort all in-flight evaluation requests when switching units
+    Object.values(requests.current).forEach(r => r.abort());
+    requests.current = {};
+
+    // Reset all item states to clean initial state for the new unit
+    setAnswers({});
+    setFeedbacks({});
+    setRevealedSolutions({});
+    setDragSlots({});
+    setAiLoading({});
+    setCooldowns({});
+    setLastCheckedAnswers({});
+
     Promise.resolve().then(() => {
       if (!active) return;
       try {
@@ -50,18 +70,26 @@ export default function ExerciseWorkspace({ chapterData, selectedExercise }: Exe
               }
             }
           }
-          setAnswers(cleanedAnswers); setDragSlots(draft.slots);
+          setAnswers(cleanedAnswers);
+          setDragSlots(draft.slots);
         }
       } catch { /* Private browsing or expired draft: start empty. */ }
       draftReady.current = true;
     });
-    const pending = requests.current;
-    return () => { active = false; Object.values(pending).forEach(r => r.abort()); };
+
+    return () => {
+      active = false;
+      Object.values(requests.current).forEach(r => r.abort());
+    };
   }, [draftKey, contentVersion]);
+
   useEffect(() => {
     if (!draftReady.current) return;
-    try { localStorage.setItem(draftKey, JSON.stringify({ version: contentVersion, answers, slots: dragSlots })); } catch { /* Storage is optional. */ }
+    try {
+      localStorage.setItem(draftKey, JSON.stringify({ version: contentVersion, answers, slots: dragSlots }));
+    } catch { /* Storage is optional. */ }
   }, [answers, dragSlots, draftKey, contentVersion]);
+
   const clearFeedback = (key: string) => {
     requests.current[key]?.abort();
     delete requests.current[key];
@@ -73,8 +101,6 @@ export default function ExerciseWorkspace({ chapterData, selectedExercise }: Exe
   const toggleRevealSolution = (key: string) => {
     setRevealedSolutions(prev => ({ ...prev, [key]: !prev[key] }));
   };
-
-  const unitNumber = chapterData.chapter || chapterData.unit_number || 1;
 
   // Extract exercise categories dynamically for guided_sentence
   const getExerciseCategories = (exercise: Exercise) => {
@@ -253,7 +279,6 @@ export default function ExerciseWorkspace({ chapterData, selectedExercise }: Exe
     }
   };
 
-  const bookSlug = chapterData.slug || chapterData.book || 'sentence-builder-vol-2';
   const bookTitle = chapterData.book_title || (bookSlug === 'sentence-builder-vol-2' ? 'Sentence Builder Vol. 2' : bookSlug.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()));
 
   return (
@@ -353,6 +378,7 @@ export default function ExerciseWorkspace({ chapterData, selectedExercise }: Exe
 
                       <div className="quiz-input-wrapper mb-3">
                         <input
+                          key={`${unitNumber}_${key}`}
                           maxLength={1500}
                           aria-label={`คำตอบข้อที่ ${idx + 1}`}
                           type="text"
@@ -557,8 +583,9 @@ export default function ExerciseWorkspace({ chapterData, selectedExercise }: Exe
                                   {pIdx < slotCount && (
                                     <span className="inline-flex items-center max-w-full min-w-0 shrink">
                                       <input
-                          maxLength={1500}
-                          aria-label={`ข้อที่ ${idx + 1} ช่องที่ ${pIdx + 1}`}
+                                        key={`${unitNumber}_${key}_slot_${pIdx}`}
+                                        maxLength={1500}
+                                        aria-label={`ข้อที่ ${idx + 1} ช่องที่ ${pIdx + 1}`}
                                         type="text"
                                         value={currentVal}
                                         onChange={(e) => handleSlotInputChange(key, promptParts, pIdx, e.target.value, slotCount)}
@@ -800,6 +827,7 @@ export default function ExerciseWorkspace({ chapterData, selectedExercise }: Exe
 
                       <div className="quiz-input-wrapper mb-3">
                         <input
+                          key={`${unitNumber}_${key}`}
                           maxLength={1500}
                           aria-label={`คำตอบข้อที่ ${idx + 1}`}
                           type="text"
