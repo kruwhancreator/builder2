@@ -100,6 +100,16 @@ export function checkPictureMeaning(answer: string, item?: ExerciseItem): string
     } else if (isRunningScene && /\b(?:cook|bake|sleep|read|wash hands)\b/i.test(text)) {
       points.push('การกระทำในประโยคของนักเรียนยังไม่ตรงกับภาพที่กำหนดค่ะ ภาพนี้เป็นภาพการวิ่งออกกำลังกายในสวนสาธารณะ (running in the park) ลองปรับให้ตรงกับภาพนะคะ');
     }
+
+    // Indoor kitchen / cooking scene
+    const isCookingKitchenScene = /(?:kitchen|cooking|stovetop|cook|stove|induction|countertop|utensil|ห้องครัว|ทำอาหาร)/i.test(desc);
+    if (isCookingKitchenScene) {
+      const outdoorPlaceRegex = /\b(?:outside|outdoors|in\s+the\s+(?:park|garden|yard|street|forest|field)|at\s+the\s+(?:park|station|airport|bus\s+stop))\b/i;
+      const outdoorMatch = text.match(outdoorPlaceRegex);
+      if (outdoorMatch) {
+        points.push(`สถานที่ในประโยคของนักเรียน (${outdoorMatch[0]}) ยังไม่ตรงกับภาพที่กำหนดค่ะ ภาพนี้เป็นภาพผู้หญิงกำลังทำอาหารในห้องครัวในบ้าน (indoor kitchen) ไม่ใช่ข้างนอก (${outdoorMatch[0]}) ลองปรับสถานที่ให้ตรงกับภาพ เช่น "in the kitchen" หรือ "downstairs" นะคะ`);
+      }
+    }
   }
 
   // 6. Device & Appliance Collocation (e.g. "open/opening the air conditioning" -> must be "turn on/turning on")
@@ -142,7 +152,7 @@ export function finalizePictureAssessment(assessment: PictureAssessment, answer:
     breakdown: {
       grammar: assessment.grammarValid,
       structure: assessment.structureValid,
-      image: assessment.imageRelevant,
+      image: assessment.imageRelevant && !meaningPoints.some(p => p.includes('ไม่ตรงกับภาพ')),
       meaning: assessment.meaningValid && meaningPoints.length === 0,
       connector: assessment.connectorValid,
     },

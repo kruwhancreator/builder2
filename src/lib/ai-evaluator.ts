@@ -1,5 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 import type { EvaluationRequest, EvaluationResult } from './evaluator';
+import type { ExerciseItem, ExerciseType } from './types';
 
 export function getGeminiModel(): string {
   return process.env.GEMINI_MODEL?.trim() || 'gemini-3.5-flash-lite';
@@ -65,13 +66,19 @@ function parseAssessment(text: string): AssessmentResponse {
   };
 }
 
-export function refineAssessment(assessment: AssessmentResponse, studentAnswer: string): AssessmentResponse {
+export function refineAssessment(
+  assessment: AssessmentResponse,
+  studentAnswer: string,
+  item?: ExerciseItem,
+  exerciseType?: ExerciseType
+): AssessmentResponse {
   const text = studentAnswer.toLowerCase().trim();
   const points = [...assessment.feedbackPoints];
   let isCorrect = assessment.isCorrect;
   let grammarValid = assessment.grammarValid;
   let structureValid = assessment.structureValid;
   let meaningValid = assessment.meaningValid;
+  let imageRelevant = assessment.imageRelevant;
   let correctedSentence = assessment.correctedSentence;
 
   // 1. Device & Appliance Collocation: "open/close" vs "turn on/turn off"
@@ -147,9 +154,33 @@ export function refineAssessment(assessment: AssessmentResponse, studentAnswer: 
     }
   }
 
+  // 5. Image & Setting Relevance Guardrail (for picture_description)
+  if (exerciseType === 'picture_description' && item) {
+    const desc = `${item.image_description || ''} ${item.context_hint || ''}`.toLowerCase();
+    const isIndoorKitchen = /(?:kitchen|cooking|stovetop|cook|stove|induction|countertop|utensil|ห้องครัว|ทำอาหาร)/i.test(desc);
+
+    if (isIndoorKitchen) {
+      const outdoorPlaceRegex = /\b(outside|outdoors|in\s+the\s+(?:park|garden|yard|street|forest|field)|at\s+the\s+(?:park|station|airport|bus\s+stop))\b/i;
+      const outdoorMatch = text.match(outdoorPlaceRegex);
+      if (outdoorMatch) {
+        isCorrect = false;
+        imageRelevant = false;
+        meaningValid = false;
+        const matched = outdoorMatch[0];
+        const feedback = `สถานที่ในประโยคของนักเรียน (${matched}) ยังไม่ตรงกับภาพที่กำหนดค่ะ ภาพนี้เป็นภาพผู้หญิงกำลังทำอาหารในห้องครัวในบ้าน (indoor kitchen) ไม่ใช่ข้างนอก (${matched}) ลองปรับสถานที่ให้ตรงกับภาพ เช่น "in the kitchen" หรือ "downstairs" นะคะ`;
+        if (!points.some(p => p.includes('ไม่ตรงกับภาพ') || p.includes('ห้องครัว'))) {
+          points.push(feedback);
+        }
+        if (correctedSentence && outdoorPlaceRegex.test(correctedSentence)) {
+          correctedSentence = correctedSentence.replace(outdoorPlaceRegex, 'in the kitchen');
+        }
+      }
+    }
+  }
+
   // Re-evaluate overall correctness
   const allChecksPass = grammarValid && structureValid && meaningValid &&
-    (assessment.imageRelevant === undefined || assessment.imageRelevant) &&
+    (imageRelevant === undefined || imageRelevant) &&
     (assessment.connectorValid === undefined || assessment.connectorValid) &&
     points.length === 0;
 
@@ -164,6 +195,9 @@ export function refineAssessment(assessment: AssessmentResponse, studentAnswer: 
     const nonSuccessPoints = points.filter(p => !p.includes('ประโยคถูกต้อง') && !p.includes('ถูกต้องสมบูรณ์') && !p.includes('เก่งมากเลย'));
     points.length = 0;
     points.push(...nonSuccessPoints);
+    if (!correctedSentence) {
+      correctedSentence = item?.model_answer || '';
+    }
   }
 
   return {
@@ -172,6 +206,7 @@ export function refineAssessment(assessment: AssessmentResponse, studentAnswer: 
     grammarValid,
     structureValid,
     meaningValid,
+    imageRelevant,
     feedbackPoints: points,
     correctedSentence,
   };
@@ -245,6 +280,26 @@ PLACE / LOCATION RECOGNITION (สถานที่):
   * This sentence matches the structure and kitchen/cooking image context and IS 100% CORRECT!
 - NEVER claim that the sentence is missing a place or location ("โครงสร้างประโยคยังขาดส่วนระบุสถานที่นะคะ") when the student wrote "downstairs", "upstairs", "inside", "outside", "at home", "in the kitchen", etc.!
 
+CRITICAL - RELATION TO THE IMAGE & SETTING COHERENCE (ความสอดคล้องกับภาพและสถานที่):
+- In "picture_description", the sentence MUST describe the setting depicted in "imageDescription" and "contextHint"!
+- When the image depicts a woman cooking in a modern kitchen:
+  * Plausible indoor locations ARE 100% VALID: "downstairs", "in the kitchen", "at home", "inside".
+    In a house, a kitchen is typically downstairs on the ground floor. Therefore:
+    "She might be cooking downstairs, but I'm not sure." is completely plausible, matches the image, and IS 100% CORRECT! (isCorrect: true, imageRelevant: true, meaningValid: true).
+  * Contradictory outdoor locations ARE STRICTLY INCORRECT: "outside", "outdoors", "in the park", "in the garden", "in the yard", "on the street".
+    The image clearly depicts an INDOOR kitchen with induction stovetop and cabinets. Writing "outside" directly contradicts the visual scene!
+    Therefore, if the student enters:
+    "She might be cooking outside, but I'm not sure."
+    * imageRelevant MUST BE false!
+    * meaningValid MUST BE false!
+    * isCorrect MUST BE false!
+    * feedbackPoints MUST explain in Kru Whan's warm Thai:
+      'สถานที่ในประโยคของนักเรียน (outside) ยังไม่ตรงกับภาพที่กำหนดค่ะ ภาพนี้เป็นภาพผู้หญิงกำลังทำอาหารในห้องครัวในบ้าน (indoor kitchen) ไม่ใช่ข้างนอกบ้าน (outside) ลองปรับสถานที่ให้ตรงกับภาพ เช่น "in the kitchen" หรือ "downstairs" นะคะ'
+    * correctedSentence: "She might be cooking in the kitchen, but I'm not sure." (or "She might be cooking downstairs, but I'm not sure.")
+- When an image depicts outdoor activities (e.g. running in a park, boy on a soccer field):
+  * Outdoor locations ("in the park", "on the soccer field", "outside") are valid.
+  * Indoor locations ("in the bedroom", "in the kitchen", "indoors") contradict the image and MUST be marked imageRelevant: false.
+
 COLLOCATION & GRAMMAR RULES (COMMON THAI LEARNER PITFALLS):
 1. Electrical Appliances & Devices ("เปิด/ปิด แอร์ ไฟ ทีวี พัดลม คอมพิวเตอร์"):
    - Thai learners say "เปิดแอร์ / ปิดแอร์" and directly translate it to "open/close the air conditioning". This is INCORRECT English!
@@ -272,7 +327,7 @@ EVALUATION CHECKS:
 1. grammarValid (boolean): Standard English grammar, correct spelling, subject-verb agreement, and basic mechanics (starts with a capital letter, ends with a period/punctuation).
 2. structureValid (boolean): Strict adherence to the required sentence pattern taught in the unit. Every mandatory slot and placeholder must be fulfilled.
 3. meaningValid (boolean): Accurately conveys the required meaning (matching the Thai prompt or image context) and makes natural real-world sense in English.
-4. imageRelevant (boolean, for picture_description): The sentence must describe the subject, action, and setting given in "imageDescription" and "contextHint". If the student describes an unrelated activity, imageRelevant MUST BE false.
+4. imageRelevant (boolean, for picture_description): The sentence must describe the subject, action, AND visual setting given in "imageDescription" and "contextHint". If the student describes an unrelated activity OR specifies a setting that contradicts the visual scene (e.g. "outside" for an indoor kitchen picture), imageRelevant MUST BE false.
 5. connectorValid (boolean, for picture_description): The logical relationship expressed by the connector ("even when", "but", "so", "because") must be sound.
 
 DECISION & GRADING:
@@ -304,7 +359,7 @@ TONE & PERSONA (KRU WHAN):
       });
 
       const rawAssessment = parseAssessment(response.text || '');
-      const assessment = refineAssessment(rawAssessment, req.studentAnswer);
+      const assessment = refineAssessment(rawAssessment, req.studentAnswer, req.item, req.exerciseType);
 
       const verdict: 'correct' | 'incorrect' | 'needs_review' = assessment.isCorrect
         ? 'correct'
