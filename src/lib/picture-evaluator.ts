@@ -81,7 +81,21 @@ export function checkPictureMeaning(answer: string, item?: ExerciseItem): string
     points.push('"even when" ควรเชื่อมกับเงื่อนไขที่ขัดแย้งกันค่ะ ความหิวหรือกระหายเป็นสาเหตุปกติในการรับประทาน/ดื่มอยู่แล้ว หากต้องการใช้ "even when" ลองใช้เงื่อนไขที่ขัดแย้ง เช่น "even when I\'m not hungry" หรือ "even when I\'m full" นะคะ');
   }
 
-  // 3. Image & Context Relevance Heuristic (when item context is provided)
+  // 3. Sport Defeat Collocation (e.g. "losing football" -> must be "losing football matches" or "losing at football")
+  const invalidSportCollocation = /\b(lose|losing|lost)\s+(football|soccer|tennis|basketball|badminton|volleyball|baseball|rugby|golf|chess|cricket|table tennis|ping pong)(?!\s+(?:matches|match|games|game|tournaments|tournament|competitions|competition|series))\b/i;
+  const sportMatch = text.match(invalidSportCollocation);
+  if (sportMatch) {
+    const verb = sportMatch[1].toLowerCase();
+    const sport = sportMatch[2].toLowerCase();
+    points.push(`คำว่า "${verb} ${sport}" ยังไม่ถูกต้องตามหลักภาษาอังกฤษค่ะ ในภาษาอังกฤษเมื่อพูดถึงการแพ้การแข่งขันกีฬา ไม่ใช้คำว่า "${verb} ${sport}" โดด ๆ แต่ควรใช้ "${verb} ${sport} matches" (เช่น "${verb} football matches") หรือ "${verb} at ${sport}" (เช่น "${verb} at football") นะคะ`);
+  }
+
+  // 4. Keyboard Typo Check (e.g. '|' instead of 'I')
+  if (/[|]/.test(answer)) {
+    points.push('ในประโยคมีเครื่องหมาย "|" แทนตัวอักษร "I" (ฉัน) แนะนำให้เปลี่ยนเป็นตัวอักษร "I" พิมพ์ใหญ่ เช่น "...but I still..." นะคะ');
+  }
+
+  // 5. Image & Context Relevance Heuristic (when item context is provided)
   if (item) {
     const desc = ((item.image_description || '') + ' ' + (item.context_hint || '')).toLowerCase();
     
@@ -194,7 +208,11 @@ export async function evaluatePictureAnswer(req: EvaluationRequest): Promise<Eva
   const structure = checkStructureCompliance(guidance, req.studentAnswer, req.item);
   const points = checkPictureMeaning(req.studentAnswer, req.item);
 
-  if (!structure.isCompliant && structure.feedbackPoint) points.push(structure.feedbackPoint);
+  if (!structure.isCompliant && structure.feedbackPoint) {
+    if (!points.some(p => p.includes('|') && structure.feedbackPoint?.includes('|'))) {
+      points.push(structure.feedbackPoint);
+    }
+  }
 
   if (points.length) {
     return {
@@ -294,10 +312,13 @@ STRICT SENTENCE STRUCTURE PRIORITY:
 
 You must rigorously evaluate FIVE INDEPENDENT REQUIREMENTS:
 1. grammarValid (boolean): Standard English grammar, correct spelling, subject-verb agreement, and basic mechanics (starts with a capital letter, ends with a period/punctuation).
+   - Typing / Keyboard Typos: Check for keyboard typos such as "|" (pipe symbol) instead of "I". If the student wrote "|" instead of "I" (e.g. "but | still get"), grammarValid MUST BE false!
+   - Sport Defeat Collocations: In English, you CANNOT "lose [sport]" directly (e.g. "losing football", "losing soccer", "losing tennis"). "Lose" with a sport noun refers to misplacing the ball/equipment. To express defeat in a sport or match, one MUST say "losing [sport] matches" (e.g. "losing football matches") or "losing at [sport]" (e.g. "losing at football"). If the student writes "losing football" or similar without "matches", "games", or "at", mark grammarValid: false and meaningValid: false! Explain: 'คำว่า "losing football" ยังไม่ถูกต้องตามหลักภาษาอังกฤษค่ะ ในภาษาอังกฤษเมื่อพูดถึงการแพ้การแข่งขันกีฬา ไม่ใช้คำว่า "losing football" โดด ๆ แต่ควรใช้ "losing football matches" หรือ "losing at football" นะคะ'.
 2. structureValid (boolean): Strict adherence to the required sentence pattern taught in the unit (e.g. "I + do + V.ไม่ผัน + to + V.ไม่ผัน + [even when I'm + คำคุณศัพท์]"). Every mandatory slot and placeholder must be fulfilled.
 3. imageRelevant (boolean): The sentence must describe the subject, action, and setting given in "imageDescription" and "contextHint". If the student describes a totally different activity (e.g. washing hands or driving a car when the image is a sleepy student reading books at a desk), imageRelevant MUST BE false!
 4. meaningValid (boolean): The sentence must make logical, real-world sense in English! Passing formula slots alone NEVER means the sentence is correct.
    - For "to + verb" expressing purpose: the infinitive must be natural, plausible, and complete. Transitive verbs like "clean", "make", "fix" require an object or resultative complement (e.g., "to clean" alone is unnatural and incomplete; it should be "to keep them clean", "to clean my hands", etc.).
+   - Collocation with sports: As stated above, "losing football" is unnatural and incorrect English for being defeated in a match.
 5. connectorValid (boolean): The logical relationship expressed by the connector must be sound.
    - For "even when": The condition MUST express a genuine concession or obstacle (an unexpected situation or difficulty, such as "even when I'm tired" or "even when I'm busy"). It must NEVER state the natural cause, motivation, or reason for the action (e.g. "I wash my hands even when I'm dirty" is ILLOGICAL because being dirty is the very reason to wash hands! Mark connectorValid: false and meaningValid: false).
    - For "because": Must express a sensible cause.

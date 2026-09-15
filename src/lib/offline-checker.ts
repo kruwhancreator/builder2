@@ -543,12 +543,27 @@ export function checkStructureCompliance(
 
   // 15. Clause Slot: "[ but I still get + คำคุณศัพท์ ]"
   if (/still\s+get\s*\+\s*คำคุณศัพท์/i.test(targetStructure) || /still\s+get\b/i.test(targetStructure) || /still\s+get\s*\+\s*คำคุณศัพท์/i.test(rawStructure) || /still\s+get\b/i.test(rawStructure)) {
-    if (!/\bstill\s+(?:get|feel|become)\b/i.test(sLower)) {
+    if (/[|]/.test(studentAnswer)) {
       return {
         isCompliant: false,
-        missingSlotName: 'still get',
-        feedbackPoint: '• ในประโยคยังขาดส่วนเชื่อม "[ but I still get + คำคุณศัพท์ ]" ตามโครงสร้างที่กำหนดนะคะ ใกล้แล้วค่ะ สู้ๆ นะคะ'
+        missingSlotName: 'typo pipe symbol',
+        feedbackPoint: '• ในประโยคมีเครื่องหมาย "|" แทนตัวอักษร "I" (ฉัน) แนะนำให้เปลี่ยนเป็นตัวอักษร "I" พิมพ์ใหญ่ เช่น "...but I still get..." นะคะ'
       };
+    }
+    if (!/\bi\s+still\s+(?:get|feel|become)\b/i.test(sLower)) {
+      if (!/\bstill\s+(?:get|feel|become)\b/i.test(sLower)) {
+        return {
+          isCompliant: false,
+          missingSlotName: 'still get',
+          feedbackPoint: '• ในประโยคยังขาดส่วนเชื่อม "[ but I still get + คำคุณศัพท์ ]" ตามโครงสร้างที่กำหนดนะคะ ใกล้แล้วค่ะ สู้ๆ นะคะ'
+        };
+      } else {
+        return {
+          isCompliant: false,
+          missingSlotName: 'I still get',
+          feedbackPoint: '• ในส่วนเชื่อม "[ but I still get + คำคุณศัพท์ ]" อย่าลืมใส่ประธาน "I" ด้วยนะคะ เช่น "..., but I still get..." ค่ะ'
+        };
+      }
     }
   }
 
