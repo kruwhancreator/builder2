@@ -30,8 +30,10 @@ export async function POST(req: NextRequest) {
     if (!result) {
       result = await evaluateAnswer({ exerciseType: exercise.type, item, studentAnswer,
         categories: exercise.categories, wordBank: exercise.word_bank, useAiCheck: exercise.use_ai_check !== false });
-      // Never cache outages or uncertainty; a retry must actually retry the provider.
-      if (result.verdict !== 'needs_review') evaluationsCache.set(key, result);
+      // Never cache outages, uncertainty, or fallback results when AI check was requested; a retry must actually retry the provider.
+      if (result.verdict !== 'needs_review' && (exercise.use_ai_check === false || result.isLiveGemini)) {
+        evaluationsCache.set(key, result);
+      }
     }
     // Every completed attempt counts, including cache hits. Partial checks do not.
     if (result.verdict !== 'needs_review') await trackExerciseCheck(data.book, chapter, result.isCorrect);
