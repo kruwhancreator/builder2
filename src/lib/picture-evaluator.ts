@@ -102,6 +102,25 @@ export function checkPictureMeaning(answer: string, item?: ExerciseItem): string
     }
   }
 
+  // 6. Device & Appliance Collocation (e.g. "open/opening the air conditioning" -> must be "turn on/turning on")
+  const invalidOpenApplianceRegex = /\b(open|opening|opened|opens|close|closing|closed|closes)\s+(?:the\s+)?(?:air\s+conditioning|air\s+conditioner|a[\/.]?c|ac\b|light|lights|lamp|lamps|tv|television|fan|computer|laptop|radio)\b/i;
+  const applianceMatch = text.match(invalidOpenApplianceRegex);
+  if (applianceMatch) {
+    const matchedPhrase = applianceMatch[0];
+    const isAC = /air|ac/i.test(matchedPhrase);
+    const suggestion = isAC ? 'turning on the air conditioning' : 'turning on';
+    points.push(`คำว่า "${matchedPhrase}" ยังไม่ถูกต้องตามหลักภาษาอังกฤษค่ะ ในภาษาอังกฤษเมื่อพูดถึงเครื่องใช้ไฟฟ้าหรือเครื่องปรับอากาศ จะไม่ใช้คำว่า "open/opening" หรือ "close/closing" (ซึ่งใช้กับการเปิดปิดประตูหรือหน้าต่าง) แต่ต้องใช้คำว่า "${suggestion}" หรือ "turning off" นะคะ`);
+  }
+
+  // 7. "listen to" requires preposition "to" before an object
+  const listenMissingToRegex = /\b(listen|listening|listened|listens)\s+(music|songs?|podcasts?|radio)\b/i;
+  const listenMatch = text.match(listenMissingToRegex);
+  if (listenMatch) {
+    const v = listenMatch[1];
+    const n = listenMatch[2];
+    points.push(`คำกริยา "${v}" เมื่อมีกรรมมารองรับ (เช่น ${n}) ต้องมีบุพบท "to" เสมอนะคะ เป็น "${v} to ${n}" ค่ะ`);
+  }
+
   return points;
 }
 
