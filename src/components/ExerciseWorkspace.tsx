@@ -100,7 +100,16 @@ export default function ExerciseWorkspace({ chapterData, selectedExercise }: Exe
   });
 
   const handleAnswerChange = (key: string, text: string) => {
-    clearFeedback(key);
+    if (!text.trim()) {
+      clearFeedback(key);
+    } else {
+      requests.current[key]?.abort();
+      delete requests.current[key];
+      setAiLoading(prev => ({ ...prev, [key]: false }));
+      // Ensure the example answer does not open or stay open while typing,
+      // but keep the feedback so the student can reference the teacher's hints
+      setRevealedSolutions(prev => prev[key] ? { ...prev, [key]: false } : prev);
+    }
     setAnswers(prev => ({ ...prev, [key]: text }));
   };
 
@@ -110,7 +119,11 @@ export default function ExerciseWorkspace({ chapterData, selectedExercise }: Exe
   };
 
   const handleSlotInputChange = (key: string, parts: string[], slotIdx: number, val: string, totalSlots: number) => {
-    clearFeedback(key);
+    requests.current[key]?.abort();
+    delete requests.current[key];
+    setAiLoading(prev => ({ ...prev, [key]: false }));
+    setRevealedSolutions(prev => prev[key] ? { ...prev, [key]: false } : prev);
+
     const cur = [...(dragSlots[key] || Array(totalSlots).fill(''))];
     while (cur.length < totalSlots) cur.push('');
     cur[slotIdx] = val;
@@ -168,7 +181,6 @@ export default function ExerciseWorkspace({ chapterData, selectedExercise }: Exe
       if (requests.current[key] !== controller) return;
       const result = data as EvaluationResult;
       const points = [...result.feedbackPoints];
-      if (result.correctedSentence) points.push(`ตัวอย่างการปรับประโยค: "${result.correctedSentence}"`);
       setFeedbacks(prev => ({ ...prev, [key]: { isCorrect: result.isCorrect, pending: result.verdict === 'needs_review',
         message: result.statusText, points, translation: result.studentTranslation, studentTranslation: result.studentTranslation,
         method: result.isLiveGemini ? 'ตรวจด้วย AI' : result.verdict === 'needs_review' ? 'รอการตรวจความหมาย' : 'ตรวจตามกติกาแบบฝึกหัด' } }));

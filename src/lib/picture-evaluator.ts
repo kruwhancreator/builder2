@@ -182,7 +182,7 @@ export async function evaluatePictureAnswer(req: EvaluationRequest): Promise<Eva
         isLiveGemini: false,
         modelUsed: 'model-match',
         statusText: 'ใกล้ถูกแล้วค่ะ! ปรับเครื่องหมายวรรคตอนอีกนิดเดียวนะคะ',
-        correctedSentence: req.item.model_answer || '',
+        correctedSentence: '',
         feedbackPoints: points,
         breakdown: {
           grammar: false,
