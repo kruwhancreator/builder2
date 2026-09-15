@@ -65,8 +65,9 @@ export function checkPictureMeaning(answer: string, item?: ExerciseItem): string
     points.push('"even when" ต้องเชื่อมกับเงื่อนไขที่เป็นอุปสรรคหรือขัดกับสิ่งที่คาดหมายค่ะ ในชีวิตประจำวันความสกปรกเป็นสาเหตุปกติที่ทำให้เราต้องล้างมือหรือทำความสะอาดอยู่แล้ว จึงไม่ขัดแย้งกัน ลองเปลี่ยนเงื่อนไขเป็นอุปสรรค เช่น "even when I\'m tired" (แม้จะเหนื่อย) หรือ "even when I\'m busy" (แม้จะยุ่ง) ให้ตรงกับโจทย์นะคะ');
   }
 
-  // B) Eating / drinking when hungry / thirsty:
-  if (/\b(?:eat|drink|snack|dine|have\s+(?:lunch|dinner|breakfast))\b/i.test(text) && /\beven when\s+(?:i am|i'm)\s+(?:very\s+|really\s+|so\s+)?(?:hungry|starving|famished|thirsty)\b/i.test(text)) {
+  // B) Eating / drinking when hungry / thirsty (only when eating/drinking is the primary action, NOT a purpose clause like "wash hands to eat"):
+  const isPrepOrWash = /\b(?:wash|washing|clean|cleaning|cook|cooking|prepare|preparing)\b/i.test(text);
+  if (!isPrepOrWash && /\b(?:eat|drink|snack|dine|have\s+(?:lunch|dinner|breakfast))\b/i.test(text) && /\beven when\s+(?:i am|i'm)\s+(?:very\s+|really\s+|so\s+)?(?:hungry|starving|famished|thirsty)\b/i.test(text)) {
     points.push('"even when" ควรเชื่อมกับเงื่อนไขที่ขัดแย้งกันค่ะ ความหิวหรือกระหายเป็นสาเหตุปกติในการรับประทาน/ดื่มอยู่แล้ว หากต้องการใช้ "even when" ลองใช้เงื่อนไขที่ขัดแย้ง เช่น "even when I\'m not hungry" หรือ "even when I\'m full" นะคะ');
   }
 

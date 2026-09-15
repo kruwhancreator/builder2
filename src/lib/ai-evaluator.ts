@@ -1,6 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import type { EvaluationRequest, EvaluationResult } from './evaluator';
 import type { ExerciseItem, ExerciseType } from './types';
+import { normalizeTypography } from './offline-checker';
 
 export function getGeminiModel(): string {
   return process.env.GEMINI_MODEL?.trim() || 'gemini-3.5-flash-lite';
@@ -72,13 +73,14 @@ export function refineAssessment(
   item?: ExerciseItem,
   exerciseType?: ExerciseType
 ): AssessmentResponse {
-  const text = studentAnswer.toLowerCase().trim();
+  const text = normalizeTypography(studentAnswer).toLowerCase().trim();
   const points = [...assessment.feedbackPoints];
   let isCorrect = assessment.isCorrect;
   let grammarValid = assessment.grammarValid;
   let structureValid = assessment.structureValid;
   let meaningValid = assessment.meaningValid;
   let imageRelevant = assessment.imageRelevant;
+  let connectorValid = assessment.connectorValid;
   let correctedSentence = assessment.correctedSentence;
 
   let hasGuardrailViolation = false;
@@ -198,6 +200,28 @@ export function refineAssessment(
     }
   }
 
+  // 7. Concessive Guardrail for Washing Hands / Preparing food + "even when I'm hungry"
+  const isWashOrPrep = /\b(?:wash|washing|clean|cleaning|cook|cooking|prepare|preparing)\b/i.test(text);
+  if (isWashOrPrep && /\beven when\s+(?:i\s*am|i['’]m)\s+(?:very\s+|really\s+|so\s+)?hungry\b/i.test(text)) {
+    // If Gemini pedantically complained about "hungry" or "to eat" with washing hands, clear those false complaints
+    const filteredPoints = points.filter(p =>
+      !p.includes('to eat') &&
+      !p.includes('หิว') &&
+      !p.includes('กินข้าว') &&
+      !p.includes('สมเหตุสมผล') &&
+      !p.includes('ปรับเปลี่ยนคำกริยาหลัง to') &&
+      !(p.includes('even when') && (p.includes('ไม่สมเหตุสมผล') || p.includes('ขัดแย้ง') || p.includes('เงื่อนไข')))
+    );
+    if (filteredPoints.length !== points.length) {
+      hallucinationCleared = true;
+      points.length = 0;
+      points.push(...filteredPoints);
+      meaningValid = true;
+      connectorValid = true;
+      if (assessment.connectorValid !== undefined) assessment.connectorValid = true;
+    }
+  }
+
   // Re-evaluate overall correctness:
   const hasRemainingErrorPoints = points.some(p =>
     p.includes('ยังไม่ถูกต้อง') ||
@@ -210,7 +234,7 @@ export function refineAssessment(
     p.includes('แทนตัวอักษร')
   );
 
-  if (hasGuardrailViolation || !grammarValid || !structureValid || !meaningValid || imageRelevant === false || assessment.connectorValid === false || hasRemainingErrorPoints || (!assessment.isCorrect && !hallucinationCleared)) {
+  if (hasGuardrailViolation || !grammarValid || !structureValid || !meaningValid || imageRelevant === false || connectorValid === false || hasRemainingErrorPoints || (!assessment.isCorrect && !hallucinationCleared)) {
     isCorrect = false;
   } else {
     isCorrect = true;
@@ -355,7 +379,12 @@ COLLOCATION & GRAMMAR RULES (COMMON THAI LEARNER PITFALLS):
 5. Purposive "to + V":
    - Transitive verbs like "clean", "repair", "make" require an object or resultative complement (e.g., "to clean" alone is unnatural and incomplete; it should be "to keep them clean", "to clean my room", etc.).
 6. Concessive "even when":
-   - The condition must express an obstacle or unexpected situation, not the natural motivation/cause of the action (e.g. "I wash my hands even when I'm dirty" is illogical because being dirty is the very reason to wash).
+   - The condition must express an obstacle, hesitation, difficulty, or contrary circumstance, NOT the direct obvious trigger of the action (e.g. "I wash my hands even when I'm dirty" is illogical because being dirty is the direct reason to wash).
+   - CRITICAL CONCESSIVE & REAL-LIFE HABIT RULES:
+     * "even when I'm hungry" IS completely logical and valid when paired with actions like washing hands or preparing food (e.g. "I do wash my hands to eat even when I'm hungry." or "I do wash my hands to stay healthy even when I'm hungry."). When people are very hungry, their immediate urge is to eat right away without taking the time or effort to wash their hands; exercising the discipline to stop and wash hands before eating despite hunger is completely sound, natural, and 100% CORRECT (isCorrect: true, meaningValid: true, connectorValid: true)!
+     * "to eat", "to stay healthy", "to be clean", "to save money", "to sleep" are completely natural purposive clauses ("to + V.ไม่ผัน") for Thai learners. Do NOT claim that "to eat" cannot follow "wash my hands".
+     * Adjectives expressing obstacles or difficult states (e.g. "hungry", "tired", "busy", "lazy", "sleepy", "shy") are fully valid in "[ even when I'm + คำคุณศัพท์ ]".
+     * Do NOT be pedantic about real-world scenarios. If the sentence follows the required pattern and makes common human sense, mark it CORRECT!
 
 EVALUATION CHECKS:
 1. grammarValid (boolean): Standard English grammar, correct spelling, subject-verb agreement, and basic mechanics (starts with a capital letter, ends with a period/punctuation).
