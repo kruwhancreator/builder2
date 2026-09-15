@@ -1,9 +1,9 @@
 import { GoogleGenAI } from '@google/genai';
 import type { EvaluationRequest, EvaluationResult } from './evaluator';
 import type { ExerciseItem } from './types';
-import { checkStructureCompliance, normalizeContractions } from './offline-checker';
+import { checkStructureCompliance, matchesModelOrAcceptable, normalizeContractions, normalizeTypography } from './offline-checker';
 
-export const PICTURE_RUBRIC_VERSION = 'meaning-v3';
+export const PICTURE_RUBRIC_VERSION = 'meaning-v4';
 
 export interface PictureAssessment {
   grammarValid: boolean;
@@ -48,6 +48,11 @@ export function parsePictureAssessment(value: unknown): PictureAssessment {
  * 3. Topic & action relevance against exercise context/image description
  */
 export function checkPictureMeaning(answer: string, item?: ExerciseItem): string[] {
+  // If the answer matches the teacher's model answer, it is logically and contextually valid
+  if (item && matchesModelOrAcceptable(answer, item)) {
+    return [];
+  }
+
   const text = normalizeContractions(answer).toLowerCase().replace(/[.!?]+$/, '').trim();
   const points: string[] = [];
 
@@ -128,11 +133,72 @@ export function finalizePictureAssessment(assessment: PictureAssessment, answer:
 }
 
 export async function evaluatePictureAnswer(req: EvaluationRequest): Promise<EvaluationResult> {
+  const trimmed = req.studentAnswer?.trim() || '';
+  if (!trimmed) {
+    return {
+      isCorrect: false,
+      verdict: 'incorrect',
+      isLiveGemini: false,
+      modelUsed: 'local-rules',
+      statusText: 'กรุณาพิมพ์คำตอบก่อนส่งตรวจค่ะ',
+      correctedSentence: '',
+      feedbackPoints: ['กรุณาพิมพ์คำตอบก่อนส่งตรวจค่ะ'],
+      breakdown: { grammar: false, structure: false, image: false, meaning: false, connector: false },
+    };
+  }
+
+  // 1. Direct match with teacher's model answer or acceptable answers
+  if (matchesModelOrAcceptable(trimmed, req.item)) {
+    const raw = normalizeTypography(trimmed);
+    const firstChar = raw.charAt(0);
+    const isCapital = firstChar === firstChar.toUpperCase() && firstChar !== firstChar.toLowerCase();
+    const hasFullStop = /[.!?]$/.test(raw);
+
+    if (isCapital && hasFullStop) {
+      return {
+        isCorrect: true,
+        verdict: 'correct',
+        isLiveGemini: false,
+        modelUsed: 'model-match',
+        statusText: 'ถูกต้องเลยค่ะ เก่งมากเลย 👏',
+        correctedSentence: '',
+        feedbackPoints: ['ประโยคถูกต้องสมบูรณ์และตรงตามโครงสร้างที่กำหนดค่ะ'],
+        studentTranslation: req.item.translation || '',
+        breakdown: {
+          grammar: true,
+          structure: true,
+          image: true,
+          meaning: true,
+          connector: true,
+        },
+      };
+    } else {
+      const points: string[] = [];
+      if (!isCapital) points.push(`• ตัวแรกของประโยคต้องเป็นตัวพิมพ์ใหญ่ (Capital letter) เช่น "${raw.charAt(0).toUpperCase()}..." นะคะ`);
+      if (!hasFullStop) points.push('• อย่าลืมใส่เครื่องหมายจุด Full Stop (.) ด้านหลังสุดของประโยคด้วยนะคะ');
+      return {
+        isCorrect: false,
+        verdict: 'incorrect',
+        isLiveGemini: false,
+        modelUsed: 'model-match',
+        statusText: 'ใกล้ถูกแล้วค่ะ! ปรับเครื่องหมายวรรคตอนอีกนิดเดียวนะคะ',
+        correctedSentence: req.item.model_answer || '',
+        feedbackPoints: points,
+        breakdown: {
+          grammar: false,
+          structure: true,
+          image: true,
+          meaning: true,
+          connector: true,
+        },
+      };
+    }
+  }
+
   const guidance = req.item.teacher_guidance || req.item.exercise_guidance || req.item.grammar_focus || req.item.unit_subtitle || '';
   const structure = checkStructureCompliance(guidance, req.studentAnswer, req.item);
   const points = checkPictureMeaning(req.studentAnswer, req.item);
 
-  if (!req.studentAnswer.trim()) points.push('กรุณาพิมพ์คำตอบก่อนส่งตรวจค่ะ');
   if (!structure.isCompliant && structure.feedbackPoint) points.push(structure.feedbackPoint);
 
   if (points.length) {

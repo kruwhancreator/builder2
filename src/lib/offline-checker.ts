@@ -279,6 +279,26 @@ export interface StructureComplianceResult {
 }
 
 /**
+ * Checks whether a student's answer matches the teacher's model answer or any acceptable answers.
+ * Normalizes typography, curly apostrophes/quotes, and common contractions (e.g. "I'm" == "I am").
+ */
+export function matchesModelOrAcceptable(studentAnswer: string, item?: ExerciseItem): boolean {
+  if (!studentAnswer || !item) return false;
+  const normalizeForMatch = (str: string) =>
+    normalizeContractions(normalizeTypography(str || ''))
+      .trim()
+      .toLowerCase()
+      .replace(/[.!?]+$/, '')
+      .replace(/\s+/g, ' ');
+
+  const normStudent = normalizeForMatch(studentAnswer);
+  if (!normStudent) return false;
+
+  const targets = [item.model_answer, ...(item.acceptable_answers || [])].filter(Boolean) as string[];
+  return targets.some(target => normalizeForMatch(target) === normStudent);
+}
+
+/**
  * Validates whether the student's answer contains all mandatory slots specified in the target sentence structure formula.
  * In Kru Whan's curriculum, every placeholder slot (e.g. 'เวลา', 'สถานที่', 'คน', 'คำคุณศัพท์', connectors) is mandatory.
  */
@@ -290,23 +310,32 @@ export function checkStructureCompliance(
   const targetStructure = inputStructure || item?.teacher_guidance || item?.guidance || item?.exercise_guidance || item?.grammar_focus || item?.unit_subtitle || item?.context_hint || '';
   if (!targetStructure || !studentAnswer) return { isCompliant: true };
 
+  // If the student's answer matches the curriculum model answer or an acceptable answer, it is compliant by definition
+  if (item && matchesModelOrAcceptable(studentAnswer, item)) {
+    return { isCompliant: true };
+  }
+
   const sLower = studentAnswer.toLowerCase().trim();
   const rawStructure = targetStructure.replace(/^.*Sentence Structure\s*[:=]\s*/i, '').trim();
 
-  // 1. Time Slot: "เวลา" or "ช่วงเวลา" (e.g. before, recently, in the past, many times, from time to time, every day)
+  // 1. Time Slot: "เวลา" or "ช่วงเวลา" (e.g. before, recently, in the past, many times, from time to time, every day, every weekend)
   const hasTimeSlotInFormula = /(?:^|[^\u0E00-\u0E7Fa-zA-Z0-9])(?:เวลา|ช่วงเวลา|ผลรวมเวลา)(?:[^\u0E00-\u0E7Fa-zA-Z0-9]|$)/i.test(targetStructure) ||
                                /(?:^|[^\u0E00-\u0E7Fa-zA-Z0-9])(?:เวลา|ช่วงเวลา|ผลรวมเวลา)(?:[^\u0E00-\u0E7Fa-zA-Z0-9]|$)/i.test(rawStructure) ||
                                /\b(?:time|timeframe)\b/i.test(targetStructure);
   if (hasTimeSlotInFormula) {
-    const timeExpressionRegex = /\b(before|already|yet|just|recently|lately|in the past|many times|several times|once|twice|three times|often|always|never|ever|earlier|previously|today|tonight|yesterday|tomorrow|this morning|this afternoon|this evening|now|later|soon|every\s+(?:day|week|month|year|morning|night|single\s+day|other\s+day)|each\s+(?:day|week|month|year)|on\s+(?:weekends?|mondays?|tuesdays?|wednesdays?|thursdays?|fridays?|saturdays?|sundays?)|at\s+night|in\s+(?:the\s+morning|the\s+afternoon|the\s+evening)|in\s+\w+\s+minutes?|for\s+\w+\s+(?:hours?|days?|weeks?|months?|years?)|since\s+\w+|from\s+time\s+to\s+time|once\s+in\s+a\s+while|at\s+times|all\s+the\s+time|sometimes|usually|normally|regularly|frequently|rarely|seldom|daily|weekly|monthly|yearly|\d{1,2}(?::\d{2})?\s*(?:a\.?m\.?|p\.?m\.?|o'clock)|midnight|noon)\b/i;
-    if (!timeExpressionRegex.test(sLower)) {
+    const timeExpressionRegex = /\b(before|already|yet|just|recently|lately|in the past|many times|several times|once|twice|three times|often|always|never|ever|earlier|previously|today|tonight|yesterday|tomorrow|this morning|this afternoon|this evening|now|later|soon|every\s+(?:day|week|month|year|morning|night|single\s+day|other\s+day|weekend|weekends|weekday|weekdays|monday|tuesday|wednesday|thursday|friday|saturday|sunday|summer|winter|spring|fall|autumn|term|semester)s?|each\s+(?:day|week|month|year|weekend|weekday|morning|night|monday|tuesday|wednesday|thursday|friday|saturday|sunday)|(?:this|last|next)\s+(?:weekend|weekends|week|month|year|morning|afternoon|evening|night|monday|tuesday|wednesday|thursday|friday|saturday|sunday|summer|winter|spring|fall)|all\s+(?:day|night|week|month|year|weekend|morning|afternoon|evening)|(?:on|at|over|during)\s+(?:the\s+)?(?:weekends?|weekdays?|holidays?|vacations?)|on\s+(?:mondays?|tuesdays?|wednesdays?|thursdays?|fridays?|saturdays?|sundays?)|at\s+(?:night|noon|midnight|dawn|dusk|sunset|sunrise|the\s+moment|present|this\s+time|that\s+time)|in\s+(?:the\s+morning|the\s+afternoon|the\s+evening|my\s+free\s+time|my\s+spare\s+time|summer|winter|spring|fall)|in\s+\w+\s+minutes?|for\s+(?:\w+\s+)?(?:hours?|days?|weeks?|months?|years?|a\s+long\s+time|a\s+while|a\s+moment|ages)|since\s+\w+|from\s+time\s+to\s+time|once\s+in\s+a\s+while|at\s+times|all\s+the\s+time|sometimes|usually|normally|regularly|frequently|rarely|seldom|daily|weekly|monthly|yearly|right\s+now|right\s+away|these\s+days|nowadays|from\s+now\s+on|so\s+far|up\s+to\s+now|\d{1,2}(?::\d{2})?\s*(?:a\.?m\.?|p\.?m\.?|o'clock)|midnight|noon)\b/i;
+
+    const modelTimeMatch = item?.model_answer ? /\b(every\s+\w+|each\s+\w+|on\s+\w+|at\s+\w+|in\s+\w+|for\s+\w+|from\s+time\s+to\s+time|once\s+in\s+a\s+while)\b/i.exec(item.model_answer) : null;
+    const matchesModelTime = modelTimeMatch ? sLower.includes(modelTimeMatch[0].toLowerCase()) : false;
+
+    if (!timeExpressionRegex.test(sLower) && !matchesModelTime) {
       let exampleWords = '"before" หรือ "recently"';
       if (/used\s+to/i.test(targetStructure) || /from\s+time\s+to\s+time/i.test(targetStructure + (item?.model_answer || ''))) {
-        exampleWords = '"from time to time" หรือ "every day"';
-      } else if (/every\s+day/i.test(targetStructure)) {
-        exampleWords = '"every day"';
-      } else if (item?.model_answer && /\b(every day|from time to time|on weekends|regularly|often|always)\b/i.test(item.model_answer)) {
-        exampleWords = '"from time to time" หรือ "every day"';
+        exampleWords = '"from time to time" หรือ "every day" หรือ "every weekend"';
+      } else if (/every\s+(?:day|weekend)/i.test(targetStructure)) {
+        exampleWords = '"every day" หรือ "every weekend"';
+      } else if (item?.model_answer && /\b(every day|every weekend|from time to time|on weekends|regularly|often|always)\b/i.test(item.model_answer)) {
+        exampleWords = '"from time to time" หรือ "every day" หรือ "every weekend"';
       }
 
       return {
@@ -322,7 +351,7 @@ export function checkStructureCompliance(
                                 /(?:^|[^\u0E00-\u0E7Fa-zA-Z0-9])สถานที่(?:[^\u0E00-\u0E7Fa-zA-Z0-9]|$)/i.test(rawStructure) ||
                                 /\b(?:place|location)\b/i.test(targetStructure);
   if (hasPlaceSlotInFormula) {
-    const placeExpressionRegex = /\b(at\s+(?:home|work|school|the\s+\w+|a\s+\w+)|in\s+(?:the\s+\w+|my\s+\w+|a\s+\w+)|on\s+the\s+\w+)\b/i;
+    const placeExpressionRegex = /\b(at\s+(?:home|work|school|university|college|the\s+\w+|a\s+\w+|my\s+\w+)|in\s+(?:the\s+\w+|my\s+\w+|a\s+\w+|town|class|bed|hospital|[A-Z][a-z]+)|on\s+(?:the\s+\w+|a\s+\w+|my\s+\w+)|outside|inside|outdoors|indoors|here|there|abroad|downtown)\b/i;
     if (!placeExpressionRegex.test(sLower)) {
       return {
         isCompliant: false,
@@ -618,6 +647,16 @@ export function checkGuidedSentenceExercise(
         '• อย่าลืมใส่เครื่องหมายจุด Full Stop (.) ด้านหลังสุดของประโยคด้วยนะคะ',
         '• เช็ค คำในหนังสือ / การสะกดคำ / วรรคตอน / full stop / ความสอดคล้องของความหมาย นะคะ'
       ]
+    };
+  }
+
+  // 0.4 DIRECT MODEL / ACCEPTABLE ANSWER MATCH
+  if (matchesModelOrAcceptable(raw, item)) {
+    return {
+      isCorrect: true,
+      message: 'ถูกต้องเลยค่ะ เก่งมากเลย 👏',
+      points: ['ประโยคถูกต้องสมบูรณ์และตรงตามโครงสร้างที่กำหนดค่ะ'],
+      translation: item?.translation,
     };
   }
 
