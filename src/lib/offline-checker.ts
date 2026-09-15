@@ -351,7 +351,7 @@ export function checkStructureCompliance(
                                 /(?:^|[^\u0E00-\u0E7Fa-zA-Z0-9])สถานที่(?:[^\u0E00-\u0E7Fa-zA-Z0-9]|$)/i.test(rawStructure) ||
                                 /\b(?:place|location)\b/i.test(targetStructure);
   if (hasPlaceSlotInFormula) {
-    const placeExpressionRegex = /\b(at\s+(?:home|work|school|university|college|the\s+\w+|a\s+\w+|my\s+\w+)|in\s+(?:the\s+\w+|my\s+\w+|a\s+\w+|town|class|bed|hospital|[A-Z][a-z]+)|on\s+(?:the\s+\w+|a\s+\w+|my\s+\w+)|outside|inside|outdoors|indoors|here|there|abroad|downtown)\b/i;
+    const placeExpressionRegex = /\b(at\s+(?:home|work|school|university|college|the\s+\w+|a\s+\w+|my\s+\w+)|in\s+(?:the\s+\w+|my\s+\w+|a\s+\w+|town|class|bed|hospital|[A-Z][a-z]+)|on\s+(?:the\s+\w+|a\s+\w+|my\s+\w+)|downstairs|upstairs|outside|inside|outdoors|indoors|here|there|nearby|next\s+door|abroad|downtown)\b/i;
     if (!placeExpressionRegex.test(sLower)) {
       return {
         isCompliant: false,

@@ -131,14 +131,36 @@ export function refineAssessment(assessment: AssessmentResponse, studentAnswer: 
     }
   }
 
+  // 4. Place Slot Recognition (e.g. "downstairs", "upstairs", "in the kitchen", "at home", "inside", "outside")
+  const hasValidPlaceSlot = /\b(downstairs|upstairs|inside|outside|indoors|outdoors|here|there|nearby|next\s+door|downtown|abroad|at\s+(?:home|work|school|the\s+\w+|my\s+\w+|a\s+\w+)|in\s+(?:the\s+\w+|my\s+\w+|a\s+\w+|bed|hospital|class|town)|on\s+(?:the\s+\w+|a\s+\w+))\b/i.test(text);
+
+  if (hasValidPlaceSlot) {
+    // Filter out hallucinated complaints claiming place slot is missing
+    const filteredPoints = points.filter(p => !p.includes('ขาดส่วนระบุสถานที่') && !p.includes('ขาดคำระบุสถานที่') && !p.includes('ลองเพิ่มคำระบุสถานที่') && !p.includes('ลองเพิ่มสถานที่'));
+    if (filteredPoints.length !== points.length) {
+      points.length = 0;
+      points.push(...filteredPoints);
+      // If no other structural problems exist, mark structure as valid
+      if (!points.some(p => p.includes('โครงสร้าง') || p.includes('ไวยากรณ์') || p.includes('ยังไม่ถูกต้อง'))) {
+        structureValid = true;
+      }
+    }
+  }
+
   // Re-evaluate overall correctness
   const allChecksPass = grammarValid && structureValid && meaningValid &&
     (assessment.imageRelevant === undefined || assessment.imageRelevant) &&
-    (assessment.connectorValid === undefined || assessment.connectorValid);
+    (assessment.connectorValid === undefined || assessment.connectorValid) &&
+    points.length === 0;
 
-  isCorrect = isCorrect && allChecksPass;
+  isCorrect = allChecksPass;
 
-  if (!isCorrect) {
+  if (isCorrect) {
+    correctedSentence = '';
+    if (points.length === 0) {
+      points.push('ประโยคถูกต้องสมบูรณ์และตรงตามโครงสร้างที่กำหนดค่ะ');
+    }
+  } else {
     const nonSuccessPoints = points.filter(p => !p.includes('ประโยคถูกต้อง') && !p.includes('ถูกต้องสมบูรณ์') && !p.includes('เก่งมากเลย'));
     points.length = 0;
     points.push(...nonSuccessPoints);
@@ -207,6 +229,21 @@ TIME PHRASE RECOGNITION (เวลา / ช่วงเวลา):
   * "after work", "after school", "after dinner", "after lunch"
 - CRITICAL: If the student wrote a valid time phrase such as "before bed", "in the morning", "at weekends", etc., the "เวลา" slot IS SATISFIED!
 - NEVER claim that the sentence is missing a time phrase or period of time when the student wrote "before bed" or similar! (e.g. In "I prefer reading a book to listening to music before bed because I can relax.", "before bed" is the valid time phrase!).
+
+PLACE / LOCATION RECOGNITION (สถานที่):
+- When a sentence pattern specifies a "สถานที่" (Place / Location) slot (e.g. "S. + might be + V.ing + สถานที่ + [ but + S. + วลีแสดงความไม่แน่ใจ ]" or similar):
+- You MUST recognize that standard place/location adverbs and prepositional phrases ARE 100% VALID PLACE SLOTS ("สถานที่"), including:
+  * Adverbs of place: "downstairs", "upstairs", "inside", "outside", "indoors", "outdoors", "here", "there", "nearby", "next door", "downtown", "abroad"
+  * Prepositional phrases: "in the kitchen", "in the lobby", "in the bedroom", "in the living room", "in her room", "at home", "at work", "at the office", "at school", "at the cafe", etc.
+- CRITICAL: "downstairs" and "upstairs" ARE VALID PLACES ("สถานที่")!
+  For example, in "She might be cooking downstairs, but I'm not sure.":
+  * "She" = S.
+  * "might be" = might be
+  * "cooking" = V.ing
+  * "downstairs" = สถานที่ (100% VALID PLACE / LOCATION!)
+  * "but I'm not sure" = but + S. + วลีแสดงความไม่แน่ใจ (VALID!)
+  * This sentence matches the structure and kitchen/cooking image context and IS 100% CORRECT!
+- NEVER claim that the sentence is missing a place or location ("โครงสร้างประโยคยังขาดส่วนระบุสถานที่นะคะ") when the student wrote "downstairs", "upstairs", "inside", "outside", "at home", "in the kitchen", etc.!
 
 COLLOCATION & GRAMMAR RULES (COMMON THAI LEARNER PITFALLS):
 1. Electrical Appliances & Devices ("เปิด/ปิด แอร์ ไฟ ทีวี พัดลม คอมพิวเตอร์"):
