@@ -41,7 +41,15 @@ export default function ExerciseWorkspace({ chapterData, selectedExercise }: Exe
       try {
         const draft = JSON.parse(localStorage.getItem(draftKey) || 'null');
         if (draft?.version === contentVersion && draft.answers && draft.slots) {
-          setAnswers(draft.answers); setDragSlots(draft.slots);
+          const cleanedAnswers = { ...draft.answers };
+          if (draft.slots) {
+            for (const [k, slots] of Object.entries(draft.slots)) {
+              if (Array.isArray(slots) && !slots.some(s => (s || '').trim().length > 0)) {
+                cleanedAnswers[k] = '';
+              }
+            }
+          }
+          setAnswers(cleanedAnswers); setDragSlots(draft.slots);
         }
       } catch { /* Private browsing or expired draft: start empty. */ }
       draftReady.current = true;
@@ -128,8 +136,14 @@ export default function ExerciseWorkspace({ chapterData, selectedExercise }: Exe
     while (cur.length < totalSlots) cur.push('');
     cur[slotIdx] = val;
     setDragSlots(prev => ({ ...prev, [key]: cur }));
-    const sentence = reconstructSentence(parts, cur);
-    setAnswers(prev => ({ ...prev, [key]: sentence }));
+    const hasAnyText = cur.some(s => (s || '').trim().length > 0);
+    if (!hasAnyText) {
+      clearFeedback(key);
+      setAnswers(prev => ({ ...prev, [key]: '' }));
+    } else {
+      const sentence = reconstructSentence(parts, cur);
+      setAnswers(prev => ({ ...prev, [key]: sentence }));
+    }
   };
 
   // Cooldown countdown effect (decrement every 1 second)
@@ -159,6 +173,15 @@ export default function ExerciseWorkspace({ chapterData, selectedExercise }: Exe
 
   const handleAiCheck = async (item: ExerciseItem, key: string, _idx: number, exercise: Exercise) => {
     if (requests.current[key] || (cooldowns[key] || 0) > 0) return;
+    const exType = exercise.type || (exercise.code === 'ex-2' || (exercise.categories && exercise.categories.length > 0) || exercise.word_bank ? 'guided_sentence' : (exercise.code === 'ex-3' ? 'picture_description' : 'translation'));
+    if (exType === 'guided_sentence') {
+      const slots = dragSlots[key];
+      const hasAnyInput = slots && slots.some(s => (s || '').trim().length > 0);
+      if (!hasAnyInput) {
+        setFeedbacks(prev => ({ ...prev, [key]: { isCorrect: false, pending: true, message: 'กรุณาพิมพ์คำตอบก่อนส่งตรวจค่ะ', points: [] } }));
+        return;
+      }
+    }
     const answer = answers[key] || '';
     if (!answer.trim()) {
       setFeedbacks(prev => ({ ...prev, [key]: { isCorrect: false, pending: true, message: 'กรุณาพิมพ์คำตอบก่อนส่งตรวจค่ะ', points: [] } }));
@@ -418,7 +441,8 @@ export default function ExerciseWorkspace({ chapterData, selectedExercise }: Exe
                     : [1];
                   const requiredOrders: number[] = rawOrders.slice(0, slotCount);
                   const currentSlots = dragSlots[key] || Array(slotCount).fill('');
-                  const currentConstructed = answers[key] || '';
+                  const hasAnyInput = currentSlots.some((slot: string) => (slot || '').trim().length > 0);
+                  const currentConstructed = hasAnyInput ? (answers[key] || reconstructSentence(promptParts, currentSlots)) : '';
 
                   return (
                     <div key={key} className="quiz-item-card bg-[#f8fafc] border border-slate-200 rounded-xl p-3.5 sm:p-5 shadow-2xs overflow-hidden max-w-full">
@@ -496,7 +520,7 @@ export default function ExerciseWorkspace({ chapterData, selectedExercise }: Exe
                         </div>
 
                         {/* Constructed Sentence Preview */}
-                        {currentConstructed && (
+                        {hasAnyInput && currentConstructed && (
                           <div className="constructed-preview mt-4 pt-3.5 border-t border-slate-100 flex flex-wrap sm:flex-nowrap items-center gap-2">
                             <span className="text-xs font-bold text-slate-400 uppercase shrink-0">
                               ประโยคของนักเรียน:
