@@ -30,6 +30,7 @@ export default function ExerciseWorkspace({ chapterData, selectedExercise }: Exe
   const [dragSlots, setDragSlots] = useState<Record<string, string[]>>({});
   const [aiLoading, setAiLoading] = useState<Record<string, boolean>>({});
   const [cooldowns, setCooldowns] = useState<Record<string, number>>({});
+  const [lastCheckedAnswers, setLastCheckedAnswers] = useState<Record<string, string>>({});
   const requests = useRef<Record<string, AbortController>>({});
   const draftReady = useRef(false);
   const draftKey = `sb_draft_${chapterData.book}_${chapterData.chapter}`;
@@ -66,6 +67,7 @@ export default function ExerciseWorkspace({ chapterData, selectedExercise }: Exe
     delete requests.current[key];
     setAiLoading(prev => ({ ...prev, [key]: false }));
     setFeedbacks(prev => { const next = { ...prev }; delete next[key]; return next; });
+    setLastCheckedAnswers(prev => { const next = { ...prev }; delete next[key]; return next; });
   };
 
   const toggleRevealSolution = (key: string) => {
@@ -187,6 +189,37 @@ export default function ExerciseWorkspace({ chapterData, selectedExercise }: Exe
       setFeedbacks(prev => ({ ...prev, [key]: { isCorrect: false, pending: true, message: 'กรุณาพิมพ์คำตอบก่อนส่งตรวจค่ะ', points: [] } }));
       return;
     }
+
+    // 2. Minimum length and word check (prevent accidental or single-letter spam)
+    if (answer.trim().length < 4 || !answer.trim().includes(' ')) {
+      setFeedbacks(prev => ({
+        ...prev,
+        [key]: {
+          isCorrect: false,
+          pending: false,
+          message: '✍️ กรุณาแต่งประโยคให้สมบูรณ์ก่อนกดตรวจค่ะ',
+          points: ['กรุณาพิมพ์ประโยคที่มีประธานและกริยา (อย่างน้อย 2 คำขึ้นไป) ก่อนกดส่งตรวจนะคะ']
+        }
+      }));
+      return;
+    }
+
+    // 3. Duplicate Answer Guard: Prevent resending the exact same answer
+    if (lastCheckedAnswers[key] && lastCheckedAnswers[key].trim().toLowerCase() === answer.trim().toLowerCase()) {
+      setFeedbacks(prev => ({
+        ...prev,
+        [key]: {
+          ...prev[key],
+          message: '💡 คุณได้ตรวจประโยคนี้ไปแล้วค่ะ หากต้องการตรวจใหม่ กรุณาลองปรับแก้ประโยคก่อนกดส่งตรวจนะคะ'
+        }
+      }));
+      return;
+    }
+
+    // 4. Activate 6-second cooldown and remember this answer to protect from spamming
+    setCooldowns(prev => ({ ...prev, [key]: 6 }));
+    setLastCheckedAnswers(prev => ({ ...prev, [key]: answer }));
+
     const controller = new AbortController(); requests.current[key] = controller;
     setAiLoading(prev => ({ ...prev, [key]: true }));
     const timeout = setTimeout(() => controller.abort(), 35000);
@@ -209,6 +242,8 @@ export default function ExerciseWorkspace({ chapterData, selectedExercise }: Exe
         method: result.isLiveGemini ? 'ตรวจด้วย AI' : result.verdict === 'needs_review' ? 'รอการตรวจความหมาย' : 'ตรวจตามกติกาแบบฝึกหัด' } }));
     } catch (error) {
       if (requests.current[key] !== controller) return;
+      // Allow retry if there was an outage or network error
+      setLastCheckedAnswers(prev => { const next = { ...prev }; delete next[key]; return next; });
       setFeedbacks(prev => ({ ...prev, [key]: { isCorrect: false, pending: true,
         message: controller.signal.aborted ? 'การตรวจใช้เวลานานเกินไปค่ะ ลองใหม่อีกครั้งนะคะ' : error instanceof Error ? error.message : 'ระบบยังตรวจคำตอบไม่ได้ค่ะ',
         points: ['ยังไม่ตัดสินว่าคำตอบถูกหรือผิดค่ะ สามารถส่งคำตอบเดิมเพื่อลองตรวจอีกครั้งได้'] } }));
@@ -330,13 +365,38 @@ export default function ExerciseWorkspace({ chapterData, selectedExercise }: Exe
                       </div>
 
                       <div className="quiz-action-group flex flex-wrap items-center gap-2.5 mb-3">
-                        <button
-                          onClick={() => handleAiCheck(item, key, idx, exercise)}
-                          disabled={aiLoading[key] || (cooldowns[key] || 0) > 0}
-                          className="btn-check-answer bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all shadow-2xs cursor-pointer min-h-[42px]"
-                        >
-                          🔍 ตรวจคำตอบ
-                        </button>
+                        {(() => {
+                          const isCooldown = (cooldowns[key] || 0) > 0;
+                          const isLoading = aiLoading[key];
+                          const isButtonDisabled = isLoading || isCooldown;
+                          return (
+                            <button
+                              onClick={() => handleAiCheck(item, key, idx, exercise)}
+                              disabled={isButtonDisabled}
+                              className={`btn-check-answer px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all shadow-2xs min-h-[42px] ${
+                                isCooldown 
+                                  ? 'bg-amber-100 text-amber-800 border border-amber-300 cursor-not-allowed opacity-90'
+                                  : 'bg-[#2563eb] hover:bg-[#1d4ed8] text-white disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer'
+                              }`}
+                            >
+                              {isLoading ? (
+                                <>
+                                  <RefreshCw className="w-4 h-4 animate-spin" />
+                                  <span>กำลังตรวจทาน...</span>
+                                </>
+                              ) : isCooldown ? (
+                                <>
+                                  <Clock className="w-4 h-4 animate-pulse text-amber-600" />
+                                  <span>⏳ รออีก {cooldowns[key]} วิ...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <span>🔍 ตรวจคำตอบ</span>
+                                </>
+                              )}
+                            </button>
+                          );
+                        })()}
                         {item.model_answer && (
                           <button
                             type="button"
@@ -534,13 +594,38 @@ export default function ExerciseWorkspace({ chapterData, selectedExercise }: Exe
 
                       {/* 4. Action Buttons */}
                       <div className="quiz-action-group flex flex-wrap items-center gap-2.5 mb-3">
-                        <button
-                          onClick={() => handleAiCheck(item, key, idx, exercise)}
-                          disabled={aiLoading[key] || (cooldowns[key] || 0) > 0}
-                          className="btn-check-answer bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all shadow-2xs cursor-pointer min-h-[42px]"
-                        >
-                          🔍 ตรวจคำตอบ
-                        </button>
+                        {(() => {
+                          const isCooldown = (cooldowns[key] || 0) > 0;
+                          const isLoading = aiLoading[key];
+                          const isButtonDisabled = isLoading || isCooldown;
+                          return (
+                            <button
+                              onClick={() => handleAiCheck(item, key, idx, exercise)}
+                              disabled={isButtonDisabled}
+                              className={`btn-check-answer px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all shadow-2xs min-h-[42px] ${
+                                isCooldown 
+                                  ? 'bg-amber-100 text-amber-800 border border-amber-300 cursor-not-allowed opacity-90'
+                                  : 'bg-[#2563eb] hover:bg-[#1d4ed8] text-white disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer'
+                              }`}
+                            >
+                              {isLoading ? (
+                                <>
+                                  <RefreshCw className="w-4 h-4 animate-spin" />
+                                  <span>กำลังตรวจทาน...</span>
+                                </>
+                              ) : isCooldown ? (
+                                <>
+                                  <Clock className="w-4 h-4 animate-pulse text-amber-600" />
+                                  <span>⏳ รออีก {cooldowns[key]} วิ...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <span>🔍 ตรวจคำตอบ</span>
+                                </>
+                              )}
+                            </button>
+                          );
+                        })()}
                         <button
                           type="button"
                           onClick={() => toggleRevealSolution(key)}
