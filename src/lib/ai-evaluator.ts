@@ -81,10 +81,13 @@ export function refineAssessment(
   let imageRelevant = assessment.imageRelevant;
   let correctedSentence = assessment.correctedSentence;
 
+  let hasGuardrailViolation = false;
+
   // 1. Device & Appliance Collocation: "open/close" vs "turn on/turn off"
   const invalidOpenApplianceRegex = /\b(open|opening|opened|opens|close|closing|closed|closes)\s+(?:the\s+)?(?:air\s+conditioning|air\s+conditioner|a[\/.]?c|ac\b|light|lights|lamp|lamps|tv|television|fan|computer|laptop|radio)\b/i;
   const applianceMatch = studentAnswer.match(invalidOpenApplianceRegex);
   if (applianceMatch) {
+    hasGuardrailViolation = true;
     isCorrect = false;
     grammarValid = false;
     meaningValid = false;
@@ -104,6 +107,7 @@ export function refineAssessment(
   const listenMissingToRegex = /\b(listen|listening|listened|listens)\s+(music|songs?|podcasts?|radio)\b/i;
   const listenMatch = studentAnswer.match(listenMissingToRegex);
   if (listenMatch) {
+    hasGuardrailViolation = true;
     isCorrect = false;
     grammarValid = false;
     const v = listenMatch[1];
@@ -122,13 +126,27 @@ export function refineAssessment(
     }
   }
 
-  // 3. Time Slot Recognition (e.g. "before bed", "in the morning", "at weekends", "after work")
+  // 3. Typo with '|' instead of 'I'
+  if (/[|]/.test(studentAnswer)) {
+    hasGuardrailViolation = true;
+    isCorrect = false;
+    grammarValid = false;
+    const typoMsg = 'ในประโยคมีเครื่องหมาย "|" แทนตัวอักษร "I" (ฉัน) แนะนำให้เปลี่ยนเป็นตัวอักษร "I" พิมพ์ใหญ่ เช่น "...but I still..." นะคะ';
+    if (!points.some(p => p.includes('|'))) {
+      points.push(typoMsg);
+    }
+  }
+
+  let hallucinationCleared = false;
+
+  // 4. Time Slot Recognition (e.g. "before bed", "in the morning", "at weekends", "after work")
   const hasValidTimeSlot = /\b(before\s+(?:bed|sleep|going\s+to\s+bed)|at\s+bedtime|after\s+(?:work|school|class|dinner|lunch)|in\s+the\s+(?:morning|afternoon|evening)|at\s+night|at\s+weekends|on\s+weekends|on\s+weekdays|every\s+(?:day|weekend|morning|evening|night)|from\s+time\s+to\s+time|once\s+in\s+a\s+while)\b/i.test(text);
 
   if (hasValidTimeSlot) {
     // Filter out hallucinated complaints claiming time slot is missing
     const filteredPoints = points.filter(p => !p.includes('คำบอกเวลา') && !p.includes('ช่วงเวลาก่อนคำเชื่อม') && !p.includes('ขาดคำระบุเวลา'));
     if (filteredPoints.length !== points.length) {
+      hallucinationCleared = true;
       points.length = 0;
       points.push(...filteredPoints);
       // If no other structural problems exist, mark structure as valid
@@ -138,13 +156,14 @@ export function refineAssessment(
     }
   }
 
-  // 4. Place Slot Recognition (e.g. "downstairs", "upstairs", "in the kitchen", "at home", "inside", "outside")
+  // 5. Place Slot Recognition (e.g. "downstairs", "upstairs", "in the kitchen", "at home", "inside", "outside")
   const hasValidPlaceSlot = /\b(downstairs|upstairs|inside|outside|indoors|outdoors|here|there|nearby|next\s+door|downtown|abroad|at\s+(?:home|work|school|the\s+\w+|my\s+\w+|a\s+\w+)|in\s+(?:the\s+\w+|my\s+\w+|a\s+\w+|bed|hospital|class|town)|on\s+(?:the\s+\w+|a\s+\w+))\b/i.test(text);
 
   if (hasValidPlaceSlot) {
     // Filter out hallucinated complaints claiming place slot is missing
     const filteredPoints = points.filter(p => !p.includes('ขาดส่วนระบุสถานที่') && !p.includes('ขาดคำระบุสถานที่') && !p.includes('ลองเพิ่มคำระบุสถานที่') && !p.includes('ลองเพิ่มสถานที่'));
     if (filteredPoints.length !== points.length) {
+      hallucinationCleared = true;
       points.length = 0;
       points.push(...filteredPoints);
       // If no other structural problems exist, mark structure as valid
@@ -154,7 +173,7 @@ export function refineAssessment(
     }
   }
 
-  // 5. Image & Setting Relevance Guardrail (for picture_description)
+  // 6. Image & Setting Relevance Guardrail (for picture_description)
   if (exerciseType === 'picture_description' && item) {
     const desc = `${item.image_description || ''} ${item.context_hint || ''}`.toLowerCase();
     const isIndoorKitchen = /(?:kitchen|cooking|stovetop|cook|stove|induction|countertop|utensil|ห้องครัว|ทำอาหาร)/i.test(desc);
@@ -163,6 +182,7 @@ export function refineAssessment(
       const outdoorPlaceRegex = /\b(outside|outdoors|in\s+the\s+(?:park|garden|yard|street|forest|field)|at\s+the\s+(?:park|station|airport|bus\s+stop))\b/i;
       const outdoorMatch = text.match(outdoorPlaceRegex);
       if (outdoorMatch) {
+        hasGuardrailViolation = true;
         isCorrect = false;
         imageRelevant = false;
         meaningValid = false;
@@ -178,21 +198,35 @@ export function refineAssessment(
     }
   }
 
-  // Re-evaluate overall correctness
-  const allChecksPass = grammarValid && structureValid && meaningValid &&
-    (imageRelevant === undefined || imageRelevant) &&
-    (assessment.connectorValid === undefined || assessment.connectorValid) &&
-    points.length === 0;
+  // Re-evaluate overall correctness:
+  const hasRemainingErrorPoints = points.some(p =>
+    p.includes('ยังไม่ถูกต้อง') ||
+    p.includes('ไม่ถูกต้อง') ||
+    p.includes('ต้องมีบุพบท') ||
+    p.includes('ไม่ตรงกับภาพ') ||
+    p.includes('ยังไม่ตรงกับภาพ') ||
+    p.includes('ขาด') ||
+    p.includes('ลองปรับ') ||
+    p.includes('แทนตัวอักษร')
+  );
 
-  isCorrect = allChecksPass;
+  if (hasGuardrailViolation || !grammarValid || !structureValid || !meaningValid || imageRelevant === false || assessment.connectorValid === false || hasRemainingErrorPoints || (!assessment.isCorrect && !hallucinationCleared)) {
+    isCorrect = false;
+  } else {
+    isCorrect = true;
+  }
 
   if (isCorrect) {
     correctedSentence = '';
-    if (points.length === 0) {
+    const praisePoints = points.filter(p => !p.includes('ยังไม่ถูกต้อง') && !p.includes('ไม่ถูกต้อง') && !p.includes('ขาด') && !p.includes('ลองปรับ'));
+    points.length = 0;
+    if (praisePoints.length > 0) {
+      points.push(...praisePoints);
+    } else {
       points.push('ประโยคถูกต้องสมบูรณ์และตรงตามโครงสร้างที่กำหนดค่ะ');
     }
   } else {
-    const nonSuccessPoints = points.filter(p => !p.includes('ประโยคถูกต้อง') && !p.includes('ถูกต้องสมบูรณ์') && !p.includes('เก่งมากเลย'));
+    const nonSuccessPoints = points.filter(p => !p.includes('ประโยคถูกต้อง') && !p.includes('ถูกต้องสมบูรณ์') && !p.includes('เก่งมากเลย') && !p.includes('เก่งแล้ว'));
     points.length = 0;
     points.push(...nonSuccessPoints);
     if (!correctedSentence) {
@@ -203,10 +237,10 @@ export function refineAssessment(
   return {
     ...assessment,
     isCorrect,
-    grammarValid,
-    structureValid,
-    meaningValid,
-    imageRelevant,
+    grammarValid: isCorrect ? true : grammarValid,
+    structureValid: isCorrect ? true : structureValid,
+    meaningValid: isCorrect ? true : meaningValid,
+    imageRelevant: isCorrect ? true : imageRelevant,
     feedbackPoints: points,
     correctedSentence,
   };
