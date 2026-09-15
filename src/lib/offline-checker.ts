@@ -552,6 +552,28 @@ export function checkStructureCompliance(
     }
   }
 
+  // 16. Emphatic "I + do + V.ไม่ผัน"
+  if (/\bI\s*\+\s*do\s*\+\s*\[?\s*V(?:\.ไม่ผัน|\.inf)/i.test(targetStructure) || /\bI\s*\+\s*do\s*\+\s*\[?\s*V(?:\.ไม่ผัน|\.inf)/i.test(rawStructure)) {
+    if (!/\bi\s+do\s+[a-z]+/i.test(sLower)) {
+      return {
+        isCompliant: false,
+        missingSlotName: 'I do + V',
+        feedbackPoint: '• ตามโครงสร้างประโยคที่กำหนด มีการใช้ "I + do + V.ไม่ผัน" เพื่อเน้นย้ำความตั้งใจ (เช่น "I do turn off..." หรือ "I do read...") แต่ในประโยคของนักเรียนยังขาดคำว่า "do" ไปค่ะ'
+      };
+    }
+  }
+
+  // 17. Clause Slot: "[ even when I’m + คำคุณศัพท์ ]"
+  if (/even\s+when\s+I(?:'|’)?m\s*\+\s*คำคุณศัพท์/i.test(targetStructure) || /even\s+when\s+I(?:'|’)?m\s*\+\s*คำคุณศัพท์/i.test(rawStructure)) {
+    if (!/\beven\s+when\s+(?:i\s*['’]?m|i\s+am)\s+[a-z]+/i.test(sLower)) {
+      return {
+        isCompliant: false,
+        missingSlotName: 'even when I’m + คำคุณศัพท์',
+        feedbackPoint: '• ตามโครงสร้างประโยคที่กำหนด [ even when I’m + คำคุณศัพท์ ] ต้องมี "even when I’m" ตามด้วยคำคุณศัพท์ (เช่น "even when I\'m busy" หรือ "even when I\'m sleepy") นะคะ'
+      };
+    }
+  }
+
   return { isCompliant: true };
 }
 
