@@ -3,12 +3,8 @@ import chapter1Fallback from '@/data/sentence-builder-vol-2/chapter-1.json';
 import { validSlug, positiveInteger } from './api-validation';
 import type { Book, Chapter, Exercise, ExerciseItem, ExerciseType } from './types';
 
-import { clearEvaluationsCache } from './evaluations-cache';
-
-// Clear evaluation and curriculum cache when data is modified
-export function clearDataManagerCache(): void {
-  clearEvaluationsCache();
-}
+// Cache invalidation hook when data is modified
+export function clearDataManagerCache(): void {}
 
 export async function getBookDataFromDb(slugOrId: string): Promise<Book | null> {
   if (!validSlug(slugOrId)) return null;

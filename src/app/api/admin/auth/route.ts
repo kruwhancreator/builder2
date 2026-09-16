@@ -8,7 +8,6 @@ import {
   requireAdmin,
   SESSION_COOKIE,
 } from '@/lib/admin-auth';
-import { allowRequest } from '@/lib/rate-limit';
 import { readJson } from '@/lib/api-validation';
 
 export async function GET(req: NextRequest) {
@@ -19,9 +18,6 @@ export async function POST(req: NextRequest) {
   const expected = getExpectedPasscode();
   if (!isAllowedOrigin(req)) {
     return NextResponse.json({ error: 'Invalid origin' }, { status: 403 });
-  }
-  if (!(await allowRequest(req, 'admin-login', 15))) {
-    return NextResponse.json({ error: 'Please wait before trying again' }, { status: 429 });
   }
 
   let passcode: unknown;

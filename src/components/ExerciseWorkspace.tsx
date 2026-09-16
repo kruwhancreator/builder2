@@ -264,7 +264,7 @@ export default function ExerciseWorkspace({ chapter, chapterData, selectedExerci
       const points = [...result.feedbackPoints];
       setFeedbacks(prev => ({ ...prev, [key]: { isCorrect: result.isCorrect, pending: result.verdict === 'needs_review',
         message: result.statusText, points, translation: result.studentTranslation, studentTranslation: result.studentTranslation,
-        method: result.isLiveGemini ? 'ตรวจด้วย AI' : result.verdict === 'needs_review' ? 'รอการตรวจความหมาย' : 'ตรวจตามกติกาแบบฝึกหัด' } }));
+        method: 'ตรวจตามกติกาแบบฝึกหัด' } }));
     } catch (error) {
       if (requests.current[key] !== controller) return;
       // Allow retry if there was an outage or network error
