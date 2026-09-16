@@ -852,11 +852,6 @@ export default function ExerciseWorkspace({ chapter, chapterData, selectedExerci
                           </span>
                           <span>ภาพที่ {idx + 1}</span>
                         </div>
-                        {item.context_hint && (
-                          <span className="text-xs text-slate-500 bg-slate-100 px-3 py-1 rounded-full font-medium">
-                            {item.context_hint}
-                          </span>
-                        )}
                       </div>
 
                       {!item.image_url && (
@@ -871,7 +866,7 @@ export default function ExerciseWorkspace({ chapter, chapterData, selectedExerci
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={item.image_url}
-                            alt={item.context_hint || `ภาพประกอบข้อที่ ${idx + 1}`}
+                            alt={`ภาพประกอบข้อที่ ${idx + 1}`}
                             className="w-full h-auto max-h-80 object-contain rounded-xl bg-white"
                             loading="lazy"
                           />
