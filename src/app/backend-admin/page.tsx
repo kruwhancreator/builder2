@@ -20,7 +20,6 @@ import {
   FileText,
   Sparkles,
   Image as ImageIcon,
-  Bot,
   Sliders,
   Link2,
   QrCode,
@@ -1401,19 +1400,19 @@ export default function BackendAdminPage() {
                   </div>
                 </div>
 
-                {/* Metric 5: Total AI Checks */}
+                {/* Metric 5: Total Answer Checks */}
                 <div className="kpi-card bg-white rounded-3xl p-5 border border-slate-200 shadow-xs relative overflow-hidden">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Answer Checks</span>
                     <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
-                      <Bot className="w-4 h-4" />
+                      <Sparkles className="w-4 h-4" />
                     </div>
                   </div>
                   <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-heading">
                     {analyticsData?.totalAiChecks?.toLocaleString() || 0}
                   </div>
                   <div className="text-xs text-slate-400 mt-1 flex items-center gap-1 font-medium">
-                    <span className="text-indigo-600 font-bold">● ตรวจข้อสอบ</span> ส่งตรวจด้วย AI
+                    <span className="text-indigo-600 font-bold">● ตรวจข้อสอบ</span> ตรวจคำตอบในระบบ
                   </div>
                 </div>
 
@@ -1715,12 +1714,7 @@ export default function BackendAdminPage() {
 
                               {/* EXERCISE BADGES & ACTION BUTTONS */}
                               <div className="exercise-right-actions flex flex-wrap items-center gap-2 sm:gap-3 w-full md:w-auto justify-between md:justify-end pt-2 md:pt-0 border-t md:border-t-0 border-slate-100">
-                                {exercise.use_ai_check && (
-                                  <span className="ai-badge text-xs font-extrabold px-3 py-1 rounded-full bg-purple-50 text-purple-600 border border-purple-200 flex items-center gap-1.5">
-                                    <Bot className="w-3.5 h-3.5" />
-                                    <span>AI Check</span>
-                                  </span>
-                                )}
+
 
                                 <span className="exercise-item-count-badge text-xs sm:text-sm font-semibold px-3 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
                                   {exercise.itemCount || (exercise.items ? exercise.items.length : 0)} Questions
@@ -1729,7 +1723,7 @@ export default function BackendAdminPage() {
                                 <div className="exercise-actions-toolbar flex items-center gap-1.5 pl-0 md:pl-2 md:border-l border-slate-200/60 ml-auto md:ml-0">
                                   <button
                                     onClick={() => openEditExerciseModal(unit, exercise)}
-                                    title="Edit Exercise Config (Title, AI Check, Type, Guidance)"
+                                    title="Edit Exercise Config (Title, Type, Guidance)"
                                     className="btn-edit-exercise-config p-2 text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
                                   >
                                     <Sliders className="w-4 h-4" />
@@ -1831,29 +1825,6 @@ export default function BackendAdminPage() {
                   <option value="guided_sentence">🧩 Choose Provided Word (เลือกคำที่กำหนดให้มาแต่งประโยค)</option>
                   <option value="picture_description">🖼️ Describe Image (ดูภาพแล้วแต่งประโยค Core + Context + Connect)</option>
                 </select>
-              </div>
-
-              {/* AI Check Toggle */}
-              <div className="p-4 rounded-2xl bg-purple-50/60 border border-purple-200/80 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold">
-                    <Bot className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <div className="font-extrabold text-purple-900 text-sm">ตรวจคำตอบด้วย AI (Use AI to check answer)</div>
-                    <div className="text-xs text-purple-700">เปิดให้ AI ช่วยวิเคราะห์ไวยากรณ์และให้คำแนะนำแบบละเอียด</div>
-                  </div>
-                </div>
-
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={exerciseFormData.use_ai_check}
-                    onChange={(e) => setExerciseFormData(prev => ({ ...prev, use_ai_check: e.target.checked }))}
-                    className="sr-only peer"
-                  />
-                  <div className="w-12 h-6.5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5.5 after:w-5.5 after:transition-all peer-checked:bg-[#2563eb]"></div>
-                </label>
               </div>
 
               {/* Description / Instructions */}
