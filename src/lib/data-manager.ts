@@ -49,10 +49,31 @@ export async function getChapterDataFromDb(slugOrId = 'sentence-builder-vol-2', 
     const type = (ex.exercise_type || (ex.exercise_code === 'ex-3' ? 'picture_description' : ex.exercise_code === 'ex-2' ? 'guided_sentence' : 'translation')) as ExerciseType;
     exercises[ex.exercise_code] = {
       ...ex, id: ex.id, code: ex.exercise_code, type,
-      items: (questions.data || []).filter(i => i.exercise_code === ex.exercise_code).map(i => ({
-        ...i, id: i.item_number, thai: i.thai_prompt || '',
-        teacher_guidance: i.teacher_guidance || ex.guidance || '',
-      }) as ExerciseItem),
+      items: (questions.data || []).filter(i => i.exercise_code === ex.exercise_code).map(i => {
+        let possible_answers: Array<{ en: string; th?: string }> = [];
+        if (Array.isArray((i.translations as any)?._list)) {
+          possible_answers = (i.translations as any)._list;
+        } else if (Array.isArray((i.translations as any)?.answers)) {
+          possible_answers = (i.translations as any).answers;
+        } else if (Array.isArray(i.acceptable_answers) && i.acceptable_answers.length > 0) {
+          possible_answers = i.acceptable_answers.map((en: string) => ({
+            en,
+            th: (i.translations as Record<string, string>)?.[en] || (i.translations as Record<string, string>)?.[en.trim()] || ''
+          }));
+        } else if (i.model_answer) {
+          possible_answers = [{
+            en: i.model_answer,
+            th: (i.translations as Record<string, string>)?.[i.model_answer] || i.translation || i.thai_prompt || ''
+          }];
+        }
+        return {
+          ...i,
+          id: i.item_number,
+          thai: i.thai_prompt || '',
+          teacher_guidance: i.teacher_guidance || ex.guidance || '',
+          possible_answers,
+        } as ExerciseItem;
+      }),
     };
   }
   return { book: book.id, slug: book.slug || book.id, book_title: book.title, chapter: unitNumber,

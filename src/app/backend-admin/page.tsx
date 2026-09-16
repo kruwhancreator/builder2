@@ -471,11 +471,35 @@ export default function BackendAdminPage() {
   // Quiz Editor Handlers
   const openQuizEditor = (unit: any, exercise: any) => {
     setCurrentQuizExercise({ unit, exercise });
-    const rawItems = (exercise.items || []).map((item: any) => ({
-      ...item,
-      teacher_guidance: item.teacher_guidance || item.context_hint || item.image_description || '',
-      image_description: item.image_description || item.teacher_guidance || item.context_hint || ''
-    }));
+    const rawItems = (exercise.items || []).map((item: any) => {
+      let possible_answers: Array<{ en: string; th: string }> = [];
+      if (Array.isArray(item.possible_answers) && item.possible_answers.length > 0) {
+        possible_answers = item.possible_answers.map((a: any) => ({ en: a.en || '', th: a.th || '' }));
+      } else if (Array.isArray(item.translations?._list) && item.translations._list.length > 0) {
+        possible_answers = item.translations._list.map((a: any) => ({ en: a.en || '', th: a.th || '' }));
+      } else if (Array.isArray(item.translations?.answers) && item.translations.answers.length > 0) {
+        possible_answers = item.translations.answers.map((a: any) => ({ en: a.en || '', th: a.th || '' }));
+      } else if (Array.isArray(item.acceptable_answers) && item.acceptable_answers.length > 0) {
+        possible_answers = item.acceptable_answers.map((en: string) => ({
+          en: en || '',
+          th: item.translations?.[en] || item.translations?.[en.trim()] || ''
+        }));
+      } else if (item.model_answer) {
+        possible_answers = [{
+          en: item.model_answer,
+          th: item.translations?.[item.model_answer] || item.translation || item.thai || ''
+        }];
+      } else {
+        possible_answers = [{ en: '', th: '' }];
+      }
+
+      return {
+        ...item,
+        possible_answers,
+        teacher_guidance: item.teacher_guidance || item.context_hint || item.image_description || '',
+        image_description: item.image_description || item.teacher_guidance || item.context_hint || ''
+      };
+    });
     setQuizItems(JSON.parse(JSON.stringify(rawItems)));
     // Load and normalize categories for guided_sentence type (or ex-2 / existing word_bank)
     const isGuided = exercise.type === 'guided_sentence' || exercise.code === 'ex-2' || !!exercise.categories || !!exercise.word_bank;
@@ -630,8 +654,8 @@ export default function BackendAdminPage() {
       newItem.required_orders = [1];
       newItem.model_answer = '';
     } else if (exType === 'picture_description') {
-      newItem.image_description = '';
-      newItem.context_hint = '';
+      newItem.image_url = '';
+      newItem.possible_answers = [{ en: '', th: '' }];
       newItem.model_answer = '';
     }
 
@@ -642,6 +666,50 @@ export default function BackendAdminPage() {
     setQuizItems(prev => {
       const copy = [...prev];
       copy[idx] = { ...copy[idx], [field]: value };
+      return copy;
+    });
+  };
+
+  const handleAddPossibleAnswer = (qIdx: number) => {
+    setQuizItems(prev => {
+      const copy = [...prev];
+      const q = { ...copy[qIdx] };
+      const answers = Array.isArray(q.possible_answers) ? [...q.possible_answers] : [];
+      answers.push({ en: '', th: '' });
+      q.possible_answers = answers;
+      copy[qIdx] = q;
+      return copy;
+    });
+  };
+
+  const handleUpdatePossibleAnswer = (qIdx: number, aIdx: number, field: 'en' | 'th', value: string) => {
+    setQuizItems(prev => {
+      const copy = [...prev];
+      const q = { ...copy[qIdx] };
+      const answers = Array.isArray(q.possible_answers) ? [...q.possible_answers] : [];
+      if (answers[aIdx]) {
+        answers[aIdx] = { ...answers[aIdx], [field]: value };
+      }
+      q.possible_answers = answers;
+      if (aIdx === 0 && field === 'en') {
+        q.model_answer = value;
+      }
+      copy[qIdx] = q;
+      return copy;
+    });
+  };
+
+  const handleDeletePossibleAnswer = (qIdx: number, aIdx: number) => {
+    setQuizItems(prev => {
+      const copy = [...prev];
+      const q = { ...copy[qIdx] };
+      const answers = Array.isArray(q.possible_answers) ? [...q.possible_answers] : [];
+      if (answers.length > 1) {
+        answers.splice(aIdx, 1);
+        q.possible_answers = answers;
+        q.model_answer = answers[0]?.en || '';
+      }
+      copy[qIdx] = q;
       return copy;
     });
   };
@@ -793,8 +861,32 @@ export default function BackendAdminPage() {
         const blankRegex = /_{2,}/g;
         const slotCount = Math.max(1, (item.prompt || '').match(blankRegex)?.length || 1);
         const rawOrders = Array.isArray(item.required_orders) && item.required_orders.length > 0 ? item.required_orders : [1];
+
+        let model_answer = (item.model_answer || '').trim();
+        let acceptable_answers = Array.isArray(item.acceptable_answers) ? [...item.acceptable_answers] : [];
+        let translations = item.translations && typeof item.translations === 'object' ? { ...item.translations } : {};
+
+        if (Array.isArray(item.possible_answers) && item.possible_answers.length > 0) {
+          const validAnswers = item.possible_answers.filter((a: any) => a && typeof a.en === 'string' && a.en.trim().length > 0);
+          if (validAnswers.length > 0) {
+            model_answer = validAnswers[0].en.trim();
+            acceptable_answers = validAnswers.map((a: any) => a.en.trim());
+            const dict: Record<string, string> = {};
+            validAnswers.forEach((a: any) => {
+              dict[a.en.trim()] = (a.th || '').trim();
+            });
+            translations = {
+              ...dict,
+              _list: validAnswers.map((a: any) => ({ en: a.en.trim(), th: (a.th || '').trim() }))
+            };
+          }
+        }
+
         return {
           ...item,
+          model_answer,
+          acceptable_answers: acceptable_answers.length > 0 ? acceptable_answers : (model_answer ? [model_answer] : []),
+          translations,
           required_orders: rawOrders.slice(0, slotCount)
         };
       });
@@ -2395,53 +2487,94 @@ export default function BackendAdminPage() {
                                     </div>
                                   )}
                                 </div>
-
-                                {/* 2. Context & AI Pattern Locking Rules */}
-                                <div className="bg-amber-50/70 border border-amber-200 rounded-2xl p-4 space-y-2">
-                                  <div className="flex items-center justify-between">
-                                    <label className="block font-bold text-amber-950 uppercase text-xs sm:text-sm">
-                                      🧠 บริบทและโครงสร้างที่กำหนดให้ AI ตรวจจับ (CONTEXT & AI PATTERN LOCKING):
-                                    </label>
-                                    <span className="text-[11px] text-amber-800 font-medium">
-                                      ระบุโครงสร้างประโยค (Core, Context, Connect) พร้อมคำอธิบายภาพ (Detailed Image Prompt) ให้ AI ใช้ตรวจจับ
-                                    </span>
-                                  </div>
-                                  <textarea
-                                    rows={10}
-                                    value={q.teacher_guidance ?? ''}
-                                    onChange={(e) => {
-                                      const val = e.target.value;
-                                      setQuizItems(prev => {
-                                        const copy = [...prev];
-                                        copy[idx] = { 
-                                          ...copy[idx], 
-                                          teacher_guidance: val, 
-                                          context_hint: val,
-                                          image_description: val
-                                        };
-                                        return copy;
-                                      });
-                                    }}
-                                    placeholder={`Core: \tI + do + [ V.ไม่ผัน ]\nI do cook at home.\nContext: \tI + do + V.ไม่ผัน + [ to + V.ไม่ผัน ]\nI do cook at home to save money.\nConnect: \tI + do + V.ไม่ผัน + to + V.ไม่ผัน + [ even when I’m + คำคุณศัพท์]\nI do cook at home to save money even when I am tired.\n\nDetailed Image Generation Prompt\nA monochrome, black-and-white vector illustration close-up of a hand pressing a standard toggle light switch on a plain wall...\n\nKey Subject & Style Tags\nSubject: Hand pressing light switch, toggle switch`}
-                                    className="w-full rounded-xl bg-white border border-amber-300 p-3.5 text-xs sm:text-sm font-mono text-slate-900 focus:outline-none focus:border-amber-600 leading-relaxed"
-                                  />
-                                </div>
                               </div>
                             )}
 
-                            {/* Target Model Answer */}
-                            <div>
-                              <label className="block font-extrabold text-[#1e3a8a] uppercase mb-1.5 text-xs sm:text-sm">
-                                🎯 เฉลยตัวอย่างภาษาอังกฤษ (Model Answer):
-                              </label>
-                              <input
-                                type="text"
-                                value={q.model_answer || ''}
-                                onChange={(e) => handleUpdateQuestion(idx, 'model_answer', e.target.value)}
-                                placeholder="เช่น I do drink water to stay hydrated even when I'm not thirsty."
-                                className="w-full rounded-2xl bg-white border border-slate-300 px-4 py-3 text-sm sm:text-base text-slate-900 font-bold font-mono focus:outline-none focus:border-[#2563eb]"
-                              />
-                            </div>
+                            {/* Answer Editor */}
+                            {currentQuizExercise.exercise.type === 'picture_description' ? (
+                              <div className="bg-blue-50/60 border border-blue-200 rounded-2xl p-4 sm:p-5 space-y-3 shadow-2xs">
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <label className="block font-extrabold text-[#1e3a8a] uppercase text-xs sm:text-sm">
+                                      💡 เฉลยตัวอย่างประโยคที่เป็นไปได้ (POSSIBLE ANSWERS & TRANSLATIONS):
+                                    </label>
+                                    <p className="text-[11px] text-blue-700 font-medium mt-0.5">
+                                      คุณครูสามารถระบุได้หลายรูปแบบคำตอบ ทั้งประโยคภาษาอังกฤษและคำแปลภาษาไทย เพื่อแสดงในปุ่ม &quot;ดูตัวอย่างเฉลยที่เป็นไปได้&quot;
+                                    </p>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleAddPossibleAnswer(idx)}
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-[#2563eb] hover:bg-[#1d4ed8] rounded-xl transition-all shadow-2xs cursor-pointer"
+                                  >
+                                    <Plus className="w-3.5 h-3.5" />
+                                    <span>เพิ่มคำตอบ</span>
+                                  </button>
+                                </div>
+
+                                <div className="space-y-3 mt-3">
+                                  {(Array.isArray(q.possible_answers) && q.possible_answers.length > 0 ? q.possible_answers : [{ en: q.model_answer || '', th: '' }]).map((ans: any, aIdx: number) => (
+                                    <div key={aIdx} className="bg-white border border-blue-200 rounded-xl p-3.5 space-y-2 shadow-2xs">
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-xs font-bold text-[#1e3a8a] bg-blue-100/80 px-2 py-0.5 rounded-md">
+                                          รูปแบบที่ {aIdx + 1}
+                                        </span>
+                                        {(q.possible_answers || []).length > 1 && (
+                                          <button
+                                            type="button"
+                                            onClick={() => handleDeletePossibleAnswer(idx, aIdx)}
+                                            className="text-xs font-bold text-red-600 hover:text-red-700 hover:underline flex items-center gap-1 cursor-pointer"
+                                          >
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                            <span>ลบคำตอบนี้</span>
+                                          </button>
+                                        )}
+                                      </div>
+
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        <div>
+                                          <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">
+                                            🇬🇧 ประโยคภาษาอังกฤษ (English Sentence):
+                                          </label>
+                                          <input
+                                            type="text"
+                                            value={ans.en || ''}
+                                            onChange={(e) => handleUpdatePossibleAnswer(idx, aIdx, 'en', e.target.value)}
+                                            placeholder="เช่น I have baked with my mum before, so I can help her."
+                                            className="w-full rounded-xl bg-slate-50 border border-slate-300 px-3 py-2 text-xs sm:text-sm text-slate-900 font-bold font-mono focus:bg-white focus:outline-none focus:border-[#2563eb]"
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">
+                                            🇹🇭 คำแปลภาษาไทย (Thai Translation):
+                                          </label>
+                                          <input
+                                            type="text"
+                                            value={ans.th || ''}
+                                            onChange={(e) => handleUpdatePossibleAnswer(idx, aIdx, 'th', e.target.value)}
+                                            placeholder="เช่น ฉันเคยอบขนมกับแม่มาก่อนแล้ว ดังนั้นฉันจึงสามารถช่วยเธอได้"
+                                            className="w-full rounded-xl bg-slate-50 border border-slate-300 px-3 py-2 text-xs sm:text-sm text-slate-900 font-medium focus:bg-white focus:outline-none focus:border-[#2563eb]"
+                                          />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ) : (
+                              <div>
+                                <label className="block font-extrabold text-[#1e3a8a] uppercase mb-1.5 text-xs sm:text-sm">
+                                  🎯 เฉลยตัวอย่างภาษาอังกฤษ (Model Answer):
+                                </label>
+                                <input
+                                  type="text"
+                                  value={q.model_answer || ''}
+                                  onChange={(e) => handleUpdateQuestion(idx, 'model_answer', e.target.value)}
+                                  placeholder="เช่น I do drink water to stay hydrated even when I'm not thirsty."
+                                  className="w-full rounded-2xl bg-white border border-slate-300 px-4 py-3 text-sm sm:text-base text-slate-900 font-bold font-mono focus:outline-none focus:border-[#2563eb]"
+                                />
+                              </div>
+                            )}
                           </div>
                         </div>
                       );

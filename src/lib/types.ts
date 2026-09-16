@@ -5,7 +5,7 @@ export interface ExerciseItem {
   id: number; item_number?: number; thai?: string; thai_prompt?: string; prompt?: string;
   thai_template?: string; required_orders?: number[]; translations?: Record<string, string>;
   translation?: string;
-  model_answer: string; acceptable_answers?: string[]; image_url?: string; image_description?: string;
+  model_answer: string; acceptable_answers?: string[]; possible_answers?: Array<{ en: string; th?: string }>; image_url?: string; image_description?: string;
   context_hint?: string; teacher_guidance?: string; guidance?: string; grammar_focus?: string;
   exercise_guidance?: string; exercise_instruction?: string; unit_subtitle?: string; unit_title?: string;
   structure_required?: Record<string, unknown>;
