@@ -54,7 +54,33 @@ export async function POST(req: NextRequest) {
       const { unit_id, exercise_code, items, categories } = body;
       if (!uuid(unit_id) || !validSlug(exercise_code) || !Array.isArray(items) || items.length > 500 ||
           items.some(i => typeof record(i).model_answer !== 'string') || (categories !== undefined && !Array.isArray(categories))) return fail('Invalid questions');
-      const { error } = await db.rpc('replace_exercise_items', { p_unit: unit_id, p_exercise: exercise_code, p_items: items, p_categories: categories ?? null });
+      let { error } = await db.rpc('replace_exercise_items', { p_unit: unit_id, p_exercise: exercise_code, p_items: items, p_categories: categories ?? null });
+      if (error && (error.code === '42883' || error.message?.includes('replace_exercise_items') || error.message?.includes('function'))) {
+        console.warn('RPC replace_exercise_items not found in Supabase. Executing direct table fallback...');
+        if (categories !== undefined) {
+          await db.from('exercises').update({ categories }).eq('unit_id', unit_id).eq('exercise_code', exercise_code);
+        }
+        await db.from('exercise_items').delete().eq('unit_id', unit_id).eq('exercise_code', exercise_code);
+        const rows = (items as any[]).map((item: any, idx: number) => ({
+          unit_id,
+          exercise_code,
+          item_number: idx + 1,
+          thai_prompt: item.thai || item.thai_prompt || null,
+          prompt: item.prompt || null,
+          thai_template: item.thai_template || null,
+          required_orders: Array.isArray(item.required_orders) && item.required_orders.length > 0 ? item.required_orders : [1],
+          model_answer: item.model_answer || '',
+          acceptable_answers: Array.isArray(item.acceptable_answers) && item.acceptable_answers.length > 0 ? item.acceptable_answers : (item.model_answer ? [item.model_answer] : []),
+          translations: item.translations || null,
+          image_url: item.image_url || null,
+          image_description: item.image_description || null,
+          context_hint: item.context_hint || null,
+          teacher_guidance: item.teacher_guidance || null,
+        }));
+        const insertRes = await db.from('exercise_items').insert(rows);
+        if (insertRes.error) throw insertRes.error;
+        error = null;
+      }
       if (error) throw error;
     } else if (action === 'reorder_exercises') {
       if (!uuid(body.unit_id) || !Array.isArray(body.exercise_orders) || body.exercise_orders.some(e => !validSlug(record(e).exercise_code) || !positiveInteger(record(e).order_index))) return fail('Invalid order');
@@ -62,8 +88,11 @@ export async function POST(req: NextRequest) {
       if (error) throw error;
     } else return fail('Unknown action');
     clearDataManagerCache();
-    return NextResponse.json({ success: true });
-  } catch { return fail('บันทึกไม่สำเร็จค่ะ ตรวจการตั้งค่าฐานข้อมูลและรัน SQL migration ก่อน แล้วลองใหม่อีกครั้ง', 503); }
+  } catch (err: any) {
+    console.error('Curriculum save failed:', err);
+    const detail = err?.message || (typeof err === 'string' ? err : '');
+    return fail(`บันทึกไม่สำเร็จค่ะ ${detail ? `(${detail}) ` : ''}ตรวจการตั้งค่าฐานข้อมูลและรัน SQL migration ก่อน แล้วลองใหม่อีกครั้ง`, 503);
+  }
 }
 export async function DELETE(req: NextRequest) {
   const denied = requireAdmin(req); if (denied) return denied;
