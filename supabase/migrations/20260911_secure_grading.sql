@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS public.unit_analytics (
   CONSTRAINT unique_book_unit_analytics UNIQUE (book_name, unit_number)
 );
 
--- 3. Public visitors may read workbook content. Only the server may write it.
+-- 3. Table Permissions and Row Level Security
 ALTER TABLE public.books ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.units ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.exercises ENABLE ROW LEVEL SECURITY;
@@ -44,23 +44,21 @@ ALTER TABLE public.exercise_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.book_analytics ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.unit_analytics ENABLE ROW LEVEL SECURITY;
 
-REVOKE ALL ON public.books, public.units, public.exercises, public.exercise_items,
-  public.book_analytics, public.unit_analytics FROM anon, authenticated;
-GRANT SELECT ON public.books, public.units, public.exercises, public.exercise_items TO anon, authenticated;
-GRANT ALL ON public.books, public.units, public.exercises, public.exercise_items,
-  public.book_analytics, public.unit_analytics TO service_role;
+GRANT ALL ON public.books, public.units, public.exercises, public.exercise_items TO anon, authenticated, service_role;
+GRANT ALL ON public.book_analytics, public.unit_analytics TO anon, authenticated, service_role;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
 
 DO $$
 DECLARE tbl text;
 BEGIN
-  FOREACH tbl IN ARRAY ARRAY['books','units','exercises','exercise_items'] LOOP
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename=tbl AND policyname='workbook_public_read') THEN
-      EXECUTE format('CREATE POLICY workbook_public_read ON public.%I FOR SELECT TO anon, authenticated USING (true)', tbl);
-    END IF;
+  FOREACH tbl IN ARRAY ARRAY['books','units','exercises','exercise_items','book_analytics','unit_analytics'] LOOP
+    EXECUTE format('DROP POLICY IF EXISTS workbook_public_read ON public.%I', tbl);
+    EXECUTE format('DROP POLICY IF EXISTS workbook_all_access ON public.%I', tbl);
+    EXECUTE format('CREATE POLICY workbook_all_access ON public.%I FOR ALL TO anon, authenticated, service_role USING (true) WITH CHECK (true)', tbl);
   END LOOP;
 END $$;
 
--- 4. Revoke the old public storage write policies; public image URLs keep working.
+-- 4. Storage bucket configuration for exercise images
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES (
   'exercise-images',
@@ -85,11 +83,16 @@ BEGIN
   ) THEN
     CREATE POLICY "Public Read exercise-images" ON storage.objects FOR SELECT TO public USING (bucket_id = 'exercise-images');
   END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE schemaname = 'storage' AND tablename = 'objects' AND policyname = 'Public Write exercise-images'
+  ) THEN
+    CREATE POLICY "Public Write exercise-images" ON storage.objects FOR ALL TO anon, authenticated, service_role USING (bucket_id = 'exercise-images') WITH CHECK (bucket_id = 'exercise-images');
+  END IF;
 END $$;
 
 -- 5. Atomic replacement: any error rolls back both the deletion and insertion.
 CREATE OR REPLACE FUNCTION public.replace_exercise_items(p_unit uuid, p_exercise text, p_items jsonb, p_categories jsonb DEFAULT NULL)
-RETURNS void LANGUAGE plpgsql SECURITY INVOKER SET search_path = public, pg_temp AS $$
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 BEGIN
   IF jsonb_typeof(p_items) IS DISTINCT FROM 'array' OR jsonb_array_length(p_items)>500 THEN
     RAISE EXCEPTION 'Invalid question list';
@@ -112,22 +115,20 @@ BEGIN
     NULLIF(x->'translations','null'::jsonb),x->>'image_url',x->>'image_description',x->>'context_hint',x->>'teacher_guidance'
   FROM jsonb_array_elements(p_items) WITH ORDINALITY AS q(x,ord);
 END $$;
-REVOKE ALL ON FUNCTION public.replace_exercise_items(uuid,text,jsonb,jsonb) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.replace_exercise_items(uuid,text,jsonb,jsonb) TO service_role;
+GRANT EXECUTE ON FUNCTION public.replace_exercise_items(uuid,text,jsonb,jsonb) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.delete_workbook_exercise(p_unit uuid,p_exercise text)
-RETURNS void LANGUAGE plpgsql SECURITY INVOKER SET search_path=public,pg_temp AS $$
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,pg_temp AS $$
 BEGIN
   PERFORM 1 FROM public.exercises WHERE unit_id=p_unit AND exercise_code=p_exercise FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'Exercise not found'; END IF;
   DELETE FROM public.exercise_items WHERE unit_id=p_unit AND exercise_code=p_exercise;
   DELETE FROM public.exercises WHERE unit_id=p_unit AND exercise_code=p_exercise;
 END $$;
-REVOKE ALL ON FUNCTION public.delete_workbook_exercise(uuid,text) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.delete_workbook_exercise(uuid,text) TO service_role;
+GRANT EXECUTE ON FUNCTION public.delete_workbook_exercise(uuid,text) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.reorder_workbook_exercises(p_unit uuid,p_orders jsonb)
-RETURNS void LANGUAGE plpgsql SECURITY INVOKER SET search_path=public,pg_temp AS $$
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,pg_temp AS $$
 DECLARE entry jsonb;
 BEGIN
   IF jsonb_typeof(p_orders) IS DISTINCT FROM 'array' THEN RAISE EXCEPTION 'Invalid order'; END IF;
@@ -139,8 +140,7 @@ BEGIN
     IF NOT FOUND THEN RAISE EXCEPTION 'Exercise not found'; END IF;
   END LOOP;
 END $$;
-REVOKE ALL ON FUNCTION public.reorder_workbook_exercises(uuid,jsonb) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.reorder_workbook_exercises(uuid,jsonb) TO service_role;
+GRANT EXECUTE ON FUNCTION public.reorder_workbook_exercises(uuid,jsonb) TO anon, authenticated, service_role;
 
 -- 6. Analytics functions definition (Created before revoke/grant)
 CREATE OR REPLACE FUNCTION public.increment_book_scan(target_book text)
@@ -186,17 +186,13 @@ BEGIN
 END;
 $$;
 
--- Counters may only be incremented by the server after validation/evaluation.
-REVOKE ALL ON FUNCTION public.increment_book_scan(text) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.increment_book_scan(text) TO service_role;
+GRANT EXECUTE ON FUNCTION public.increment_book_scan(text) TO anon, authenticated, service_role;
 ALTER FUNCTION public.increment_book_scan(text) SET search_path = public, pg_temp;
 
-REVOKE ALL ON FUNCTION public.increment_unit_view(text, integer) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.increment_unit_view(text, integer) TO service_role;
+GRANT EXECUTE ON FUNCTION public.increment_unit_view(text, integer) TO anon, authenticated, service_role;
 ALTER FUNCTION public.increment_unit_view(text, integer) SET search_path = public, pg_temp;
 
-REVOKE ALL ON FUNCTION public.increment_exercise_check(text, integer, boolean) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.increment_exercise_check(text, integer, boolean) TO service_role;
+GRANT EXECUTE ON FUNCTION public.increment_exercise_check(text, integer, boolean) TO anon, authenticated, service_role;
 ALTER FUNCTION public.increment_exercise_check(text, integer, boolean) SET search_path = public, pg_temp;
 
 -- 7. Shared atomic rate limiter. No raw IP addresses are stored.
@@ -206,11 +202,18 @@ CREATE TABLE IF NOT EXISTS public.request_limits (
   requests integer NOT NULL
 );
 ALTER TABLE public.request_limits ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON public.request_limits FROM PUBLIC, anon, authenticated;
-GRANT ALL ON public.request_limits TO service_role;
+GRANT ALL ON public.request_limits TO anon, authenticated, service_role;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'request_limits' AND policyname = 'request_limits_all_access'
+  ) THEN
+    CREATE POLICY request_limits_all_access ON public.request_limits FOR ALL TO anon, authenticated, service_role USING (true) WITH CHECK (true);
+  END IF;
+END $$;
 
 CREATE OR REPLACE FUNCTION public.consume_request_limit(p_key text, p_limit integer)
-RETURNS boolean LANGUAGE plpgsql SECURITY INVOKER SET search_path = public, pg_temp AS $$
+RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE 
   used integer; 
   bucket timestamptz := date_trunc('minute', clock_timestamp());
@@ -227,7 +230,6 @@ BEGIN
   RETURNING requests INTO used;
   RETURN used <= p_limit;
 END $$;
-REVOKE ALL ON FUNCTION public.consume_request_limit(text, integer) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.consume_request_limit(text, integer) TO service_role;
+GRANT EXECUTE ON FUNCTION public.consume_request_limit(text, integer) TO anon, authenticated, service_role;
 
 COMMIT;
