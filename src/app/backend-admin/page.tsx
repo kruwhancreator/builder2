@@ -905,7 +905,13 @@ export default function BackendAdminPage() {
         })
       });
 
-      const resData = await res.json();
+      let resData: any = {};
+      try {
+        resData = await res.json();
+      } catch {
+        resData = { error: `เซิร์ฟเวอร์ตอบกลับรหัส HTTP ${res.status}` };
+      }
+
       if (res.ok && resData.success) {
         setSaveMessage({ type: 'success', text: `🎉 บันทึกคำถามและหมวดหมู่คำศัพท์สำหรับ ${currentQuizExercise.exercise.title} เรียบร้อยแล้ว!` });
         fetchCurriculum(selectedBook);
@@ -913,9 +919,9 @@ export default function BackendAdminPage() {
       } else {
         setSaveMessage({ type: 'error', text: resData.error || 'เกิดข้อผิดพลาดในการบันทึกคำถาม' });
       }
-    } catch (err) {
-      console.error(err);
-      setSaveMessage({ type: 'error', text: 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์' });
+    } catch (err: any) {
+      console.error('Quiz save error:', err);
+      setSaveMessage({ type: 'error', text: `เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์ (${err?.message || 'Network error'})` });
     } finally {
       setIsSavingQuiz(false);
     }

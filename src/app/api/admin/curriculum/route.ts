@@ -88,6 +88,7 @@ export async function POST(req: NextRequest) {
       if (error) throw error;
     } else return fail('Unknown action');
     clearDataManagerCache();
+    return NextResponse.json({ success: true });
   } catch (err: any) {
     console.error('Curriculum save failed:', err);
     const detail = err?.message || (typeof err === 'string' ? err : '');
