@@ -333,10 +333,22 @@ export default function ExerciseWorkspace({ chapter, chapterData, selectedExerci
       {/* DYNAMIC EXERCISES LIST (IN CUSTOM CONFIGURED ORDER) */}
       <nav aria-label="เลือกแบบฝึกหัด" className="flex flex-wrap gap-2 mb-5">
         <Link className="px-3 py-2 rounded-lg border bg-white" href={`/${bookSlug}/chapter-${unitNumber}`}>ทั้งหมด</Link>
-        {exercisesList.map(ex => <Link key={ex.code} aria-current={selectedExercise === ex.code ? 'page' : undefined}
-          className="px-3 py-2 rounded-lg border bg-white text-blue-800" href={`/${bookSlug}/chapter-${unitNumber}/${ex.code}`}>{ex.title}</Link>)}
+        {exercisesList.map(ex => (
+          <Link
+            key={ex.code}
+            aria-current={selectedExercise === ex.code ? 'page' : undefined}
+            className="px-3 py-2 rounded-lg border bg-white text-blue-800"
+            href={`/${bookSlug}/chapter-${unitNumber}/${ex.code}`}
+          >
+            {ex.title}
+          </Link>
+        ))}
       </nav>
-      <p className="mb-4 text-sm text-slate-600">ตรวจแล้ว {Object.keys(feedbacks).length} ข้อในหน้านี้ · บันทึกคำตอบที่พิมพ์ไว้บนอุปกรณ์นี้อัตโนมัติ</p>
+      {selectedExercise && exercisesList.find(e => e.code === selectedExercise)?.type === 'picture_description' ? (
+        <p className="mb-4 text-sm text-slate-600">📖 ศึกษาตัวอย่างประโยคและเฉลยคำตอบในแต่ละข้อได้โดยตรงเลยนะคะ</p>
+      ) : (
+        <p className="mb-4 text-sm text-slate-600">ตรวจแล้ว {Object.keys(feedbacks).length} ข้อในหน้านี้ · บันทึกคำตอบที่พิมพ์ไว้บนอุปกรณ์นี้อัตโนมัติ</p>
+      )}
 
       {/* ========================================================= */}
       {exercisesList.filter(ex => !selectedExercise || ex.code === selectedExercise).map((exercise: Exercise, exIdx: number) => {
@@ -802,25 +814,33 @@ export default function ExerciseWorkspace({ chapter, chapterData, selectedExerci
                 {exercise.items?.map((item: ExerciseItem, idx: number) => {
                   const key = `${exKeyPrefix}_${item.id || idx + 1}`;
                   const possibleSentences: Array<{ en: string; th?: string }> = (() => {
+                    let list: Array<{ en: string; th?: string }> = [];
                     if (Array.isArray(item.possible_answers) && item.possible_answers.length > 0) {
-                      return item.possible_answers.filter(a => a && a.en && a.en.trim());
-                    }
-                    if (Array.isArray((item.translations as any)?._list) && (item.translations as any)._list.length > 0) {
-                      return (item.translations as any)._list.filter((a: any) => a && a.en && a.en.trim());
-                    }
-                    if (Array.isArray(item.acceptable_answers) && item.acceptable_answers.length > 0) {
-                      return item.acceptable_answers.filter(Boolean).map((en: string) => ({
+                      list = item.possible_answers.filter(a => a && a.en && a.en.trim());
+                    } else if (Array.isArray((item.translations as any)?._list) && (item.translations as any)._list.length > 0) {
+                      list = (item.translations as any)._list.filter((a: any) => a && a.en && a.en.trim());
+                    } else if (Array.isArray(item.acceptable_answers) && item.acceptable_answers.length > 0) {
+                      list = item.acceptable_answers.filter(Boolean).map((en: string) => ({
                         en,
                         th: (item.translations as Record<string, string>)?.[en] || (item.translations as Record<string, string>)?.[en.trim()] || ''
                       }));
-                    }
-                    if (item.model_answer) {
-                      return [{
+                    } else if (item.model_answer) {
+                      list = [{
                         en: item.model_answer,
                         th: (item.translations as Record<string, string>)?.[item.model_answer] || item.translation || item.thai || ''
                       }];
                     }
-                    return [];
+
+                    const seen = new Set<string>();
+                    const deduplicated: Array<{ en: string; th?: string }> = [];
+                    for (const entry of list) {
+                      const normalized = (entry.en || '').replace(/[’‘]/g, "'").trim().toLowerCase();
+                      if (!seen.has(normalized)) {
+                        seen.add(normalized);
+                        deduplicated.push(entry);
+                      }
+                    }
+                    return deduplicated;
                   })();
 
                   return (
