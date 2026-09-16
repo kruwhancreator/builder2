@@ -3,20 +3,53 @@
 -- Deploy the updated app with SUPABASE_SERVICE_ROLE_KEY before applying this migration.
 BEGIN;
 
+-- 1. Ensure all exercise and question columns exist
 ALTER TABLE public.exercises ADD COLUMN IF NOT EXISTS order_index integer DEFAULT 1;
+ALTER TABLE public.exercises ADD COLUMN IF NOT EXISTS categories jsonb;
 
--- Public visitors may read workbook content. Only the server may write it.
+ALTER TABLE public.exercise_items ADD COLUMN IF NOT EXISTS prompt text;
+ALTER TABLE public.exercise_items ADD COLUMN IF NOT EXISTS thai_template text;
+ALTER TABLE public.exercise_items ADD COLUMN IF NOT EXISTS required_orders integer[] DEFAULT ARRAY[1];
+ALTER TABLE public.exercise_items ADD COLUMN IF NOT EXISTS translations jsonb;
+ALTER TABLE public.exercise_items ADD COLUMN IF NOT EXISTS image_url text;
+ALTER TABLE public.exercise_items ADD COLUMN IF NOT EXISTS image_description text;
+ALTER TABLE public.exercise_items ADD COLUMN IF NOT EXISTS context_hint text;
+ALTER TABLE public.exercise_items ADD COLUMN IF NOT EXISTS teacher_guidance text;
+
+-- 2. Ensure analytics tables exist
+CREATE TABLE IF NOT EXISTS public.book_analytics (
+  book_name TEXT PRIMARY KEY,
+  qr_scan_count BIGINT DEFAULT 0,
+  ai_check_count BIGINT DEFAULT 0,
+  correct_check_count BIGINT DEFAULT 0,
+  last_scanned_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.unit_analytics (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  book_name TEXT NOT NULL,
+  unit_number INT NOT NULL,
+  view_count BIGINT DEFAULT 0,
+  check_count BIGINT DEFAULT 0,
+  correct_count BIGINT DEFAULT 0,
+  last_viewed_at TIMESTAMPTZ DEFAULT now(),
+  CONSTRAINT unique_book_unit_analytics UNIQUE (book_name, unit_number)
+);
+
+-- 3. Public visitors may read workbook content. Only the server may write it.
 ALTER TABLE public.books ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.units ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.exercises ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.exercise_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.book_analytics ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.unit_analytics ENABLE ROW LEVEL SECURITY;
+
 REVOKE ALL ON public.books, public.units, public.exercises, public.exercise_items,
   public.book_analytics, public.unit_analytics FROM anon, authenticated;
 GRANT SELECT ON public.books, public.units, public.exercises, public.exercise_items TO anon, authenticated;
 GRANT ALL ON public.books, public.units, public.exercises, public.exercise_items,
   public.book_analytics, public.unit_analytics TO service_role;
+
 DO $$
 DECLARE tbl text;
 BEGIN
@@ -27,15 +60,34 @@ BEGIN
   END LOOP;
 END $$;
 
--- Revoke the old public storage write policies; public image URLs keep working.
+-- 4. Revoke the old public storage write policies; public image URLs keep working.
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'exercise-images',
+  'exercise-images',
+  true,
+  5242880,
+  ARRAY['image/png', 'image/jpeg', 'image/webp', 'image/gif']
+)
+ON CONFLICT (id) DO UPDATE SET
+  public = true,
+  file_size_limit = 5242880,
+  allowed_mime_types = ARRAY['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
+
 DROP POLICY IF EXISTS "Public Insert exercise-images" ON storage.objects;
 DROP POLICY IF EXISTS "Public Update exercise-images" ON storage.objects;
 DROP POLICY IF EXISTS "Public Delete exercise-images" ON storage.objects;
-UPDATE storage.buckets SET file_size_limit=5242880,
-  allowed_mime_types=ARRAY['image/png','image/jpeg','image/webp','image/gif']
-WHERE id='exercise-images';
 
--- Atomic replacement: any error rolls back both the deletion and insertion.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE schemaname = 'storage' AND tablename = 'objects' AND policyname = 'Public Read exercise-images'
+  ) THEN
+    CREATE POLICY "Public Read exercise-images" ON storage.objects FOR SELECT TO public USING (bucket_id = 'exercise-images');
+  END IF;
+END $$;
+
+-- 5. Atomic replacement: any error rolls back both the deletion and insertion.
 CREATE OR REPLACE FUNCTION public.replace_exercise_items(p_unit uuid, p_exercise text, p_items jsonb, p_categories jsonb DEFAULT NULL)
 RETURNS void LANGUAGE plpgsql SECURITY INVOKER SET search_path = public, pg_temp AS $$
 BEGIN
@@ -90,31 +142,92 @@ END $$;
 REVOKE ALL ON FUNCTION public.reorder_workbook_exercises(uuid,jsonb) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.reorder_workbook_exercises(uuid,jsonb) TO service_role;
 
--- Counters may only be incremented by the server after validation/evaluation.
-REVOKE ALL ON FUNCTION public.increment_book_scan(text),public.increment_unit_view(text,integer),public.increment_exercise_check(text,integer,boolean) FROM PUBLIC,anon,authenticated;
-GRANT EXECUTE ON FUNCTION public.increment_book_scan(text),public.increment_unit_view(text,integer),public.increment_exercise_check(text,integer,boolean) TO service_role;
-ALTER FUNCTION public.increment_book_scan(text) SET search_path=public,pg_temp;
-ALTER FUNCTION public.increment_unit_view(text,integer) SET search_path=public,pg_temp;
-ALTER FUNCTION public.increment_exercise_check(text,integer,boolean) SET search_path=public,pg_temp;
-
--- Shared atomic rate limiter. No raw IP addresses are stored.
-CREATE TABLE IF NOT EXISTS public.request_limits (key text PRIMARY KEY, window_start timestamptz NOT NULL, requests integer NOT NULL);
-ALTER TABLE public.request_limits ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON public.request_limits FROM PUBLIC,anon,authenticated;
-GRANT ALL ON public.request_limits TO service_role;
-CREATE OR REPLACE FUNCTION public.consume_request_limit(p_key text,p_limit integer)
-RETURNS boolean LANGUAGE plpgsql SECURITY INVOKER SET search_path=public,pg_temp AS $$
-DECLARE used integer; bucket timestamptz := date_trunc('minute',clock_timestamp());
+-- 6. Analytics functions definition (Created before revoke/grant)
+CREATE OR REPLACE FUNCTION public.increment_book_scan(target_book text)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 BEGIN
-  IF p_limit<1 OR p_limit>1000 OR length(p_key)>128 THEN RETURN false; END IF;
+  INSERT INTO public.book_analytics (book_name, qr_scan_count, last_scanned_at)
+  VALUES (target_book, 1, now())
+  ON CONFLICT (book_name) 
+  DO UPDATE SET 
+    qr_scan_count = public.book_analytics.qr_scan_count + 1,
+    last_scanned_at = now();
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.increment_unit_view(target_book text, target_unit integer)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+BEGIN
+  INSERT INTO public.unit_analytics (book_name, unit_number, view_count, last_viewed_at)
+  VALUES (target_book, target_unit, 1, now())
+  ON CONFLICT (book_name, unit_number)
+  DO UPDATE SET 
+    view_count = public.unit_analytics.view_count + 1,
+    last_viewed_at = now();
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.increment_exercise_check(target_book text, target_unit integer, is_correct boolean)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+BEGIN
+  INSERT INTO public.book_analytics (book_name, ai_check_count, correct_check_count, last_scanned_at)
+  VALUES (target_book, 1, CASE WHEN is_correct THEN 1 ELSE 0 END, now())
+  ON CONFLICT (book_name)
+  DO UPDATE SET
+    ai_check_count = public.book_analytics.ai_check_count + 1,
+    correct_check_count = public.book_analytics.correct_check_count + (CASE WHEN is_correct THEN 1 ELSE 0 END);
+
+  INSERT INTO public.unit_analytics (book_name, unit_number, check_count, correct_count, last_viewed_at)
+  VALUES (target_book, target_unit, 1, CASE WHEN is_correct THEN 1 ELSE 0 END, now())
+  ON CONFLICT (book_name, unit_number)
+  DO UPDATE SET
+    check_count = public.unit_analytics.check_count + 1,
+    correct_count = public.unit_analytics.correct_count + (CASE WHEN is_correct THEN 1 ELSE 0 END);
+END;
+$$;
+
+-- Counters may only be incremented by the server after validation/evaluation.
+REVOKE ALL ON FUNCTION public.increment_book_scan(text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.increment_book_scan(text) TO service_role;
+ALTER FUNCTION public.increment_book_scan(text) SET search_path = public, pg_temp;
+
+REVOKE ALL ON FUNCTION public.increment_unit_view(text, integer) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.increment_unit_view(text, integer) TO service_role;
+ALTER FUNCTION public.increment_unit_view(text, integer) SET search_path = public, pg_temp;
+
+REVOKE ALL ON FUNCTION public.increment_exercise_check(text, integer, boolean) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.increment_exercise_check(text, integer, boolean) TO service_role;
+ALTER FUNCTION public.increment_exercise_check(text, integer, boolean) SET search_path = public, pg_temp;
+
+-- 7. Shared atomic rate limiter. No raw IP addresses are stored.
+CREATE TABLE IF NOT EXISTS public.request_limits (
+  key text PRIMARY KEY,
+  window_start timestamptz NOT NULL,
+  requests integer NOT NULL
+);
+ALTER TABLE public.request_limits ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.request_limits FROM PUBLIC, anon, authenticated;
+GRANT ALL ON public.request_limits TO service_role;
+
+CREATE OR REPLACE FUNCTION public.consume_request_limit(p_key text, p_limit integer)
+RETURNS boolean LANGUAGE plpgsql SECURITY INVOKER SET search_path = public, pg_temp AS $$
+DECLARE 
+  used integer; 
+  bucket timestamptz := date_trunc('minute', clock_timestamp());
+BEGIN
+  IF p_limit < 1 OR p_limit > 1000 OR length(p_key) > 128 THEN 
+    RETURN false; 
+  END IF;
   DELETE FROM public.request_limits WHERE window_start < bucket - interval '10 minutes';
-  INSERT INTO public.request_limits AS limits(key,window_start,requests) VALUES(p_key,bucket,1)
-  ON CONFLICT(key) DO UPDATE SET window_start=bucket,
-    requests=CASE WHEN limits.window_start=bucket THEN least(limits.requests+1,p_limit+1) ELSE 1 END
+  INSERT INTO public.request_limits AS limits(key, window_start, requests) 
+  VALUES (p_key, bucket, 1)
+  ON CONFLICT(key) DO UPDATE SET 
+    window_start = bucket,
+    requests = CASE WHEN limits.window_start = bucket THEN least(limits.requests + 1, p_limit + 1) ELSE 1 END
   RETURNING requests INTO used;
-  RETURN used<=p_limit;
+  RETURN used <= p_limit;
 END $$;
-REVOKE ALL ON FUNCTION public.consume_request_limit(text,integer) FROM PUBLIC,anon,authenticated;
-GRANT EXECUTE ON FUNCTION public.consume_request_limit(text,integer) TO service_role;
+REVOKE ALL ON FUNCTION public.consume_request_limit(text, integer) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.consume_request_limit(text, integer) TO service_role;
 
 COMMIT;
