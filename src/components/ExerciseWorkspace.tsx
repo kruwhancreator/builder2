@@ -793,7 +793,7 @@ export default function ExerciseWorkspace({ chapter, chapterData, selectedExerci
                     📌 คำแนะนำจากครูหวาน:
                   </span>
                   <span className="font-medium text-rose-900">
-                    {exercise.instruction || exercise.guidance || `แบบฝึกหัดนี้ให้นักเรียนดูภาพแล้วแต่งประโยคภาษาอังกฤษให้สอดคล้องกับภาพ โดยใช้โครงสร้าง Core + Context + Connect ให้ถูกต้องนะคะ`}
+                    {exercise.instruction || exercise.guidance || `แบบฝึกหัดนี้ให้นักเรียนดูภาพแล้วแต่งประโยคภาษาอังกฤษให้สอดคล้องกับภาพ โดยศึกษาตัวอย่างโครงสร้าง Core + Context + Connect ด้านล่างนะคะ`}
                   </span>
                 </div>
               </div>
@@ -824,69 +824,65 @@ export default function ExerciseWorkspace({ chapter, chapterData, selectedExerci
                   })();
 
                   return (
-                    <div key={key} className="quiz-item-card flex flex-col bg-[#f8fafc] border border-slate-200 rounded-xl p-5 shadow-2xs">
-                      <div className="quiz-question-prompt text-base sm:text-lg font-bold text-[#1e3a8a] mb-3 font-heading">
-                        ภาพที่ {idx + 1} :
+                    <div key={key} className="quiz-item-card flex flex-col bg-white border border-slate-200/90 rounded-2xl p-5 sm:p-6 shadow-xs transition-all hover:shadow-md">
+                      <div className="flex items-center justify-between gap-3 mb-4">
+                        <div className="quiz-question-prompt text-base sm:text-lg font-extrabold text-[#1e3a8a] font-heading flex items-center gap-2">
+                          <span className="w-7 h-7 rounded-lg bg-blue-100/80 text-[#2563eb] text-sm flex items-center justify-center font-bold">
+                            {idx + 1}
+                          </span>
+                          <span>ภาพที่ {idx + 1}</span>
+                        </div>
+                        {item.context_hint && (
+                          <span className="text-xs text-slate-500 bg-slate-100 px-3 py-1 rounded-full font-medium">
+                            {item.context_hint}
+                          </span>
+                        )}
                       </div>
 
-                      {!item.image_url && <p className="mb-3 text-sm text-slate-600">ยังไม่มีภาพบนเว็บค่ะ โปรดดูภาพข้อที่ {idx + 1} ในหนังสือประกอบ</p>}
+                      {!item.image_url && (
+                        <p className="mb-4 text-sm text-slate-500 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                          ยังไม่มีภาพบนเว็บค่ะ โปรดดูภาพข้อที่ {idx + 1} ในหนังสือประกอบ
+                        </p>
+                      )}
+
                       {/* Render uploaded image if available */}
                       {item.image_url && (
-                        <div className="quiz-image-preview self-center w-full mb-4 overflow-hidden rounded-xl border border-slate-200 bg-white p-2 shadow-2xs max-w-md">
+                        <div className="quiz-image-preview self-center w-full mb-5 overflow-hidden rounded-2xl border border-slate-200/80 bg-slate-50/50 p-2.5 shadow-xs max-w-lg">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={item.image_url}
                             alt={item.context_hint || `ภาพประกอบข้อที่ ${idx + 1}`}
-                            className="w-full h-auto max-h-72 object-contain rounded-lg"
+                            className="w-full h-auto max-h-80 object-contain rounded-xl bg-white"
                             loading="lazy"
                           />
                         </div>
                       )}
 
-                      <div className="quiz-input-wrapper mb-3">
-                        <input
-                          key={`${unitNumber}_${key}`}
-                          maxLength={1500}
-                          aria-label={`คำตอบข้อที่ ${idx + 1}`}
-                          type="text"
-                          value={answers[key] || ''}
-                          onChange={(e) => handleAnswerChange(key, e.target.value)}
-                          placeholder={`แต่งประโยคจากภาพที่ ${idx + 1} ที่นี่...`}
-                          autoComplete="off"
-                          className="quiz-answer-input w-full px-3.5 py-2.5 text-sm sm:text-base text-slate-900 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/15 transition-all bg-white font-sans"
-                        />
-                      </div>
-
-                      <div className="quiz-action-group flex flex-wrap items-center gap-2.5 mb-3">
-                        <button
-                          type="button"
-                          onClick={() => toggleRevealSolution(key)}
-                          className="btn-reveal-solution inline-flex items-center justify-center gap-1.5 text-xs sm:text-sm font-bold text-[#2563eb] hover:text-[#1d4ed8] bg-blue-50 hover:bg-blue-100 border border-blue-200 px-4 py-2.5 rounded-xl transition-all shadow-2xs cursor-pointer min-h-[42px]"
-                        >
-                          💡 {revealedSolutions[key] ? 'ซ่อนเฉลย' : 'ดูตัวอย่างเฉลยที่เป็นไปได้'}
-                        </button>
-                      </div>
-
-                      {/* 💡 ดูตัวอย่างเฉลยที่เป็นไปได้ (Revealed Solution Matrix) */}
-                      {revealedSolutions[key] && possibleSentences.length > 0 && (
-                        <div className="possible-solutions-box mb-3 p-4 bg-[#eff6ff] border border-[#bfdbfe] rounded-xl text-xs sm:text-sm animate-in fade-in duration-200">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="font-bold text-[#1e3a8a]">
-                              💡 ตัวอย่างคำตอบที่เป็นไปได้ ({possibleSentences.length} รูปแบบ):
+                      {/* Always-visible Example Answers List */}
+                      {possibleSentences.length > 0 && (
+                        <div className="possible-solutions-box p-4 sm:p-5 bg-gradient-to-br from-blue-50/70 via-indigo-50/40 to-slate-50 border border-blue-200/80 rounded-2xl text-xs sm:text-sm shadow-xs">
+                          <div className="flex items-center justify-between mb-3 border-b border-blue-200/60 pb-2.5">
+                            <span className="font-extrabold text-[#1e3a8a] text-sm sm:text-base flex items-center gap-1.5">
+                              <span>💡</span>
+                              <span>ตัวอย่างเฉลยที่เป็นไปได้</span>
                             </span>
-                            <span className="text-[11px] text-blue-700 bg-blue-100/80 px-2 py-0.5 rounded-full font-medium">
-                              เลือกตอบแบบใดก็ได้
+                            <span className="text-[11px] text-blue-700 bg-white/90 border border-blue-200 px-2.5 py-0.5 rounded-full font-semibold shadow-2xs">
+                              {possibleSentences.length > 1 ? `${possibleSentences.length} รูปแบบ` : 'ตัวอย่างประโยค'}
                             </span>
                           </div>
-                          <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+
+                          <div className="space-y-2.5">
                             {possibleSentences.map((ans, aIdx) => (
-                              <div key={aIdx} className="bg-white p-2.5 rounded-lg border border-[#bfdbfe] shadow-2xs space-y-1">
-                                <div className="font-mono font-bold text-[#1e3a8a]">
+                              <div
+                                key={aIdx}
+                                className="bg-white/95 backdrop-blur-xs p-3.5 rounded-xl border border-blue-100 shadow-2xs space-y-1.5 transition-all hover:border-blue-300"
+                              >
+                                <div className="font-mono font-bold text-sm sm:text-base text-[#1e3a8a] leading-relaxed">
                                   • {ans.en}
                                 </div>
                                 {ans.th && (
-                                  <div className="text-emerald-800 text-xs font-medium pl-3 flex items-center gap-1">
-                                    <span>📖</span>
+                                  <div className="text-emerald-800 text-xs sm:text-sm font-medium pl-3.5 flex items-center gap-1.5 leading-relaxed">
+                                    <span className="text-emerald-600">📖</span>
                                     <span>{ans.th}</span>
                                   </div>
                                 )}
