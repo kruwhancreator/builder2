@@ -19,9 +19,9 @@ export function AnalyticsTracker() {
     lastTrackedRef.current = pathname;
 
     const segments = pathname.split('/').filter(Boolean);
-    if (segments.length === 0) return;
-
-    const bookSlug = segments[0] || 'sentence-builder-vol-2';
+    const bookSlug = (segments[0] && !segments[0].startsWith('chapter-') && !segments[0].startsWith('unit-'))
+      ? segments[0]
+      : 'sentence-builder-vol-2';
 
     // 1. Track Book Visit / QR Scan (Session-scoped to avoid reload spam)
     const bookSessionKey = `sb_track_book_${bookSlug}`;
@@ -31,7 +31,11 @@ export function AnalyticsTracker() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ type: 'book', bookName: bookSlug })
-        }).then(res => { if (res.ok) sessionStorage.setItem(bookSessionKey, '1'); }).catch(() => {});
+        })
+          .then(res => {
+            if (res.ok) sessionStorage.setItem(bookSessionKey, '1');
+          })
+          .catch(() => {});
       }
     } catch {
       // ignore storage access errors (private mode)
@@ -49,7 +53,11 @@ export function AnalyticsTracker() {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ type: 'unit', bookName: bookSlug, unitNumber })
-            }).then(res => { if (res.ok) sessionStorage.setItem(unitSessionKey, '1'); }).catch(() => {});
+            })
+              .then(res => {
+                if (res.ok) sessionStorage.setItem(unitSessionKey, '1');
+              })
+              .catch(() => {});
           }
         } catch {
           // ignore storage access errors
